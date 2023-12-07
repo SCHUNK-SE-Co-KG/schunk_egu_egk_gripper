@@ -1,0 +1,14 @@
+float32 abs_position
+float32 effort
+bool grp_dir
+---
+float32 current_position
+bool gripped
+bool no_workpiece_detected
+bool workpiece_lost
+bool wrong_workpiece_detected
+---
+float32 current_position
+float32 current_velocity
+float32 motor_current
+bool pre_grip

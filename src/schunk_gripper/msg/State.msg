@@ -1,0 +1,23 @@
+string doing_command
+float32 actual_pos
+float32 actual_vel
+float32 actual_cur
+
+uint8 not_feasible
+uint8 warning
+uint8 error
+
+bool ready_for_operation
+bool control_authority
+bool command_successfully_processed
+bool command_received_toggle
+bool released_for_manual_movement
+bool software_limit_reached
+bool pre_grip_started
+bool workpiece_lost
+bool workpiece_gripped
+bool wrong_workpiece
+bool no_workpiece_detected
+bool position_reached
+bool grip_force_and_maintance
+bool ready_for_shutdown
