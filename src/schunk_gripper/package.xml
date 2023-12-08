@@ -20,8 +20,9 @@
   
   <depend>rclcpp</depend>
   <depend>action_msgs</depend>
-  <depend>sensor_msgs</depend>
   <depend>control_msgs</depend>
+  <depend>sensor_msgs</depend>
+  <depend>ros</depend>
 
   <exec_depend>rosidl_default_runtime</exec_depend>
 

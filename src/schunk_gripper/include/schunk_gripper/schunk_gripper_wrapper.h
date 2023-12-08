@@ -9,7 +9,7 @@
 #include "schunk_gripper/schunk_gripper_lib.h"
 //#include <actionlib/server/simple_action_server.h>
 //#include <dynamic_reconfigure/server.h>
-   //           #include "sensor_msgs/msg/JointState.hpp"
+#include "sensor_msgs/msg/JointState.hpp"
 //#include "diagnostic_updater/diagnostic_updater.h
 
 #include "schunk_gripper/action/grip_egk.hpp"
@@ -26,7 +26,7 @@
 #include "schunk_gripper/action/release_workpiece.hpp"
 #include "schunk_gripper/srv/release_for_man_mov.hpp"
 #include "schunk_gripper/srv/gripper_info.hpp"
-//           #include "control_msgs/action/GripperCommand.hpp"
+//#include "ros2_control/control_msgs/action/GripperCommand.hpp"
 #include "schunk_gripper/action/grip_egu.hpp"
 #include "schunk_gripper/action/grip_with_pos_egu.hpp"
 
@@ -34,12 +34,15 @@
 
 std::recursive_mutex mutex;
 std::recursive_mutex lock_mutex;  //Locks if something is receiving or posting data
+extern  std::map<std::string, const char*> parameter_map;
 
 class SchunkGripperNode : public Gripper
 {
     private:
+
     void publishState();
     void parameterEventCallback(const rcl_interfaces::msg::ParameterEvent::SharedPtr);
+
   //  void publishJointState();
 
     void acknowledge_srv(const std::shared_ptr<schunk_gripper::srv::Acknowledge::Request>, std::shared_ptr<schunk_gripper::srv::Acknowledge::Response> );
@@ -50,6 +53,7 @@ class SchunkGripperNode : public Gripper
     void prepare_for_shutdown_srv(const std::shared_ptr<schunk_gripper::srv::PrepareForShutdown::Request>, std::shared_ptr<schunk_gripper::srv::PrepareForShutdown::Response>);
     void info_srv(const std::shared_ptr<schunk_gripper::srv::GripperInfo::Request>, std::shared_ptr<schunk_gripper::srv::GripperInfo::Response>);
 
+    double actualPosInterval();                                                         //Parameter accept just Position in Interval
    // rclcpp_action::Server<control_msgs::action::GripperCommand>                      control_server;
 
    // rclcpp::Publisher<sensor_msgs::msg::JointState>::SharedPtr     jointStatePublisher;
@@ -63,7 +67,7 @@ class SchunkGripperNode : public Gripper
    // diagnostic_updater::Updater gripper_updater;
 
     schunk_gripper::msg::State msg;
-    float abs_pos_param;
+    double abs_pos_param;
 
     float state_frq;
     float j_state_frq;
@@ -81,8 +85,6 @@ class SchunkGripperNode : public Gripper
     bool action_active;
     bool action_move;
     bool zero_changed;
-
-    rclcpp::Parameter params;
 
     std::array<uint8_t, 3> splitted_Diagnosis;
 
@@ -110,6 +112,11 @@ class SchunkGripperNode : public Gripper
 
     public:
     rclcpp::Subscription<rcl_interfaces::msg::ParameterEvent>::SharedPtr parameter_event;
+    rclcpp::AsyncParametersClient::SharedPtr parameters_client;
+
+    rclcpp::CallbackGroup::SharedPtr messages_group;
+    rclcpp::CallbackGroup::SharedPtr services_group;
+    rclcpp::CallbackGroup::SharedPtr rest;
 
     SchunkGripperNode(std::shared_ptr<rclcpp::Node> nd,std::string ip, float state, float frq);
 //    ~SchunkGripperNode();
@@ -130,17 +137,29 @@ class SchunkGripperNode : public Gripper
     rclcpp::Service<schunk_gripper::srv::Softreset>::SharedPtr              softreset_service;
     rclcpp::Service<schunk_gripper::srv::PrepareForShutdown>::SharedPtr     prepare_for_shutdown_service;
     rclcpp::Service<schunk_gripper::srv::GripperInfo>::SharedPtr            info_service;
-/*
-    void moveAbsExecute(const schunk_gripper::mov_abs_posGoalConstPtr & );
-    void moveRelExecute(const schunk_gripper::mov_rel_posGoalConstPtr & );
-    void gripExecute(const schunk_gripper::gripGoalConstPtr & );
-    void grip_eguExecute(const schunk_gripper::grip_eguGoalConstPtr & );
-    void gripWithPositionExecute(const schunk_gripper::grip_with_posGoalConstPtr & );
-    void gripWithPosition_eguExecute(const schunk_gripper::grip_with_pos_eguGoalConstPtr & );
-    void releaseExecute(const schunk_gripper::release_workpieceGoalConstPtr &);
 
-    void controlExecute(const control_msgs::GripperCommandGoalConstPtr &);
-*/
+    template<typename goaltype>
+    rclcpp_action::GoalResponse handle_goal(const rclcpp_action::GoalUUID & uuid,
+    std::shared_ptr<const goaltype> goal);
+
+    template<typename canceltype>
+    rclcpp_action::CancelResponse handle_cancel(const std::shared_ptr<canceltype> cancel);
+
+    template<typename goalHandleType>
+    void handle_accepted(const std::shared_ptr<goalHandleType> goal_handle);
+
+
+
+    void moveAbsExecute(const std::shared_ptr<rclcpp_action::ServerGoalHandle<schunk_gripper::action::MovAbsPos>>);
+    void moveRelExecute(const std::shared_ptr<rclcpp_action::ServerGoalHandle<schunk_gripper::action::MovRelPos>>);
+    void gripExecute(const std::shared_ptr<rclcpp_action::ServerGoalHandle<schunk_gripper::action::GripEgk>>);
+    void grip_eguExecute(const std::shared_ptr<rclcpp_action::ServerGoalHandle<schunk_gripper::action::GripEgu>>);
+    void gripWithPositionExecute(const std::shared_ptr<rclcpp_action::ServerGoalHandle<schunk_gripper::action::GripWithPosEgk>>);
+    void gripWithPosition_eguExecute(const std::shared_ptr<rclcpp_action::ServerGoalHandle<schunk_gripper::action::GripWithPosEgu>>);
+    void releaseExecute(const std::shared_ptr<rclcpp_action::ServerGoalHandle<schunk_gripper::action::ReleaseWorkpiece>>);
+
+    void controlExecute(const std::shared_ptr<rclcpp_action::ServerGoalHandle<control_msgs::action::MovAbsPos>>);
+
 
 
 };

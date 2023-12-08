@@ -69,7 +69,8 @@ void AnybusCom::updateSavedata(std::string hexStr, const int &count, const int &
         hexStr.erase(hexStr.begin(), hexStr.begin() + 2);
         hexStr.erase(hexStr.end()-2, hexStr.end());
 
-        std::string save[elements];
+        std::vector<std::string> save;
+        save.resize(elements);
 
         for(int i = 0; i < elements; i++)
         {

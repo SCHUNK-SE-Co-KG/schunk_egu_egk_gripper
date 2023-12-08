@@ -16,7 +16,6 @@ class Gripper : protected AnybusCom
    protected:
 
    bool handshake;
-   std::map<std::string, uint32_t> commands_str;
 
    void acknowledge();
    bool gripperBitInput(const uint32_t&) const;
