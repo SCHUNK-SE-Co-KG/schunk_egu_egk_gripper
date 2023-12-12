@@ -1,8 +1,21 @@
+/*
+ * Author:        Viktoria Krimer (viktoria.krimer@de.schunk.com)
+ * Maintainer:    Viktoria Krimer (viktoria.krimer@de.schunk.com)
+ * Created:       DECEMBER 2023
+ * 
+ * Definitions for implementing common procedures to communicate with the gripper.
+ *
+ * The gripper initializes at the beginning. It acts as the middleware between 
+ * communication and the Ros-Wrapper.
+ * 
+ */
+
 #ifndef SCHUNK_GRIPPER_H
 #define SCHUNK_GRIPPER_H
 
 #include "schunk_gripper/communication.h"
-
+#include <chrono>
+#include <thread>
 
 
 extern std::map<std::string, uint32_t> commands_str;

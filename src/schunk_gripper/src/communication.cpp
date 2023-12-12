@@ -1,5 +1,16 @@
+/*
+ * Author:        Viktoria Krimer (viktoria.krimer@de.schunk.com)
+ * Maintainer:    Viktoria Krimer (viktoria.krimer@de.schunk.com)
+ * Created:       DECEMBER 2023
+ * 
+ * Implementation to communicate with the Gripper via AnybusCom 40.
+ * 
+ * This task involves receiving a ByteString via HTTP, interpreting it,
+ * and posting a ByteString if any action needs to be performed by the gripper.
+ */
+
 #include "schunk_gripper/communication.h"
-//Write server response for storage in the Programm
+//Write server response for storage in the Program
 size_t writeCallback(void* contents, size_t size, size_t nmemb, void* userp)
 {
     size_t total_size = size * nmemb;
@@ -7,10 +18,10 @@ size_t writeCallback(void* contents, size_t size, size_t nmemb, void* userp)
     response->append(static_cast<char*>(contents), total_size);
     return total_size;
 }
-//Initialize the plcs and Adresses, get actual data and modul 
+//Initialize the plcs and Addresses, get actual data and module 
 AnybusCom::AnybusCom(std::string ip) : ip(ip)
 {       
-        initAdresses();                  //Init adresses for post and get
+        initAddresses();                  //Init addresses for post and get
 
         curl1 = curl_easy_init();
         curl2 = curl_easy_init();
@@ -24,11 +35,11 @@ void AnybusCom::receiveWithOffset(const std::string &offset, int count, int elem
     std::string response;
     CURLcode res;
 
-    std::string adress = get_adress;
-    adress.append("offset=" + offset + "&count=" + std::to_string(count));
+    std::string address = get_address;
+    address.append("offset=" + offset + "&count=" + std::to_string(count));
         if(curl3) 
         {
-            curl_easy_setopt(curl3, CURLOPT_URL, adress.c_str());
+            curl_easy_setopt(curl3, CURLOPT_URL, address.c_str());
             curl_easy_setopt(curl3, CURLOPT_HTTPGET, 1);
             curl_easy_setopt(curl3,CURLOPT_WRITEFUNCTION, writeCallback);
             curl_easy_setopt(curl3, CURLOPT_WRITEDATA, &response);
@@ -55,15 +66,15 @@ void AnybusCom::updateSavedata(std::string hexStr, const int &count, const int &
     if(count != 1)
     {
         splitted = splitResponse(hexStr,count);
-        savedata.clear();
-        savedata.resize(count);
+        save_data.clear();
+        save_data.resize(count);
 
-        for(int i = 0; i < elements; i++) savedata[i] = readParam<float>(splitted[i]);
+        for(int i = 0; i < elements; i++) save_data[i] = readParam<float>(splitted[i]);
     }
     else
     {
-        savedata.clear();
-        savedata.resize(elements);
+        save_data.clear();
+        save_data.resize(elements);
 
         
         hexStr.erase(hexStr.begin(), hexStr.begin() + 2);
@@ -75,12 +86,12 @@ void AnybusCom::updateSavedata(std::string hexStr, const int &count, const int &
         for(int i = 0; i < elements; i++)
         {
             save[i] = hexStr.substr((i * sizeof(float) * 2),sizeof(float) * 2);
-            savedata.at(i) = readParam<float>(save[i]);
+            save_data.at(i) = readParam<float>(save[i]);
         }
 
     }
 }
-//Split a hexadecimal String, which represents an Array into its parts (HERE THE DATAYTPE IS ALWAYS 4 Bytes)
+//Split a hexadecimal String, which represents an Array into its parts (HERE THE DATATYPE IS ALWAYS 4 Bytes)
 std::vector<std::string> AnybusCom::splitResponse(const std::string hex_str, int count)
 {
     std::vector<std::string> splitted;
@@ -102,7 +113,7 @@ void AnybusCom::postCommand()
     if (curl4) 
     {
         //headers = curl_slist_append(headers, "Content-Type: application/x-www-form-urlencoded");
-        curl_easy_setopt(curl4, CURLOPT_URL, send_data_adress.c_str());
+        curl_easy_setopt(curl4, CURLOPT_URL, send_data_address.c_str());
         curl_easy_setopt(curl4, CURLOPT_POSTFIELDS, post.c_str());
         curl_easy_setopt(curl4, CURLOPT_POST, 1);
         curl_easy_setopt(curl4,CURLOPT_WRITEFUNCTION, writeCallback);
@@ -136,7 +147,7 @@ void AnybusCom::postParameter(std::string inst, std::string value)
     if (curl5) 
     {
      //   headers = curl_slist_append(headers, "Content-Type: application/x-www-form-urlencoded");
-        curl_easy_setopt(curl5, CURLOPT_URL, send_data_adress.c_str());
+        curl_easy_setopt(curl5, CURLOPT_URL, send_data_address.c_str());
         curl_easy_setopt(curl5, CURLOPT_POSTFIELDS, post.c_str());
         curl_easy_setopt(curl5,CURLOPT_WRITEFUNCTION, writeCallback);
         curl_easy_setopt(curl5, CURLOPT_WRITEDATA, &response);
@@ -154,17 +165,17 @@ void AnybusCom::postParameter(std::string inst, std::string value)
      curl_easy_reset(curl5);
 
 }
-//Inits thec used Adresses with the ip
-void AnybusCom::initAdresses()
+//Inits used Addresses with the ip
+void AnybusCom::initAddresses()
 {   
-    get_adress = "http:///adi/data.json?";
-    get_adress.insert(7, ip);
+    get_address = "http:///adi/data.json?";
+    get_address.insert(7, ip);
 
-    send_data_adress = "http:///adi/update.json";
-    send_data_adress.insert(7, ip);
+    send_data_address = "http:///adi/update.json";
+    send_data_address.insert(7, ip);
 
-    enum_adress = "http:///adi/enum.json?";
-    enum_adress.insert(7,ip);
+    enum_address = "http:///adi/enum.json?";
+    enum_address.insert(7,ip);
 }
 //Translates the received string of plc_sync_input to an integer[4] an saves it in plc_sync_input
 void AnybusCom::updatePlc(std::string &hex_str,const std::string &inst)
@@ -184,7 +195,7 @@ void AnybusCom::updatePlc(std::string &hex_str,const std::string &inst)
     }
 
 }
-//Feedback strings getting translate and stored in coresponding varibles
+//Feedback strings getting translate and stored in corresponding variables
 void AnybusCom::updateFeedback(const std::string &hex_str)
 {      
     std::vector<std::string> splitted;
@@ -199,10 +210,10 @@ void AnybusCom::updatePlcOutput(uint32_t command,uint32_t position, uint32_t vel
 {   
     uint32_t actual_command = command & (~GRIP_DIRECTION);      //Command without Grip direction
 
-    if(last_command != actual_command && command != FAST_STOP)             //If not repeating command so do this, and reset the sendet Bits
+    if(last_command != actual_command && command != FAST_STOP)             //If not repeating command so do this, and reset the sended Bits
     plc_sync_output[0] &= mask;
     
-    if(GRIP_DIRECTION == (command & GRIP_DIRECTION)) plc_sync_output[0] ^= GRIP_DIRECTION;  //if command have an positve Grip direction bit
+    if(GRIP_DIRECTION == (command & GRIP_DIRECTION)) plc_sync_output[0] ^= GRIP_DIRECTION;  //if command have an positive Grip direction bit
                                                                                             //Change the direction
 
     if(command == FAST_STOP) 
@@ -233,13 +244,13 @@ void AnybusCom::getEnums(const char inst[7], const uint16_t &enumNum)
     std::string response;
     CURLcode res;
     std::string instance = inst;
-    std::string adress = enum_adress;
-    adress.append("inst=" + instance);
-    adress.append("&value=" + std::to_string(enumNum));
+    std::string address = enum_address;
+    address.append("inst=" + instance);
+    address.append("&value=" + std::to_string(enumNum));
 
     if(curl2) 
     {
-        curl_easy_setopt(curl2, CURLOPT_URL, adress.c_str());
+        curl_easy_setopt(curl2, CURLOPT_URL, address.c_str());
         curl_easy_setopt(curl2,CURLOPT_WRITEFUNCTION, writeCallback);
         curl_easy_setopt(curl2, CURLOPT_HTTPGET, 1);
         curl_easy_setopt(curl2, CURLOPT_WRITEDATA, &response);

@@ -1,3 +1,15 @@
+/*
+ * Author:        Viktoria Krimer (viktoria.krimer@de.schunk.com)
+ * Maintainer:    Viktoria Krimer (viktoria.krimer@de.schunk.com)
+ * Created:       DECEMBER 2023
+ * 
+ * Definitions to communicate with the Gripper via AnybusCom 40.
+ * 
+ * This task involves receiving a ByteString via HTTP, interpreting it,
+ * and posting a ByteString if any action needs to be performed by the gripper.
+ */
+
+
 #ifndef COMMUNICATION_H
 #define COMMUNICATION_H
 
@@ -6,19 +18,14 @@
 #include <iomanip>
 #include <type_traits>
 #include <sstream>
-#include <chrono>
-#include <mutex>
-#include <iostream>
-#include <thread>
-#include <condition_variable>
 #include <schunk_gripper/json.hpp>
 
-//STEUERDOPPELWORT BIT POSITIONS
+//Control double word
 #define FAST_STOP 0x01000000
 #define STOP 0x02000000
 #define ACKNOWLEDGE 0x04000000
 #define PREPARE_FOR_SHUTDOWN 0x08000000
-#define SOFTRESET 0x10000000
+#define SOFT_RESET 0x10000000
 #define EMERGENCY_RELEASE 0x20000000
 #define REPEAT_COMMAND_TOGGLE 0x40000000
 #define GRIP_DIRECTION 0x80000000
@@ -31,7 +38,7 @@
 #define GRIP_WORKPIECE_WITH_POSITION 0x00000100
 #define USE_GPE 0x00000080
 
-//STATUSDOPPELWORT BIT POSITIONS
+//Status double word BIT POSITIONS
 #define READY_FOR_OPERATION 0x01000000
 #define CONTROL_AUTHORITY 0x02000000
 #define READY_FOR_SHUTDOWN 0x04000000
@@ -47,14 +54,14 @@
 #define POSITION_REACHED 0x00200000
 #define PRE_HOLDING 0x00400000
 #define WORK_PIECE_LOST 0x00000100
-#define WRONG_WORKPIECE_DETECTET 0x00000200 
+#define WRONG_WORKPIECE_DETECTED 0x00000200 
 #define BRAKE_ACTIVE 0x00000080
 
-//Insance
+//Instance
 #define PLC_SYNC_INPUT_INST "0x0040"
 #define PLC_SYNC_OUTPUT_INST "0x0048"
 #define GRP_PREHOLD_TIME_INST "0x0380"
-#define MODUL_TYPE_INST "0x0500"
+#define MODULE_TYPE_INST "0x0500"
 #define WP_LOST_DISTANCE_INST "0x0528"
 #define WP_RELEASE_DELTA_INST "0x0540"
 #define GRP_POS_MARGIN_INST "0x0580"
@@ -81,9 +88,9 @@ class AnybusCom
         CURL *curl4;
         CURL *curl5;
 
-        std::string send_data_adress;
-        std::string get_adress;
-        std::string enum_adress;
+        std::string send_data_address;
+        std::string get_address;
+        std::string enum_address;
 
         uint32_t command;
 
@@ -93,7 +100,7 @@ class AnybusCom
         {PLC_SYNC_OUTPUT_INST, &plc_sync_output}
         };
         
-        void initAdresses();
+        void initAddresses();
         void updatePlc(std::string &, const std::string &);
         void updateFeedback(const std::string &);
         std::vector<std::string> splitResponse(const std::string, int);
@@ -147,10 +154,10 @@ class AnybusCom
             {WP_RELEASE_DELTA_INST, &wp_release_delta}
         };
 
-        std::vector<float> savedata;
+        std::vector<float> save_data;
 
-        plc_Array plc_sync_input;   // [0] -> Statusdoppelwort, [1] ->actual Position, [2] ->reserved, [3] ->diagnose 
-        plc_Array plc_sync_output;  // [0] -> Steuerdoppelwort, [1] ->set_position, [3] -> set_veocity, [4] set_effort 
+        plc_Array plc_sync_input;   // [0] -> Status double word,  [1]  ->actual Position, [2] ->reserved,      [3] ->diagnose 
+        plc_Array plc_sync_output;  // [0] -> Control double word, [1]  ->set_position,    [2] -> set_velocity, [3] ->set_effort 
 
         void updateSavedata(std::string, const int &counts, const int &elements);
 
@@ -173,12 +180,12 @@ inline void AnybusCom::getWithInstance(const char inst[7], paramtype *param)
 
     std::string instance = inst;
     
-    std::string adress = get_adress;
-    adress.append("inst=" + instance + "&count=1");
+    std::string address = get_address;
+    address.append("inst=" + instance + "&count=1");
 
     if(curl1) 
     {
-        curl_easy_setopt(curl1, CURLOPT_URL, adress.c_str());
+        curl_easy_setopt(curl1, CURLOPT_URL, address.c_str());
         curl_easy_setopt(curl1,CURLOPT_WRITEFUNCTION, writeCallback);
         curl_easy_setopt(curl1, CURLOPT_HTTPGET, 1);
         curl_easy_setopt(curl1, CURLOPT_WRITEDATA, &response);

@@ -19,5 +19,5 @@ bool workpiece_gripped
 bool wrong_workpiece
 bool no_workpiece_detected
 bool position_reached
-bool grip_force_and_maintance
+bool grip_force_and_maintenance
 bool ready_for_shutdown

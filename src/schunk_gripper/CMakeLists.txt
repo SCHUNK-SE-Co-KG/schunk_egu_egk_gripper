@@ -16,7 +16,10 @@ find_package(ament_cmake REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(sensor_msgs REQUIRED)
 find_package(control_msgs REQUIRED)
+find_package(action_msgs REQUIRED)
 find_package(rosidl_default_generators REQUIRED)
+find_package(rclcpp_components REQUIRED)
+find_package(rclcpp_action REQUIRED)
 
 find_package(Boost REQUIRED COMPONENTS system filesystem thread)
 find_package(OpenSSL REQUIRED)
@@ -93,14 +96,14 @@ rosidl_generate_interfaces(${PROJECT_NAME}
   ${msg_files}
   ${srv_files}
   ${action_files}
-  DEPENDENCIES sensor_msgs control_msgs
+  DEPENDENCIES sensor_msgs control_msgs action_msgs
 )
 
 ament_export_dependencies(rosidl_default_runtime)
 
 add_executable(schunk_gripper_driver src/schunk_gripper_wrapper.cpp)
-ament_target_dependencies(schunk_gripper_driver rclcpp sensor_msgs control_msgs)
 
+ament_target_dependencies(schunk_gripper_driver rclcpp sensor_msgs control_msgs rclcpp_action rclcpp_components)
 target_link_libraries(schunk_gripper_driver ${Boost_LIBRARIES} ${CURL_LIBRARIES} schunk_driverlib -lcurl)
 
 install(TARGETS
@@ -112,7 +115,7 @@ install(DIRECTORY
   DESTINATION include)
 
 ament_export_include_directories(include)
-ament_export_dependencies(sensor_msgs control_msgs)
+ament_export_dependencies(sensor_msgs control_msgs action_msgs)
 
   rosidl_target_interfaces(schunk_gripper_driver
   ${PROJECT_NAME} 
@@ -131,6 +134,7 @@ ament_export_dependencies(sensor_msgs control_msgs)
 #add_dependencies(egu_example schunk_gripper_gencpp)
 #add_dependencies(egu_example ${PROJECT_NAME}_gencfg)
 #target_link_libraries(egu_example ${catkin_LIBRARIES})
+
 
 ament_package()
 

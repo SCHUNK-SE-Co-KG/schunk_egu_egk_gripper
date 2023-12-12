@@ -22,10 +22,13 @@
   <depend>action_msgs</depend>
   <depend>control_msgs</depend>
   <depend>sensor_msgs</depend>
-  <depend>ros</depend>
+  <depend>diagnostic_msgs</depend>
+  <depend>builtin_interfaces</depend>
+  <depend>rclcpp_action</depend>
+  <depend>rclcpp_components</depend>
+
 
   <exec_depend>rosidl_default_runtime</exec_depend>
-
  <member_of_group>rosidl_interface_packages</member_of_group>
  <!--  
   <build_depend>dynamic_reconfigure</build_depend>
