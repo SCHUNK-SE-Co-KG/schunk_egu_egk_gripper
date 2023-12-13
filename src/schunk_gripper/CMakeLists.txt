@@ -45,10 +45,10 @@ set(msg_files
 
 ## Generate actions in the 'action' folder
  set(action_files
-   "action/GripWithPosEgk.action"
-   "action/GripWithPosEgu.action"
-   "action/GripEgk.action"
-   "action/GripEgu.action"
+   "action/GripWithPosVel.action"
+   "action/GripWithPos.action"
+   "action/GripWithVel.action"
+   "action/Grip.action"
    "action/MovAbsPos.action"
    "action/MovRelPos.action" 
    "action/ReleaseWorkpiece.action" 
