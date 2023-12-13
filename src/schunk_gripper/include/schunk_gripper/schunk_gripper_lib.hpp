@@ -10,10 +10,10 @@
  * 
  */
 
-#ifndef SCHUNK_GRIPPER_H
-#define SCHUNK_GRIPPER_H
+#ifndef SCHUNK_GRIPPER_HPP
+#define SCHUNK_GRIPPER_HPP
 
-#include "schunk_gripper/communication.h"
+#include "schunk_gripper/communication.hpp"
 #include <chrono>
 #include <thread>
 

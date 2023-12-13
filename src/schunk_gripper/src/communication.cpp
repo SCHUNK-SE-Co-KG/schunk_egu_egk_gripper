@@ -9,7 +9,7 @@
  * and posting a ByteString if any action needs to be performed by the gripper.
  */
 
-#include "schunk_gripper/communication.h"
+#include "schunk_gripper/communication.hpp"
 //Write server response for storage in the Program
 size_t writeCallback(void* contents, size_t size, size_t nmemb, void* userp)
 {

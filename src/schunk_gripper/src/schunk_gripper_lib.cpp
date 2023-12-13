@@ -9,7 +9,7 @@
  * 
  */
 
-#include "schunk_gripper/schunk_gripper_lib.h"
+#include "schunk_gripper/schunk_gripper_lib.hpp"
 
 //Commands for using in ROS
 std::map<std::string, uint32_t> commands_str

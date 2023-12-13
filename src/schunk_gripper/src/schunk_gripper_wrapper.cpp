@@ -1,4 +1,4 @@
-#include "schunk_gripper/schunk_gripper_wrapper.h"
+#include "schunk_gripper/schunk_gripper_wrapper.hpp"
 
  std::map<std::string, const char*> parameter_map = {
         { "Gripper_Parameter.grp_pos_margin", GRP_POS_MARGIN_INST},
@@ -62,12 +62,14 @@ SchunkGripperNode::SchunkGripperNode(std::shared_ptr<rclcpp::Node> nd,std::strin
     //get an error and a warn string
     error_str = getErrorString(0);
     warn_str = getErrorString(0);
-    //Initialize diagnostics
-  //  gripper_updater.setHardwareID("Module");
-  //  gripper_updater.add(model.c_str(), boost::bind(&SchunkGripperNode::gripperDiagnostics, this, _1));
     //Advertise state
     statePublisher = nd->create_publisher<schunk_gripper::msg::State>("state", 100);
     publish_state_timer=nd->create_wall_timer(std::chrono::duration<float>(1/state_frq), std::bind(&SchunkGripperNode::publishState, this), messages_group);
+    
+    //Initialize diagnostics
+    gripper_updater = std::make_shared<diagnostic_updater::Updater>(nd);
+    gripper_updater->setHardwareID("Module");
+    gripper_updater->add(model, std::bind(&SchunkGripperNode::gripperDiagnostics,this,_1));
     //Look if joint_state_frq is less than state_frq
     float j_state_frq = joint_state_frq;
     if(joint_state_frq > state_frq)
@@ -83,6 +85,7 @@ SchunkGripperNode::SchunkGripperNode(std::shared_ptr<rclcpp::Node> nd,std::strin
     move_abs_server = rclcpp_action::create_server<MovAbsPos>(nd, "move_absolute", std::bind(&SchunkGripperNode::handle_goal<MovAbsPos::Goal>, this, _1, _2),
                                                                                    std::bind(&SchunkGripperNode::handle_cancel<MovAbsPos>, this, _1),
                                                                                    std::bind(&SchunkGripperNode::handle_accepted_abs, this, _1),rcl_action_server_get_default_options(), actions_group);
+   
     move_rel_server = rclcpp_action::create_server<MovRelPos>(nd, "move_relative", std::bind(&SchunkGripperNode::handle_goal<MovRelPos::Goal>, this, _1, _2),
                                                                                    std::bind(&SchunkGripperNode::handle_cancel<MovRelPos>, this, _1),
                                                                                    std::bind(&SchunkGripperNode::handle_accepted_rel, this, _1),rcl_action_server_get_default_options(), actions_group);  
@@ -90,6 +93,7 @@ SchunkGripperNode::SchunkGripperNode(std::shared_ptr<rclcpp::Node> nd,std::strin
     release_wp_server = rclcpp_action::create_server<ReleaseWorkpiece>(nd, "release_workpiece",     std::bind(&SchunkGripperNode::handle_goal<ReleaseWorkpiece::Goal>, this, _1, _2),
                                                                                                     std::bind(&SchunkGripperNode::handle_cancel<ReleaseWorkpiece>, this, _1),
                                                                                                     std::bind(&SchunkGripperNode::handle_accepted_release, this, _1),rcl_action_server_get_default_options(), actions_group);
+    
     control_server = rclcpp_action::create_server<GripperCommand>(nd, "gripper_control",            std::bind(&SchunkGripperNode::handle_goal<GripperCommand::Goal>, this, _1, _2),
                                                                                                     std::bind(&SchunkGripperNode::handle_cancel<GripperCommand>, this, _1),
                                                                                                     std::bind(&SchunkGripperNode::handle_accepted_control, this, _1),rcl_action_server_get_default_options(), actions_group);
@@ -821,9 +825,6 @@ void SchunkGripperNode::publishState()
     updateStateMsg();
     //Publish state
     statePublisher->publish(msg);
-
-   // gripper_updater.update();
-
 }
 //JointStatePublisher
 void SchunkGripperNode::publishJointState()
@@ -1119,8 +1120,12 @@ void SchunkGripperNode::parameterEventCallback(const rcl_interfaces::msg::Parame
         iter++;
    }
 
+
    for(auto fparam = iterate_parameters.begin() + iter; fparam != iterate_parameters.end(); ++fparam)
-   {
+   {    RCLCPP_INFO_STREAM(nd->get_logger(), fparam->name);
+        
+        if(fparam->name.substr(0,18) == "diagnostic_updater") continue;
+        
         switch(fparam->value.type)
         {
         case rcl_interfaces::msg::ParameterType::PARAMETER_DOUBLE:
@@ -1161,17 +1166,16 @@ void SchunkGripperNode::parameterEventCallback(const rcl_interfaces::msg::Parame
 
     }
 }
-/*
 //Diagnostics 
 void SchunkGripperNode::gripperDiagnostics(diagnostic_updater::DiagnosticStatusWrapper& status)
 {   
     splitted_Diagnosis = splitDiagnosis();
 
     if(gripperBitInput(EMERGENCY_RELEASED)) 
-    status.summary(diagnostic_msgs::DiagnosticStatus::WARN, "If you want to end this mode, perform a fast stop and acknowledge!");
+    status.summary(diagnostic_msgs::msg::DiagnosticStatus::WARN, "If you want to end this mode, perform a fast stop and acknowledge!");
     
     else if(gripperBitInput(READY_FOR_SHUTDOWN)) 
-    status.summary(diagnostic_msgs::DiagnosticStatus::WARN, "Ready for shutdown!");
+    status.summary(diagnostic_msgs::msg::DiagnosticStatus::WARN, "Ready for shutdown!");
     //If an error or waning occurred
     else if(plc_sync_input[3] != 0)
     {  //if error
@@ -1181,9 +1185,9 @@ void SchunkGripperNode::gripperDiagnostics(diagnostic_updater::DiagnosticStatusW
             {
                 const std::lock_guard<std::recursive_mutex> lock(lock_mutex);
                 error_str = getErrorString(splitted_Diagnosis[2]);
-                ROS_ERROR("%i\n%s",splitted_Diagnosis[2] , error_str.c_str());
+                RCLCPP_ERROR(nd->get_logger(),"%i\n%s",splitted_Diagnosis[2] , error_str.c_str());
             }
-            status.summaryf(diagnostic_msgs::DiagnosticStatus::ERROR, "Error: %i\n%s" ,splitted_Diagnosis[2] ,error_str.c_str());
+            status.summaryf(diagnostic_msgs::msg::DiagnosticStatus::ERROR, "Error: %i\n%s" ,splitted_Diagnosis[2] ,error_str.c_str());
         }
         //if not feasible
         if(splitted_Diagnosis[0])
@@ -1195,7 +1199,7 @@ void SchunkGripperNode::gripperDiagnostics(diagnostic_updater::DiagnosticStatusW
                 RCLCPP_WARN(nd->get_logger(),"%s",(warn_str+ ": " + std::to_string(splitted_Diagnosis[0])).c_str());
             }
             if(splitted_Diagnosis[2] == 0)
-            status.summary(diagnostic_msgs::DiagnosticStatus::WARN, warn_str +" "+ std::to_string(splitted_Diagnosis[0]));
+            status.summary(diagnostic_msgs::msg::DiagnosticStatus::WARN, warn_str +" "+ std::to_string(splitted_Diagnosis[0]));
         }
         //if warning
         else if(splitted_Diagnosis[1])
@@ -1207,7 +1211,7 @@ void SchunkGripperNode::gripperDiagnostics(diagnostic_updater::DiagnosticStatusW
                 RCLCPP_WARN(nd->get_logger(),"%i\n%s", splitted_Diagnosis[1], warn_str.c_str());
             }
             if(splitted_Diagnosis[2] == 0)
-            status.summaryf(diagnostic_msgs::DiagnosticStatus::WARN, "Warning: %i\n%s",splitted_Diagnosis[1], warn_str.c_str());
+            status.summaryf(diagnostic_msgs::msg::DiagnosticStatus::WARN, "Warning: %i\n%s",splitted_Diagnosis[1], warn_str.c_str());
         }
     }
 
@@ -1219,7 +1223,7 @@ void SchunkGripperNode::gripperDiagnostics(diagnostic_updater::DiagnosticStatusW
             error_str = getErrorString(0);
             RCLCPP_INFO(nd->get_logger(),"%s",error_str.c_str());
         }
-        status.summary(diagnostic_msgs::DiagnosticStatus::OK, error_str);
+        status.summary(diagnostic_msgs::msg::DiagnosticStatus::OK, error_str);
     }
 
     old_diagnosis = splitted_Diagnosis;
@@ -1245,11 +1249,11 @@ void SchunkGripperNode::gripperDiagnostics(diagnostic_updater::DiagnosticStatusW
     status.add("Grip force and position maintenance", gripperBitInput(BRAKE_ACTIVE));
     status.add("Ready for shutdown", gripperBitInput(READY_FOR_SHUTDOWN));
 
-};
+}
 
 SchunkGripperNode::~SchunkGripperNode()
-{ };
-*/
+{ }
+
 int main(int argc, char* argv[])
 {
     rclcpp::init(argc, argv);
@@ -1283,29 +1287,8 @@ int main(int argc, char* argv[])
     rclcpp::executors::MultiThreadedExecutor executor;
     executor.add_node(node);
     executor.spin();
-/*
-    std::string ip;
-    float state_frq;
-    float rate;  
-
-    if(ros::param::get("/schunk_gripper_driver/IP", ip)) RCLCPP_INFO(nd->get_logger(),"IP: %s",ip.c_str());
-    else
-    {
-        ROS_ERROR("IP Parameter not retrieved!");
-        ros::shutdown();
-        return -1;
-    }
-    state_frq = nd.param("/schunk_gripper_driver/state_frq", 60.0);
-    RCLCPP_INFO(nd->get_logger(),"state_frq: %f", state_frq);
-
-    rate = nd.param("/rate", 10.0);
-    RCLCPP_INFO(nd->get_logger(),"rate: %f",rate);
-*/  
-    //SchunkGripperNode *schunkgrippernode = new SchunkGripperNode(&nd, ip, state_frq, rate);
-    
     
     rclcpp::shutdown();
-    //delete schunkgrippernode;
 
     return 0;
 }

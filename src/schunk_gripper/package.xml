@@ -23,6 +23,7 @@
   <depend>control_msgs</depend>
   <depend>sensor_msgs</depend>
   <depend>diagnostic_msgs</depend>
+  <depend>diagnostic_updater</depend>
   <depend>builtin_interfaces</depend>
   <depend>rclcpp_action</depend>
   <depend>rclcpp_components</depend>

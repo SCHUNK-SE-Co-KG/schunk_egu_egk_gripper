@@ -1,14 +1,14 @@
-#ifndef SCHUNK_GRIPPER_WRAPPER_H
-#define SCHUNK_GRIPPER_WRAPPER_H
+#ifndef SCHUNK_GRIPPER_WRAPPER_HPP
+#define SCHUNK_GRIPPER_WRAPPER_HPP
 
 #include <rclcpp/rclcpp.hpp>
 #include "rclcpp_action/rclcpp_action.hpp"
 #include "rclcpp_components/register_node_macro.hpp"
 #include <rclcpp/parameter.hpp>
 #include <rcl_interfaces/msg/parameter_event.hpp>
-#include "schunk_gripper/schunk_gripper_lib.h"
+#include "schunk_gripper/schunk_gripper_lib.hpp"
 #include "sensor_msgs/msg/joint_state.hpp"
-//#include <diagnostic_updater/diagnostic_updater.hpp>
+#include <diagnostic_updater/diagnostic_updater.hpp>
 
 #include "schunk_gripper/action/grip_with_vel.hpp"
 #include "schunk_gripper/action/grip_with_pos_vel.hpp"
@@ -77,7 +77,7 @@ class SchunkGripperNode : public Gripper
     rclcpp::Time                        diagnostic_time;
     std::shared_ptr<rclcpp::Node>       nd;
 
-   // diagnostic_updater::Updater gripper_updater;
+    std::shared_ptr<diagnostic_updater::Updater> gripper_updater;
 
     schunk_gripper::msg::State msg;
     double abs_pos_param;
@@ -111,7 +111,7 @@ class SchunkGripperNode : public Gripper
     void runActionGrip(std::shared_ptr<feedbacktype>, std::shared_ptr<rclcpp_action::ServerGoalHandle<goaltype>>);
     void updateStateMsg();
     void declareParameter();
-    //void gripperDiagnostics(diagnostic_updater::DiagnosticStatusWrapper&);
+    void gripperDiagnostics(diagnostic_updater::DiagnosticStatusWrapper&);
     void finishedCommand();
 
     rcl_interfaces::msg::ParameterDescriptor parameter_descriptor(const std::string&, const rcl_interfaces::msg::FloatingPointRange&);
@@ -131,7 +131,7 @@ class SchunkGripperNode : public Gripper
     rclcpp::CallbackGroup::SharedPtr rest;
 
     SchunkGripperNode(std::shared_ptr<rclcpp::Node> nd,std::string ip, float state, float frq);
-//    ~SchunkGripperNode();
+    ~SchunkGripperNode();
 
     rclcpp_action::Server<MovAbsPos>::SharedPtr              move_abs_server;
     rclcpp_action::Server<MovRelPos>::SharedPtr              move_rel_server;
