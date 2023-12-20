@@ -43,6 +43,7 @@ void AnybusCom::receiveWithOffset(const std::string &offset, int count, int elem
             curl_easy_setopt(curl3, CURLOPT_HTTPGET, 1);
             curl_easy_setopt(curl3,CURLOPT_WRITEFUNCTION, writeCallback);
             curl_easy_setopt(curl3, CURLOPT_WRITEDATA, &response);
+            
        //   curl_easy_setopt(curl2, CURLOPT_VERBOSE, 1L); // Enable verbose output
             res = curl_easy_perform(curl3); 
             

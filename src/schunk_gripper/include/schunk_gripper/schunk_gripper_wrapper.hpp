@@ -1,7 +1,7 @@
 #ifndef SCHUNK_GRIPPER_WRAPPER_HPP
 #define SCHUNK_GRIPPER_WRAPPER_HPP
 
-#include <rclcpp/rclcpp.hpp>
+#include "rclcpp/rclcpp.hpp"
 #include "rclcpp_action/rclcpp_action.hpp"
 #include "rclcpp_components/register_node_macro.hpp"
 #include <rclcpp/parameter.hpp>
@@ -27,14 +27,11 @@
 #include "schunk_gripper/action/grip.hpp"
 #include "schunk_gripper/action/grip_with_pos.hpp"
 
-//typedef dynamic_reconfigure::Server<schunk_gripper::gripper_parameterConfig>    ReconfigureServer;
-
-std::recursive_mutex mutex;
-std::recursive_mutex lock_mutex;  //Locks if something is receiving or posting data
+extern std::recursive_mutex lock_mutex;  //Locks if something is receiving or posting data
 extern  std::map<std::string, const char*> parameter_map;
 
 class SchunkGripperNode : public Gripper
-{
+{    
     private:
 
     void publishState();
@@ -130,7 +127,7 @@ class SchunkGripperNode : public Gripper
     rclcpp::CallbackGroup::SharedPtr actions_group;
     rclcpp::CallbackGroup::SharedPtr rest;
 
-    SchunkGripperNode(std::shared_ptr<rclcpp::Node> nd,std::string ip, float state, float frq);
+    SchunkGripperNode(std::shared_ptr<rclcpp::Node> nd, std::string ip, float state, float frq);
     ~SchunkGripperNode();
 
     rclcpp_action::Server<MovAbsPos>::SharedPtr              move_abs_server;
