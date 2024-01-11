@@ -29,8 +29,10 @@ std::map<std::string, uint32_t> commands_str
 //Start th gripper, so it is ready to operate
 Gripper::Gripper(std::string ip): AnybusCom(ip)
    {  
+   try
+   {
       startGripper();
-
+      
       grp_pos_lock = gripperBitOutput(USE_GPE);
       //Get parameters
       getWithInstance<float>(GRP_POS_MARGIN_INST, &grp_pos_margin);
@@ -63,6 +65,17 @@ Gripper::Gripper(std::string ip): AnybusCom(ip)
       }
       
       printf("%s CONNECTED!", model.c_str());
+      start_connection = true;
+   }
+   catch(const char* res)
+   {
+      std::cout << "Failed Connection to gripper. "<< res << std::endl;
+      start_connection = false;
+   }
+   catch(...)
+   {
+      start_connection = false;
+   }
 
    }
 //Check if Errors occurred by the gripper

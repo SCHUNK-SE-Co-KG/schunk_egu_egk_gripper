@@ -36,6 +36,9 @@ class SchunkGripperNode : public Gripper
 
     void publishState();
     void parameterEventCallback(const rcl_interfaces::msg::ParameterEvent::SharedPtr);
+    
+    std::string connection_error;
+    rcl_interfaces::msg::ParameterEvent::SharedPtr failed_param;
 
     void publishJointState();
 

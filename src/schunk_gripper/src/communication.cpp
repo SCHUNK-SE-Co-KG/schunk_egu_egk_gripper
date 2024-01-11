@@ -36,20 +36,24 @@ void AnybusCom::receiveWithOffset(const std::string &offset, int count, int elem
     CURLcode res;
 
     std::string address = get_address;
-    address.append("offset=" + offset + "&count=" + std::to_string(count));
+    
+    if(offset.length() <= 5) address.append("offset=" + offset + "&count=" + std::to_string(count));
+    else throw "Offset to many symbols";
+
         if(curl3) 
         {
             curl_easy_setopt(curl3, CURLOPT_URL, address.c_str());
             curl_easy_setopt(curl3, CURLOPT_HTTPGET, 1);
             curl_easy_setopt(curl3,CURLOPT_WRITEFUNCTION, writeCallback);
             curl_easy_setopt(curl3, CURLOPT_WRITEDATA, &response);
-            
+            curl_easy_setopt(curl3, CURLOPT_TIMEOUT, 1);
        //   curl_easy_setopt(curl2, CURLOPT_VERBOSE, 1L); // Enable verbose output
             res = curl_easy_perform(curl3); 
             
-            if(res != CURLE_OK)
+            if (res != CURLE_OK)
             {
-            fprintf(stderr, "curl_easy_perform() failed: %s\n", curl_easy_strerror(res));
+            fprintf(stderr, "curl_easy_perform_failed: %s\n", curl_easy_strerror(res));
+            throw curl_easy_strerror(res);
             }
 
             else
@@ -93,7 +97,7 @@ void AnybusCom::updateSavedata(std::string hexStr, const int &count, const int &
     }
 }
 //Split a hexadecimal String, which represents an Array into its parts (HERE THE DATATYPE IS ALWAYS 4 Bytes)
-std::vector<std::string> AnybusCom::splitResponse(const std::string hex_str, int count)
+std::vector<std::string> AnybusCom::splitResponse(const std::string &hex_str, int count)
 {
     std::vector<std::string> splitted;
     splitted.resize(count);
@@ -119,21 +123,22 @@ void AnybusCom::postCommand()
         curl_easy_setopt(curl4, CURLOPT_POST, 1);
         curl_easy_setopt(curl4,CURLOPT_WRITEFUNCTION, writeCallback);
         curl_easy_setopt(curl4, CURLOPT_WRITEDATA, &response);
-        curl_easy_setopt(curl4, CURLOPT_TIMEOUT, 10L);
+        curl_easy_setopt(curl4, CURLOPT_TIMEOUT, 1L);
         //curl_easy_setopt(curl3, CURLOPT_TRANSFER_ENCODING, 1L);
         //curl_easy_setopt(curl3, CURLOPT_HTTPHEADER, headers);
         res = curl_easy_perform(curl4);
 
-        json_data.clear();
-        json_data = nlohmann::json::parse(response);
-
-        if (res != CURLE_OK)  
+        if (res != CURLE_OK)
         {
             fprintf(stderr, "curl_easy_perform_failed: %s\n", curl_easy_strerror(res));
+            throw curl_easy_strerror(res);
         }
-        else if(json_data["result"] == 0);
-        else  std::cout << "Server response: " << json_data["result"] << std::endl;
-    
+        else  
+        {
+            json_data.clear();
+            json_data = nlohmann::json::parse(response);
+            if(json_data["result"] != 0)  std::cout << "Server response: " << json_data["result"] << std::endl;
+        }
     curl_easy_reset(curl4);
     }
 }
@@ -142,8 +147,13 @@ void AnybusCom::postParameter(std::string inst, std::string value)
 {
     CURLcode res;
     std::string response;
-    std::string post = "inst=" + inst;
-    post.append("&value=" + value);
+    std::string post;
+    if(inst.length() <= 20 && value.length() <= 500)
+    {
+        post = "inst=" + inst;
+        post.append("&value=" + value);
+    }
+    else throw "To many symbols.";
 
     if (curl5) 
     {
@@ -152,16 +162,23 @@ void AnybusCom::postParameter(std::string inst, std::string value)
         curl_easy_setopt(curl5, CURLOPT_POSTFIELDS, post.c_str());
         curl_easy_setopt(curl5,CURLOPT_WRITEFUNCTION, writeCallback);
         curl_easy_setopt(curl5, CURLOPT_WRITEDATA, &response);
-        curl_easy_setopt(curl5, CURLOPT_TIMEOUT, 10L);
+        curl_easy_setopt(curl5, CURLOPT_TIMEOUT, 1L);
      //   curl_easy_setopt(curl, CURLOPT_TRANSFER_ENCODING, 1L);
      //   curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
         res = curl_easy_perform(curl5);
-        json_data.clear();
-        json_data = nlohmann::json::parse(response);
 
-        if (res != CURLE_OK)  fprintf(stderr, "curl_easy_perform_failed: %s\n", curl_easy_strerror(res));
-        else if(json_data["result"] == 0);
-        else  std::cout << "Server response: " << json_data["result"] << std::endl;
+        if (res != CURLE_OK)
+        {
+            fprintf(stderr, "curl_easy_perform_failed: %s\n", curl_easy_strerror(res));
+            curl_easy_reset(curl5);
+            throw curl_easy_strerror(res);
+        }
+        else  
+        {
+            json_data.clear();
+            json_data = nlohmann::json::parse(response);
+            if(json_data["result"] != 0)  std::cout << "Server response: " << json_data["result"] << std::endl;
+        }
     }
      curl_easy_reset(curl5);
 
@@ -170,13 +187,15 @@ void AnybusCom::postParameter(std::string inst, std::string value)
 void AnybusCom::initAddresses()
 {   
     get_address = "http:///adi/data.json?";
-    get_address.insert(7, ip);
-
     send_data_address = "http:///adi/update.json";
-    send_data_address.insert(7, ip);
-
     enum_address = "http:///adi/enum.json?";
+
+    if(ip.size() >= 100) ip = "0.0.0.0";
+    
+    get_address.insert(7, ip);
+    send_data_address.insert(7, ip);
     enum_address.insert(7,ip);
+
 }
 //Translates the received string of plc_sync_input to an integer[4] an saves it in plc_sync_input
 void AnybusCom::updatePlc(std::string &hex_str,const std::string &inst)
@@ -255,12 +274,14 @@ void AnybusCom::getEnums(const char inst[7], const uint16_t &enumNum)
         curl_easy_setopt(curl2,CURLOPT_WRITEFUNCTION, writeCallback);
         curl_easy_setopt(curl2, CURLOPT_HTTPGET, 1);
         curl_easy_setopt(curl2, CURLOPT_WRITEDATA, &response);
+        curl_easy_setopt(curl2, CURLOPT_TIMEOUT, 1L);
       //  curl_easy_setopt(curl, CURLOPT_VERBOSE, 1L); // Enable verbose output
         res = curl_easy_perform(curl2);
 
-        if(res != CURLE_OK)
+        if (res != CURLE_OK)
         {
-        fprintf(stderr, "curl_easy_perform() failed: %s\n", curl_easy_strerror(res));
+            fprintf(stderr, "curl_easy_perform_failed: %s\n", curl_easy_strerror(res));
+            throw curl_easy_strerror(res);
         }
 
         else

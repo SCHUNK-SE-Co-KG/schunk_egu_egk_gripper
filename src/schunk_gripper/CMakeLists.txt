@@ -95,6 +95,12 @@ install(DIRECTORY
   include/
   DESTINATION include
 )
+# Install launch files.
+install(DIRECTORY
+  launch
+  DESTINATION share/${PROJECT_NAME}/
+)
+
 
 # Export include directories and dependencies
 ament_export_include_directories(include)

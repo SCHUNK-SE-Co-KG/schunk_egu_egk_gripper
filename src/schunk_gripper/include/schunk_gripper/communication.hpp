@@ -103,7 +103,7 @@ class AnybusCom
         void initAddresses();
         void updatePlc(std::string &, const std::string &);
         void updateFeedback(const std::string &);
-        std::vector<std::string> splitResponse(const std::string, int);
+        std::vector<std::string> splitResponse(const std::string &, int);
 
     protected:
 

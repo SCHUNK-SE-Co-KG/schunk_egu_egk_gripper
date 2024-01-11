@@ -309,11 +309,11 @@ int main(int argc, char** argv)
     //ALL SERVICES
     auto acknowledge_client = node->create_client<Acknowledge> ("acknowledge");
     auto stop_client = node->create_client<Stop>("stop");
-    auto softreset_client = node->create_client<Softreset>("softreset");
-    auto release_for_manual_mov_client = node->create_client<ReleaseForManMov>("release_for_manual_movement");
-    auto prepare_for_shutdown_client = node->create_client<PrepareForShutdown>("prepare_for_shutdown");
-    auto fast_stop_client = node->create_client<FastStop>("fast_stop");
-    auto info_client = node->create_client<GripperInfo>("gripper_info");
+//    auto softreset_client = node->create_client<Softreset>("softreset");
+//    auto release_for_manual_mov_client = node->create_client<ReleaseForManMov>("release_for_manual_movement");
+//    auto prepare_for_shutdown_client = node->create_client<PrepareForShutdown>("prepare_for_shutdown");
+//    auto fast_stop_client = node->create_client<FastStop>("fast_stop");
+//    auto info_client = node->create_client<GripperInfo>("gripper_info");
     //ALL ACTIONS
     auto move_abs_client = rclcpp_action::create_client<MovAbsPos>(node, "move_absolute");
     auto move_rel_client = rclcpp_action::create_client<MovRelPos>(node, "move_relative");

@@ -9,8 +9,9 @@ def generate_launch_description():
             executable='schunk_gripper_driver',
             name='schunk_gripper_driver',
             output='screen',
+            emulate_tty=True,
             parameters=[
-                {'IP': '10.49.60.74'},
+                {'IP': '10.49.60.91'},
                 {'state_frq': 60.0},
                 {'rate': 10.0},
                 {'Gripper Parameter.use_brk': False},

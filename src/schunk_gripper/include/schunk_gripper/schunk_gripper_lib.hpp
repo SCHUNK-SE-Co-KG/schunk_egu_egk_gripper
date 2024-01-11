@@ -37,6 +37,7 @@ class Gripper : protected AnybusCom
    uint32_t mm2mu(const float &);
 
    std::string getErrorString(const uint8_t &);
+   bool start_connection;
 
    public:
 

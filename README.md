@@ -33,13 +33,13 @@ rosdep install --from-paths src --ignore-src -y
 Build the workspace and activate it:
 ```
 colcon build
-source devel/setup.bash
+source install/local_setup.bash
 ```
 ## Getting started
 
 To set up the environment for an EGU/EGK gripper, you'll need its IP address. Once obtained, you can then input it into the 'schunk.launch' file, configuring it to appear as follows:
 ```
-<param name="IP" type="str" value="10.49.60.74" />
+ parameters=[ {'IP': '10.49.60.74'} ]
 ```
 Replace **"10.49.60.74"** with your own IP address.
 
@@ -120,11 +120,11 @@ Optionally, you can perform some basic commands to the gripper via dynamic Recon
 
 To explore the capabilities of the gripper-driver, I recommend using rqt. There, you can view all topics, dynamic reconfigure parameters, and services. You can also publish messages on topics (such as action goals) or call services. To launch rqt with the node, use the schunk_rqt.launch:
 ```
-roslaunch schunk_gripper schunk_rqt.launch
+ros launch schunk_gripper schunk_rqt.launch
 ```
 Alternatively, you can launch schunk.launch and open the rqt tool separately:
 ```
-roslaunch schunk_gripper schunk.launch
+ros launch schunk_gripper schunk.launch
 rqt
 ```
 ![rqt](doc/rqt_interface.png)
@@ -139,5 +139,5 @@ Open:
 
 Additionally, you can refer to 'client.cpp' for guidance on using this driver in your code. To run the example, start 'schunk.launch' (or 'schunk_rqt.launch') and then execute the example:
 ```
-rosrun schunk_gripper schunk_example
+ros run schunk_gripper schunk_example
 ```
