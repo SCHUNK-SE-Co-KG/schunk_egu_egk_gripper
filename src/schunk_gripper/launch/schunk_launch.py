@@ -7,6 +7,7 @@ def generate_launch_description():
         Node(
             package='schunk_gripper',
             executable='schunk_gripper_driver',
+            namespace='EGK_50_M_B',
             name='schunk_gripper_driver',
             output='screen',
             emulate_tty=True,

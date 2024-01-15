@@ -1438,9 +1438,8 @@ SchunkGripperNode::~SchunkGripperNode()
 int main(int argc, char* argv[])
 {
     rclcpp::init(argc, argv);
-
     auto node = std::make_shared<rclcpp::Node>("schunk_gripper_driver");
-    
+
     rcl_interfaces::msg::ParameterDescriptor param_des;
     
     param_des.read_only = true;
@@ -1458,8 +1457,12 @@ int main(int argc, char* argv[])
     node->get_parameter("rate",rate);
 
     auto schunkgrippernode = std::make_shared<SchunkGripperNode>(node ,ip, state_frq, rate);
-    if(schunkgrippernode->model.size() > 5)
-    RCLCPP_INFO(rclcpp::get_logger("rclcpp"),"%s INITIALISED!", schunkgrippernode->model.c_str());
+    
+    if(schunkgrippernode->model.size() > 5) RCLCPP_INFO(rclcpp::get_logger("rclcpp"),"%s INITIALISED!", schunkgrippernode->model.c_str());
+    else return -1;
+
+    param_des.description = "Model of the gripper";
+    node->declare_parameter("model", schunkgrippernode->model, param_des);
 
     rclcpp::executors::MultiThreadedExecutor executor;
     executor.add_node(node);

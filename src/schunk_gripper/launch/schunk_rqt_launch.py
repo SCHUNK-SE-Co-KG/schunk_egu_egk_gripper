@@ -1,13 +1,12 @@
 from launch import LaunchDescription
 from launch_ros.actions import Node
-import os
-from glob import glob
 
 def generate_launch_description():
     return LaunchDescription([
         Node(
             package='schunk_gripper',
             executable='schunk_gripper_driver',
+            namespace='EGK_50_M_B',
             name='schunk_gripper_driver',
             output='screen',
             emulate_tty=True,
