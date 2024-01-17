@@ -29,11 +29,13 @@ class Gripper : protected AnybusCom
    protected:
 
    bool handshake;
+   bool ip_changed_with_all_param;
 
    void acknowledge();
+   void getActualParameters();
    bool gripperBitInput(const uint32_t&) const;
    bool gripperBitOutput(const uint32_t&) const;
-
+   bool changeIp(const std::string &);
    uint32_t mm2mu(const float &);
 
    std::string getErrorString(const uint8_t &);

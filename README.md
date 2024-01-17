@@ -11,7 +11,7 @@ The driver communicates with the AnybusCom 40 interface, enabling its use with P
 
 ## Requirements
 
-It is recommended to use ROS foxy.
+The used distributution is foxy.
 
 Following C++ libraries are required: 
 - [libcurl](https://curl.se/libcurl/)
@@ -37,7 +37,7 @@ source install/local_setup.bash
 ```
 ## Getting started
 
-To set up the environment for an EGU/EGK gripper, you'll need its IP address. Once obtained, you can then input it into the 'schunk.launch' file, configuring it to appear as follows:
+To set up the environment for an EGU/EGK gripper, you'll need its IP address. Once obtained, you can then input it into the 'schunk_launch.py' file. (path: src/schunk_gripper/launch/schunk_launch.py) configuring it to appear as follows:
 ```
  parameters=[ {'IP': '10.49.60.74'} ]
 ```
@@ -63,12 +63,12 @@ All functionalities of the gripper, including movement, are treated as actions. 
 
 - `move_absolute`
 - `move_relative`
-- `grip_egk`
-- `grip_egu`
-- `grip_with_pos_egk`
-- `grip_with_pos_egu`
+- `grip`
+- `grip_with_pos`
 - `release_workpiece`
 - `gripper_control`
+
+Depending on your model you have to use different action definitions for `grip` and `grip_with_pos`.
 
 As evident, there are two grip actions for each gripper model. This distinction arises from the model-dependent availability of SoftGrip or StrongGrip. Specifically, the EGK gripper provides SoftGrip, whereas the EGU gripper offers StrongGrip. To perform SoftGrip, when using an EGK gripper, you can specify the desired velocity. If the velocity is set to zero, the gripper performs a BasicGrip operation. Any additional details should be sourced from the programming guide:
 
@@ -86,6 +86,7 @@ Services are functionalities that do not involve movement or occur so rapidly th
 - `stop`
 - `fast_stop`
 - `softreset`
+- `change_ip`
 - `release_for_manual_movement`
 - `prepare_for_shutdown`
 - `gripper_info`
@@ -100,7 +101,9 @@ All other services can be used whenever you like. (**Note:** Fast stop is an abo
 
 `gripper_info` publishes some information about the gripper on the terminal screen.
 
-## dynamic_Reconfigure
+`change_ip` is the only method for altering the IP address during runtime. If nothing is connected to the IP address or a gripper is connected, it undergoes a change. If something else is linked to this IP, errors will occur, and the old address will be retained in such cases. Exercise caution when using this service!
+
+## Parameter
 
 You can change parameter of the Gripper using dynamic reconfigure. Following parameters are available for change:
 
@@ -112,32 +115,35 @@ You can change parameter of the Gripper using dynamic reconfigure. Following par
 - `wp_release_delta`
 - `wp_lost_distance`
 
-You have the option to change the default values in the `gripper_parameter.cfg` file, which will be loaded when you start the node.
+For this type of parameter, you have to include the namespace: "GripperParameter."
+Example: `GripperParameter.use_brk`
 
-Optionally, you can perform some basic commands to the gripper via dynamic Reconfigure. In this case, I recommend trying out rqt and opening the dynamic reconfigure Monitor.
+You have the option to change the default values in the `schunk_launch.py` file, which will be loaded when you start the node.
+
+Optionally, you can perform some basic commands to the gripper via Parameter. In this case, I recommend trying out rqt and opening the parameter reconfigure Monitor. (Note: It may not function optimally in ROS 2; if that's the case, I recommend using the terminal instead)
 
 ## Example
 
-To explore the capabilities of the gripper-driver, I recommend using rqt. There, you can view all topics, dynamic reconfigure parameters, and services. You can also publish messages on topics (such as action goals) or call services. To launch rqt with the node, use the schunk_rqt.launch:
+To explore the capabilities of the gripper-driver, I recommend using rqt. There, you can view all topics, dynamic reconfigure parameters, and services. You can also publish messages on topics (such as action goals) or call services. To launch rqt with the node, use the schunk_rqt_launch.py:
 ```
-ros launch schunk_gripper schunk_rqt.launch
+ros2 launch schunk_gripper schunk_rqt_launch.py
 ```
 Alternatively, you can launch schunk.launch and open the rqt tool separately:
 ```
-ros launch schunk_gripper schunk.launch
+ros2 launch schunk_gripper schunk_launch.py
 rqt
 ```
 ![rqt](doc/rqt_interface.png)
 
 Open:
-- Plugins/Configuration/Dynamic Reconfigure: For changing parameters.
+- Plugins/Configuration/Parameter Reconfigure: For changing parameters.
 - Plugins/Robot Tools/Runtime Monitor:  For viewing diagnostics.
 - Plugins/Services/Service Caller: For calling services.
 - Plugins/Topic/Message Publisher: For publishing messages.
 - Plugins/Topic/Topic Monitor: For viewing all messages.
 
 
-Additionally, you can refer to 'client.cpp' for guidance on using this driver in your code. To run the example, start 'schunk.launch' (or 'schunk_rqt.launch') and then execute the example:
+Additionally, you can refer to 'example.cpp' for guidance on using this driver in your code. To run the example, start 'schunk_launch.py' (or 'schunk_rqt_launch.py') and then execute the example:
 ```
-ros run schunk_gripper schunk_example
+ros2 run schunk_gripper schunk_example
 ```

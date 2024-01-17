@@ -100,13 +100,13 @@ class AnybusCom
         {PLC_SYNC_OUTPUT_INST, &plc_sync_output}
         };
         
-        void initAddresses();
         void updatePlc(std::string &, const std::string &);
         void updateFeedback(const std::string &);
         std::vector<std::string> splitResponse(const std::string &, int);
 
     protected:
-
+    
+        void initAddresses();
         std::string ip;
 
         uint32_t last_command;
@@ -117,11 +117,20 @@ class AnybusCom
         const uint32_t mask = FAST_STOP | USE_GPE | GRIP_DIRECTION | REPEAT_COMMAND_TOGGLE;
 
         void receiveWithOffset(const std::string &offset, int count, int elements);                           //A Function just for Gripper Feedback
+                                                                                                                //TODO getWithOffset() Parameter 
        
         template<typename paramtype>
         std::string writeValue2Str(paramtype);
         template<typename paramtype>
         paramtype readParam(std::string);
+
+        void updateSavedata(std::string, const int &counts, const int &elements);
+        void updatePlcOutput(uint32_t, uint32_t  = 0, uint32_t = 0, uint32_t = 0);
+        void postCommand();
+        void postParameter(std::string, std::string);   
+        template<typename paramtype>
+        void getWithInstance(const char inst[7], paramtype *param = NULL);               //Gripper Response
+        void getEnums(const char[7],const uint16_t &);
 
     public:
 
@@ -159,15 +168,6 @@ class AnybusCom
         plc_Array plc_sync_input;   // [0] -> Status double word,  [1]  ->actual Position, [2] ->reserved,      [3] ->diagnose 
         plc_Array plc_sync_output;  // [0] -> Control double word, [1]  ->set_position,    [2] -> set_velocity, [3] ->set_effort 
 
-        void updateSavedata(std::string, const int &counts, const int &elements);
-
-        void updatePlcOutput(uint32_t, uint32_t  = 0, uint32_t = 0, uint32_t = 0);
-        void postCommand();
-        void postParameter(std::string, std::string);   
-        template<typename paramtype>
-        void getWithInstance(const char inst[7], paramtype *param = NULL);               //Gripper Response
-        void getEnums(const char[7],const uint16_t &);
-
         AnybusCom(std::string ip);
         ~AnybusCom();
     };
@@ -189,10 +189,15 @@ inline void AnybusCom::getWithInstance(const char inst[7], paramtype *param)
         curl_easy_setopt(curl1,CURLOPT_WRITEFUNCTION, writeCallback);
         curl_easy_setopt(curl1, CURLOPT_HTTPGET, 1);
         curl_easy_setopt(curl1, CURLOPT_WRITEDATA, &response);
+        curl_easy_setopt(curl1, CURLOPT_TIMEOUT, 1L);
        // curl_easy_setopt(curl, CURLOPT_VERBOSE, 1L); // Enable verbose output
         res = curl_easy_perform(curl1);
-        if(res != CURLE_OK)
-            fprintf(stderr, "curl_easy_perform() failed: %s\n", curl_easy_strerror(res));
+        
+        if (res != CURLE_OK)
+        {
+            fprintf(stderr, "curl_easy_perform_failed: %s\n", curl_easy_strerror(res));
+            throw curl_easy_strerror(res);
+        }
         else
         {
            if (instance == PLC_SYNC_INPUT_INST || instance == PLC_SYNC_OUTPUT_INST) updatePlc(response, instance);
@@ -204,31 +209,31 @@ inline void AnybusCom::getWithInstance(const char inst[7], paramtype *param)
 //Interprets the received bytestring into an variable of float or int(all except int8_t)
 template<typename paramtype>
 inline paramtype AnybusCom::readParam(std::string hex_str)
-{
-    if(hex_str.find('[') != std::string::npos)
-    {
-        hex_str.erase(hex_str.begin(), hex_str.begin() + 2);
-        hex_str.erase(hex_str.end()-2, hex_str.end());
-    }
-    //if float
-    if (std::is_same<paramtype, float>::value) 
-    {
-        uint32_t intValue;
-        std::stringstream stream;
-        stream << std::hex << hex_str;
-        stream >> intValue;
+{ 
+        if(hex_str.find('[') != std::string::npos)
+        {
+            hex_str.erase(hex_str.begin(), hex_str.begin() + 2);
+            hex_str.erase(hex_str.end()-2, hex_str.end());
+        }
+        //if float
+        if (std::is_same<paramtype, float>::value) 
+        {
+            uint32_t intValue;
+            std::stringstream stream;
+            stream << std::hex << hex_str;
+            stream >> intValue;
 
-        float floatValue;
-        std::memcpy(&floatValue, &intValue, sizeof(float));
-        
-        return floatValue;
-    }
-    //if an integer
-    else 
-    {
-        uint32_t l = std::stoul(hex_str, nullptr, 16);
-        return static_cast<paramtype>(l);;
-    }
+            float floatValue;
+            std::memcpy(&floatValue, &intValue, sizeof(float));
+            
+            return floatValue;
+        }
+        //if an integer
+        else 
+        {
+            uint32_t l = std::stoul(hex_str, nullptr, 16);
+            return static_cast<paramtype>(l);;
+        }
 
 }
 //Function which converts datatype into bytestring

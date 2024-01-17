@@ -74,23 +74,23 @@ void feedbackCB(rclcpp_action::ClientGoalHandle<MovAbsPos>::SharedPtr, const std
 void doneEguCb(const rclcpp_action::ClientGoalHandle<Grip>::WrappedResult & result)
 {   
     RCLCPP_INFO(rclcpp::get_logger("schunk_gripper_example"), "%s", result.result->gripped ? "gripped" : "Not gripped");
-};
+}
 
 void doneEgkCb(const rclcpp_action::ClientGoalHandle<GripWithVel>::WrappedResult & result)
 {
     RCLCPP_INFO(rclcpp::get_logger("schunk_gripper_example"), "%s", result.result->gripped ? "gripped" : "Not gripped");
-};
+}
 
 void gripFeedback(rclcpp_action::ClientGoalHandle<Grip>::SharedPtr, const std::shared_ptr<const Grip::Feedback> feedback)
 {    
     if(feedback->pre_grip == true) 
     RCLCPP_INFO_ONCE(rclcpp::get_logger("schunk_gripper_example"), "Pre_grip started"); 
-};
+}
 void gripVelFeedback(rclcpp_action::ClientGoalHandle<GripWithVel>::SharedPtr, const std::shared_ptr<const GripWithVel::Feedback> feedback)
 {    
     if(feedback->pre_grip == true) 
     RCLCPP_INFO_ONCE(rclcpp::get_logger("schunk_gripper_example"), "Pre_grip started");
-};
+}
 
 
 //Control Functions
@@ -202,7 +202,7 @@ void gripEgu(rclcpp_action::Client<Grip>::SharedPtr grip_client)
     if(goal_handle.get()->is_result_aware())
     {   
         RCLCPP_WARN(rclcpp::get_logger("schunk_gripper_example"), "%s", state_msg.doing_command.c_str());
-        goal_handle.get()->async_result().get();
+        grip_client->async_get_result(goal_handle.get());
     }
 } 
 
@@ -224,7 +224,7 @@ void gripEgk(rclcpp_action::Client<GripWithVel>::SharedPtr grip_client)
 
 
         RCLCPP_WARN(rclcpp::get_logger("schunk_gripper_example"), "%s", state_msg.doing_command.c_str());
-        goal_handle.get()->async_result().get();
+        grip_client->async_get_result(goal_handle.get());
     }
 }
 

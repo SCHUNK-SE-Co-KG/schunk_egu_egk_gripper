@@ -32,7 +32,39 @@ Gripper::Gripper(std::string ip): AnybusCom(ip)
    try
    {
       startGripper();
+      //Get parameters
+      getActualParameters();
+      //Model
+      getEnums(MODULE_TYPE_INST, module_type);
+      model = json_data["string"];
+      //Is it model M
+      if(model.find("_M_") != std::string::npos) 
+      {
+         std::cout << "Grip force and position maintenance!" << std::endl;
+         model_M = true;
+      }
+      else
+      {
+         std::cout << "No grip force and position maintenance!" << std::endl;
+         model_M = false;
+      }
       
+      std::cout <<  model << " CONNECTED!" << std::endl;
+      start_connection = true;
+   }
+   catch(const char* res)
+   {
+      std::cout << "Failed Connection to gripper: " << res << std::endl;
+      start_connection = false;
+   }
+   catch(...)
+   {
+      start_connection = false;
+   }
+
+}
+void Gripper::getActualParameters()
+{
       grp_pos_lock = gripperBitOutput(USE_GPE);
       //Get parameters
       getWithInstance<float>(GRP_POS_MARGIN_INST, &grp_pos_margin);
@@ -49,35 +81,7 @@ Gripper::Gripper(std::string ip): AnybusCom(ip)
       receiveWithOffset("86", 2, 2);
       min_grip_force = save_data[0];
       max_grip_force = save_data[1];
-      //Model
-      getEnums(MODULE_TYPE_INST, module_type);
-      model = json_data["string"];
-      //Is it model M
-      if(model.find("_M_") != std::string::npos) 
-      {
-         printf("Grip force and position maintenance!");
-         model_M = true;
-      }
-      else
-      {
-         printf("No grip force and position maintenance!");
-         model_M = false;
-      }
-      
-      printf("%s CONNECTED!", model.c_str());
-      start_connection = true;
-   }
-   catch(const char* res)
-   {
-      std::cout << "Failed Connection to gripper. "<< res << std::endl;
-      start_connection = false;
-   }
-   catch(...)
-   {
-      start_connection = false;
-   }
-
-   }
+}
 //Check if Errors occurred by the gripper
 bool Gripper::check()
 {
@@ -130,20 +134,22 @@ void Gripper::startGripper()
         if(gripperBitInput(READY_FOR_SHUTDOWN))
         {
            // ros::Duration time(5);
-            printf("SOFTRESET");
+            std::cout << ("SOFTRESET") << std::endl;
+
             updatePlcOutput(SOFT_RESET, plc_sync_output[1], plc_sync_output[2], plc_sync_output[3]);
             postCommand();
            // time.sleep();
-            std::chrono::seconds sleep_time(7);
-            std::this_thread::sleep_for(sleep_time);
+            std::this_thread::sleep_for(std::chrono::seconds(7));
             getWithInstance<uint32_t>(PLC_SYNC_INPUT_INST);
-            printf("SOFTRESET FINISHED");
+            std::cout << ("SOFTRESET FINISHED") << std::endl;
+
         }
         
         acknowledge();
-        printf("ACKNOWLEDGED!");
+        std::cout << ("ACKNOWLEDGED!") << std::endl;
         runGets();
         handshake = gripperBitInput(COMMAND_RECEIVED_TOGGLE);
+        ip_changed_with_all_param = true;
 }
 //mu to mm conversion from float to uint32_t
 uint32_t Gripper::mm2mu(const float &convert_float)
@@ -169,9 +175,17 @@ bool Gripper::gripperBitOutput(const uint32_t &bitmakro) const
 //Get to an Error the corresponding string
 std::string Gripper::getErrorString(const uint8_t &error) 
 {
+   try
+   {
    json_data.clear();
    getEnums(ERROR_CODE_INST, error);
    return json_data["string"];
+   }
+   catch(const nlohmann::json::parse_error &e)
+   {
+      std::cout << "message: " << e.what()  << "\nexception id: " << e.id << std::endl;
+      return e.what();
+   }
 }
 //Do acknowledge the gripper
 void Gripper::acknowledge()
@@ -184,7 +198,61 @@ void Gripper::acknowledge()
     getWithInstance<uint32_t>(PLC_SYNC_INPUT_INST);
     plc_sync_output[0] &= mask;
 }
+//change the ip-address
+bool Gripper::changeIp(const std::string &new_ip)
+{
+   if(new_ip.size() > 100) return false;
+   
+   std::string old_ip = ip;
+   ip = new_ip;
+   initAddresses();
+   
+   //Control if it is the same gripper
+   try
+   {
+      getWithInstance<uint16_t>(MODULE_TYPE_INST, &module_type);
+      getEnums(MODULE_TYPE_INST, module_type);
 
+      if(model ==  json_data["string"]) std::cout << model <<" found."  << std::endl;
+      else
+      {
+         model = json_data["string"];
+         std::cout << "New model detected: " << model << std::endl;
+         std::cout << "It is recommended to restart the node." << std::endl;
+      }
+
+      getWithInstance<uint32_t>(PLC_SYNC_OUTPUT_INST);
+      runGets();
+      getActualParameters();
+
+      ip_changed_with_all_param = true;        //All most important Data 
+      return true;
+   }
+   catch(const char* res)
+   {
+      ip_changed_with_all_param = false;
+      std::cout << "No Gripper found: " <<  ip << std::endl;
+      initAddresses();
+      return true;
+   }
+   catch(const nlohmann::json::parse_error &e)
+   {
+      ip_changed_with_all_param = true;
+      ip = old_ip;
+      std::cout << "message: " << e.what()  << "\nexception id: " << e.id << std::endl;
+      initAddresses();
+      return false;
+   }
+   catch(const std::exception &e)
+   {
+      ip_changed_with_all_param = true;
+      ip = old_ip;
+      std::cout << "Wrong data found. Setting to old IP: " << ip << std::endl;
+      initAddresses();
+      return false;
+   }
+  
+}
 Gripper::~Gripper()
 {
 

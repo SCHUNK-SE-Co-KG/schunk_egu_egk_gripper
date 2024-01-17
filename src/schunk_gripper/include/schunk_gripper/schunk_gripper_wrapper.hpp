@@ -23,6 +23,7 @@
 #include "schunk_gripper/action/release_workpiece.hpp"
 #include "schunk_gripper/srv/release_for_man_mov.hpp"
 #include "schunk_gripper/srv/gripper_info.hpp"
+#include "schunk_gripper/srv/change_ip.hpp"
 #include "control_msgs/action/gripper_command.hpp"
 #include "schunk_gripper/action/grip.hpp"
 #include "schunk_gripper/action/grip_with_pos.hpp"
@@ -49,6 +50,7 @@ class SchunkGripperNode : public Gripper
     using Softreset = schunk_gripper::srv::Softreset;
     using PrepareForShutdown = schunk_gripper::srv::PrepareForShutdown;
     using GripperInfo= schunk_gripper::srv::GripperInfo;
+    using ChangeIp = schunk_gripper::srv::ChangeIp;
 
     using MovAbsPos = schunk_gripper::action::MovAbsPos;
     using MovRelPos = schunk_gripper::action::MovRelPos;
@@ -60,12 +62,14 @@ class SchunkGripperNode : public Gripper
     using GripperCommand = control_msgs::action::GripperCommand;
 
     void acknowledge_srv(const std::shared_ptr<Acknowledge::Request>, std::shared_ptr<Acknowledge::Response> );
+    
     void stop_srv(const std::shared_ptr<Stop::Request>, std::shared_ptr<Stop::Response> );
     void fast_stop_srv(const std::shared_ptr<FastStop::Request>, std::shared_ptr<FastStop::Response>);
     void releaseForManualMov_srv(const std::shared_ptr<ReleaseForManMov::Request>, std::shared_ptr<ReleaseForManMov::Response>);
     void softreset_srv(const std::shared_ptr<Softreset::Request>, std::shared_ptr<Softreset::Response>);
     void prepare_for_shutdown_srv(const std::shared_ptr<PrepareForShutdown::Request>, std::shared_ptr<PrepareForShutdown::Response>);
     void info_srv(const std::shared_ptr<GripperInfo::Request>, std::shared_ptr<GripperInfo::Response>);
+    void change_ip_srv(const std::shared_ptr<ChangeIp::Request>, std::shared_ptr<ChangeIp::Response>);
 
     double actualPosInterval();                                                         //Parameter accept just Position in Interval
 
@@ -86,6 +90,7 @@ class SchunkGripperNode : public Gripper
     float j_state_frq;
 
     rclcpp::Duration cycletime;
+    rclcpp::Time last_time;
     rclcpp::Rate     limiting_rate;
 
     std::string actual_command;     
@@ -150,6 +155,7 @@ class SchunkGripperNode : public Gripper
     rclcpp::Service<Softreset>::SharedPtr              softreset_service;
     rclcpp::Service<PrepareForShutdown>::SharedPtr     prepare_for_shutdown_service;
     rclcpp::Service<GripperInfo>::SharedPtr            info_service;
+    rclcpp::Service<ChangeIp>::SharedPtr              change_ip_service;
 
     template<typename goaltype>
     rclcpp_action::GoalResponse handle_goal(const rclcpp_action::GoalUUID & uuid,

@@ -28,6 +28,7 @@ find_package(CURL REQUIRED)
 set(msg_files "msg/State.msg")
 set(srv_files
    "srv/Acknowledge.srv"
+   "srv/ChangeIp.srv"
    "srv/Stop.srv"
    "srv/FastStop.srv"
    "srv/GripperInfo.srv"
