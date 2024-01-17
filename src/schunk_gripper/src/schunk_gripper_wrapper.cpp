@@ -52,14 +52,6 @@ SchunkGripperNode::SchunkGripperNode(std::shared_ptr<rclcpp::Node> nd, std::stri
 
     declareParameter();
 
-    acknowledge_service = nd->create_service<Acknowledge>("acknowledge", std::bind(&SchunkGripperNode::acknowledge_srv,this,_1,_2), rmw_qos_profile_services_default, services_group);
-    stop_service = nd->create_service<Stop>("stop", std::bind(&SchunkGripperNode::stop_srv,this,_1,_2), rmw_qos_profile_services_default, services_group);
-    softreset_service = nd->create_service<Softreset>("softreset", std::bind(&SchunkGripperNode::softreset_srv,this,_1,_2), rmw_qos_profile_services_default, services_group);
-    releaseForManualMov_service = nd->create_service<ReleaseForManMov>("release_for_manual_movement", std::bind(&SchunkGripperNode::releaseForManualMov_srv,this,_1,_2), rmw_qos_profile_services_default, services_group);
-    prepare_for_shutdown_service = nd->create_service<PrepareForShutdown>("prepare_for_shutdown", std::bind(&SchunkGripperNode::prepare_for_shutdown_srv,this,_1,_2), rmw_qos_profile_services_default, services_group);
-    fast_stop_service = nd->create_service<FastStop>("fast_stop", std::bind(&SchunkGripperNode::fast_stop_srv,this,_1,_2), rmw_qos_profile_services_default, services_group);
-    info_service = nd->create_service<GripperInfo>("gripper_info", std::bind(&SchunkGripperNode::info_srv,this,_1,_2), rmw_qos_profile_services_default, rest);
-    change_ip_service = nd->create_service<ChangeIp>("change_ip",  std::bind(&SchunkGripperNode::change_ip_srv,this,_1,_2), rmw_qos_profile_services_default, rest);
     //Actually no Command
     actual_command = "NO COMMAND";
     try
@@ -92,6 +84,15 @@ SchunkGripperNode::SchunkGripperNode(std::shared_ptr<rclcpp::Node> nd, std::stri
     //Advertise joint_states
     jointStatePublisher = nd->create_publisher<sensor_msgs::msg::JointState>("joint_states", 10);
     publish_joint_timer = nd->create_wall_timer(std::chrono::duration<float>(1/j_state_frq), std::bind(&SchunkGripperNode::publishJointState, this));
+
+    acknowledge_service = nd->create_service<Acknowledge>("acknowledge", std::bind(&SchunkGripperNode::acknowledge_srv,this,_1,_2), rmw_qos_profile_services_default, services_group);
+    stop_service = nd->create_service<Stop>("stop", std::bind(&SchunkGripperNode::stop_srv,this,_1,_2), rmw_qos_profile_services_default, services_group);
+    softreset_service = nd->create_service<Softreset>("softreset", std::bind(&SchunkGripperNode::softreset_srv,this,_1,_2), rmw_qos_profile_services_default, services_group);
+    releaseForManualMov_service = nd->create_service<ReleaseForManMov>("release_for_manual_movement", std::bind(&SchunkGripperNode::releaseForManualMov_srv,this,_1,_2), rmw_qos_profile_services_default, services_group);
+    prepare_for_shutdown_service = nd->create_service<PrepareForShutdown>("prepare_for_shutdown", std::bind(&SchunkGripperNode::prepare_for_shutdown_srv,this,_1,_2), rmw_qos_profile_services_default, services_group);
+    fast_stop_service = nd->create_service<FastStop>("fast_stop", std::bind(&SchunkGripperNode::fast_stop_srv,this,_1,_2), rmw_qos_profile_services_default, services_group);
+    info_service = nd->create_service<GripperInfo>("gripper_info", std::bind(&SchunkGripperNode::info_srv,this,_1,_2), rmw_qos_profile_services_default, rest);
+    change_ip_service = nd->create_service<ChangeIp>("change_ip",  std::bind(&SchunkGripperNode::change_ip_srv,this,_1,_2), rmw_qos_profile_services_default, rest);
     //Start Grip actions depending opn the model    
 
     move_abs_server = rclcpp_action::create_server<MovAbsPos>(nd, "move_absolute", std::bind(&SchunkGripperNode::handle_goal<MovAbsPos::Goal>, this, _1, _2),
@@ -242,6 +243,38 @@ double SchunkGripperNode::actualPosInterval()
     if(actual_pos < min_pos) return static_cast<double>(min_pos);
     else if(actual_pos > max_pos)return static_cast<double>(max_pos);
     else return actual_pos;
+}
+template<typename goaltype>
+rclcpp_action::GoalResponse SchunkGripperNode::handle_goal(const rclcpp_action::GoalUUID & uuid, std::shared_ptr<const goaltype> goal)
+{
+    (void)uuid;
+    (void)goal;
+
+    if(gripperBitInput(GRIPPER_ERROR)) RCLCPP_ERROR(nd->get_logger(), "Action will not be performed as long an error is active");
+    else if(param_exe == false && action_active == false) return rclcpp_action::GoalResponse::ACCEPT_AND_EXECUTE;
+    else  
+    {
+        const std::lock_guard<std::recursive_mutex> lock(lock_mutex);
+        try
+        {
+            //send fast stop
+            runPost(FAST_STOP);
+            //if command received, get values
+            if(handshake != gripperBitInput(COMMAND_RECEIVED_TOGGLE)) 
+            while (rclcpp::ok() && check())
+            runGets(); 
+
+            handshake = gripperBitInput(COMMAND_RECEIVED_TOGGLE);
+            gripper_updater->force_update();
+        }
+        catch(const char* server_err)
+        {
+            connection_error = server_err;
+            RCLCPP_ERROR(nd->get_logger(), "Failed Connection! %s", connection_error.c_str());
+        }
+    }
+    
+    return rclcpp_action::GoalResponse::REJECT;
 }
 //Deal with gripper, if the Command where successful done. Else throw an Exception
 template<typename restype, typename goaltype>
@@ -404,7 +437,6 @@ void SchunkGripperNode::moveAbsExecute(const std::shared_ptr<rclcpp_action::Serv
     actual_command = "MOVE TO ABSOLUTE POSITION";
 
     const auto goal = goal_handle->get_goal();
-    
     auto feedback = std::make_shared<MovAbsPos::Feedback>();
     auto res = std::make_shared<MovAbsPos::Result>();
     
@@ -1073,12 +1105,7 @@ void SchunkGripperNode::softreset_srv(const std::shared_ptr<Softreset::Request>,
     try
     {
         RCLCPP_INFO(nd->get_logger(),"SOFT RESET");
-        updatePlcOutput(SOFT_RESET);
-        postCommand();
-        RCLCPP_INFO(nd->get_logger(),"Server available in 7 seconds.");
-        std::chrono::seconds sleep(7);
-        std::this_thread::sleep_for(sleep);
-        runGets();
+        runPost(SOFT_RESET);
     }
     catch(const char* res){}
     bool connection_once_lost = false;
@@ -1134,6 +1161,7 @@ void SchunkGripperNode::prepare_for_shutdown_srv(const std::shared_ptr<PrepareFo
         connection_error = res;
         RCLCPP_ERROR(nd->get_logger(), "Failed Connection! %s", connection_error.c_str());
     }
+    
     if((gripperBitInput(READY_FOR_SHUTDOWN) == true) && (handshake != gripperBitInput(COMMAND_RECEIVED_TOGGLE)) )
     {
         RCLCPP_WARN(nd->get_logger(),"READY FOR SHUTDOWN");

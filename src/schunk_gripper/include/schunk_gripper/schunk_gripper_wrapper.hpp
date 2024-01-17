@@ -186,20 +186,6 @@ class SchunkGripperNode : public Gripper
 
 };
 
-template<typename goaltype>
-inline rclcpp_action::GoalResponse SchunkGripperNode::handle_goal(const rclcpp_action::GoalUUID & uuid, std::shared_ptr<const goaltype> goal)
-{
-    (void)uuid;
-    (void)goal;
-
-    if(param_exe == false && action_active == false)
-    return rclcpp_action::GoalResponse::ACCEPT_AND_EXECUTE;
-
-    else
-    return rclcpp_action::GoalResponse::REJECT;
-
-}
-
 template<typename GoalType>
 inline rclcpp_action::CancelResponse SchunkGripperNode::handle_cancel(const std::shared_ptr<rclcpp_action::ServerGoalHandle<GoalType>> goal_handle)
 {
