@@ -24,6 +24,8 @@ find_package(diagnostic_updater REQUIRED)
 find_package(diagnostic_msgs REQUIRED)
 find_package(CURL REQUIRED)
 
+
+set(node_plugins "")
 # Generate messages, services, and actions
 set(msg_files "msg/State.msg")
 set(srv_files
@@ -55,7 +57,7 @@ include_directories(
 )
 
 # Declare a C++ library
-add_library(schunk_driverlib
+add_library(schunk_driverlib SHARED
   src/schunk_gripper_lib.cpp
   src/communication.cpp
 )
@@ -70,27 +72,37 @@ rosidl_generate_interfaces(${PROJECT_NAME}
 # Export dependencies
 ament_export_dependencies(rosidl_default_runtime)
 
-# Declare an executable
-add_executable(schunk_gripper_driver src/schunk_gripper_wrapper.cpp)
+add_library(schunk_gripper_driver SHARED
+  src/schunk_gripper_wrapper.cpp
+  src/schunk_gripper_lib.cpp
+  src/communication.cpp)
+target_compile_definitions(schunk_gripper_driver
+  PRIVATE "COMPOSITION_BUILDING_DLL")
+  target_link_libraries(schunk_gripper_driver
+  ${CURL_LIBRARIES}
+  -lcurl)
+ament_target_dependencies(schunk_gripper_driver
+rclcpp sensor_msgs control_msgs rclcpp_action rclcpp_components diagnostic_updater diagnostic_msgs)
+rclcpp_components_register_nodes(schunk_gripper_driver "SchunkGripperNode")
+# Link libraries to the executable
+set(node_plugins "${node_plugins}SchunkGripperNode;$<TARGET_FILE:schunk_gripper_wrapper>\n")
+
 add_executable(schunk_gripper_example src/gripper_example.cpp)
 
-# Specify dependencies for the executable
-ament_target_dependencies(schunk_gripper_driver
-  rclcpp sensor_msgs control_msgs rclcpp_action rclcpp_components diagnostic_updater diagnostic_msgs
-)
 ament_target_dependencies(schunk_gripper_example
   rclcpp sensor_msgs control_msgs rclcpp_action rclcpp_components diagnostic_updater diagnostic_msgs
 )
-# Link libraries to the executable
-target_link_libraries(schunk_gripper_driver ${CURL_LIBRARIES} schunk_driverlib -lcurl)
 
 # Install targets
 install(TARGETS
   schunk_gripper_driver
-  schunk_gripper_example
-  DESTINATION lib/${PROJECT_NAME}
-)
+  ARCHIVE DESTINATION lib
+  LIBRARY DESTINATION lib
+  RUNTIME DESTINATION bin)
 
+  install(TARGETS
+  schunk_gripper_example
+  DESTINATION lib/${PROJECT_NAME})
 
 install(DIRECTORY 
   include/

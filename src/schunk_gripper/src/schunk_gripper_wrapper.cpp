@@ -12,16 +12,16 @@ std::recursive_mutex lock_mutex;  //Locks if something is receiving or posting d
     };
 
 //Initialize the ROS Driver
-SchunkGripperNode::SchunkGripperNode(std::shared_ptr<rclcpp::Node> nd, std::string ip, float state_frq, float joint_state_frq) : 
-    Gripper(ip),
-    nd(nd),
-    state_frq(state_frq),
-    j_state_frq(joint_state_frq),
-    cycletime(1/state_frq),
+SchunkGripperNode::SchunkGripperNode(const rclcpp::NodeOptions &options) :
+    Gripper(options.parameter_overrides().at(0).as_string()), 
+    nd(std::make_shared<rclcpp::Node>("schunk_gripper_driver", options)),
+    cycletime(1/options.parameter_overrides().at(2).as_double()),
     limiting_rate(1000)
     //param_server(mutex)
     //ActionServer
 {   
+
+    state_frq = options.parameter_overrides().at(1).as_double();
 
     if(start_connection == false) return;
 
@@ -75,8 +75,8 @@ SchunkGripperNode::SchunkGripperNode(std::shared_ptr<rclcpp::Node> nd, std::stri
     gripper_updater->setHardwareID("Module");
     gripper_updater->add(model, std::bind(&SchunkGripperNode::gripperDiagnostics,this,_1));
     //Look if joint_state_frq is less than state_frq
-    float j_state_frq = joint_state_frq;
-    if(joint_state_frq > state_frq)
+    float j_state_frq = options.parameter_overrides().at(2).as_double();
+    if(j_state_frq > state_frq)
     {
         j_state_frq = state_frq;
         RCLCPP_WARN(nd->get_logger(),"joint_state topic will publish with %f!", j_state_frq);
@@ -1509,49 +1509,14 @@ catch(const char* res)
 
 }
 
+rclcpp::node_interfaces::NodeBaseInterface::SharedPtr SchunkGripperNode::get_node_base_interface() const
+{
+    return nd->get_node_base_interface();
+}
+
 SchunkGripperNode::~SchunkGripperNode()
 { }
 
-int main(int argc, char* argv[])
-{
-    rclcpp::init(argc, argv);
-    auto node = std::make_shared<rclcpp::Node>("schunk_gripper_driver");
+#include "rclcpp_components/register_node_macro.hpp"
 
-    rcl_interfaces::msg::ParameterDescriptor param_des;
-    
-    param_des.description = "Ip address of the gripper";
-    node->declare_parameter("IP", "0.0.0.0", param_des);
-    param_des.read_only = true;
-    param_des.description = "State publish rate";
-    node->declare_parameter("state_frq", 60.0 ,param_des);
-    param_des.description = "Jointstates publish rate";
-    node->declare_parameter("rate", 10.0,param_des);
-    std::string ip;
-    float state_frq;
-    float rate;
-    node->get_parameter("IP" ,ip);
-    node->get_parameter("state_frq",state_frq);
-    node->get_parameter("rate",rate);
-
-    auto schunkgrippernode = std::make_shared<SchunkGripperNode>(node ,ip, state_frq, rate);
-    
-
-    if(schunkgrippernode->start_connection == false)
-    {
-        RCLCPP_ERROR(rclcpp::get_logger("rclcpp"), "No Gripper to connect");
-        rclcpp::shutdown();
-        return -1;
-    }
-    else if(schunkgrippernode->model.size() > 5) RCLCPP_INFO(rclcpp::get_logger("rclcpp"),"%s INITIALISED!", schunkgrippernode->model.c_str());
-    param_des.read_only = false;
-    param_des.description = "Model of the gripper";
-    node->declare_parameter("model", schunkgrippernode->model, param_des);
-
-    rclcpp::executors::MultiThreadedExecutor executor;
-    executor.add_node(node);
-    executor.spin();
-    
-    rclcpp::shutdown();
-
-    return 0;
-}
+RCLCPP_COMPONENTS_REGISTER_NODE(SchunkGripperNode)

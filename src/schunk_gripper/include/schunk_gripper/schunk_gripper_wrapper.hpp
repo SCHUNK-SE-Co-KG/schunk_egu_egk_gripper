@@ -135,7 +135,9 @@ class SchunkGripperNode : public Gripper
     rclcpp::CallbackGroup::SharedPtr actions_group;
     rclcpp::CallbackGroup::SharedPtr rest;
 
-    SchunkGripperNode(std::shared_ptr<rclcpp::Node> nd, std::string ip, float state, float frq);
+    SchunkGripperNode(const rclcpp::NodeOptions&);
+    
+    rclcpp::node_interfaces::NodeBaseInterface::SharedPtr get_node_base_interface() const;
     ~SchunkGripperNode();
 
     rclcpp_action::Server<MovAbsPos>::SharedPtr              move_abs_server;
