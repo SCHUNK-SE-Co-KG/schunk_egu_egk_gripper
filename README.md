@@ -22,7 +22,7 @@ Following C++ libraries are required:
 ## Build
 Clone the GitLab repository into your workspace:
 ```
-git clone https://gitlab-test.cloud.schunk.com/technology-factory/students/ros-gripper/schunk_gripper_driver.git
+git clone https://gitlab-test.cloud.schunk.com/technology-factory/students/ros-gripper/ros2_schunk_driver.git
 ```
 Now install all ros-dependencies:
 ```

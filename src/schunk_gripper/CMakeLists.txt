@@ -24,31 +24,7 @@ find_package(diagnostic_updater REQUIRED)
 find_package(diagnostic_msgs REQUIRED)
 find_package(CURL REQUIRED)
 
-
-set(node_plugins "")
-# Generate messages, services, and actions
-set(msg_files "msg/State.msg")
-set(srv_files
-   "srv/Acknowledge.srv"
-   "srv/ChangeIp.srv"
-   "srv/Stop.srv"
-   "srv/FastStop.srv"
-   "srv/GripperInfo.srv"
-   "srv/Softreset.srv"
-   "srv/PrepareForShutdown.srv"
-   "srv/ReleaseForManMov.srv"
-)
-set(action_files
-   "action/GripWithPosVel.action"
-   "action/GripWithPos.action"
-   "action/GripWithVel.action"
-   "action/Grip.action"
-   "action/MovAbsPos.action"
-   "action/MovRelPos.action" 
-   "action/ReleaseWorkpiece.action" 
-)
-
-# Specify additional locations of header files
+# Additional include directories
 include_directories(
   include
   ${Boost_INCLUDE_DIRS} 
@@ -56,12 +32,34 @@ include_directories(
   ${CMAKE_CURRENT_SOURCE_DIR}/include
 )
 
-# Declare a C++ library
+# Declare a C++ library for schunk_driverlib
 add_library(schunk_driverlib SHARED
   src/schunk_gripper_lib.cpp
   src/communication.cpp
 )
+
 # Generate ROS interfaces
+set(msg_files "msg/State.msg")
+set(srv_files
+  "srv/Acknowledge.srv"
+  "srv/ChangeIp.srv"
+  "srv/Stop.srv"
+  "srv/FastStop.srv"
+  "srv/GripperInfo.srv"
+  "srv/Softreset.srv"
+  "srv/PrepareForShutdown.srv"
+  "srv/ReleaseForManMov.srv"
+)
+set(action_files
+  "action/GripWithPosVel.action"
+  "action/GripWithPos.action"
+  "action/GripWithVel.action"
+  "action/Grip.action"
+  "action/MovAbsPos.action"
+  "action/MovRelPos.action" 
+  "action/ReleaseWorkpiece.action" 
+)
+
 rosidl_generate_interfaces(${PROJECT_NAME}
   ${msg_files}
   ${srv_files}
@@ -72,48 +70,62 @@ rosidl_generate_interfaces(${PROJECT_NAME}
 # Export dependencies
 ament_export_dependencies(rosidl_default_runtime)
 
+# Declare a C++ library for schunk_gripper_driver
 add_library(schunk_gripper_driver SHARED
   src/schunk_gripper_wrapper.cpp
   src/schunk_gripper_lib.cpp
-  src/communication.cpp)
+  src/communication.cpp
+)
+
+# Define compilation definition for schunk_gripper_driver
 target_compile_definitions(schunk_gripper_driver
-  PRIVATE "COMPOSITION_BUILDING_DLL")
-  target_link_libraries(schunk_gripper_driver
+  PRIVATE "COMPOSITION_BUILDING_DLL"
+)
+
+# Link libraries to schunk_gripper_driver
+target_link_libraries(schunk_gripper_driver
   ${CURL_LIBRARIES}
-  -lcurl)
+  -lcurl
+)
+
+# Add dependencies for schunk_gripper_driver
 ament_target_dependencies(schunk_gripper_driver
-rclcpp sensor_msgs control_msgs rclcpp_action rclcpp_components diagnostic_updater diagnostic_msgs)
-rclcpp_components_register_nodes(schunk_gripper_driver "SchunkGripperNode")
-# Link libraries to the executable
-set(node_plugins "${node_plugins}SchunkGripperNode;$<TARGET_FILE:schunk_gripper_wrapper>\n")
-
-add_executable(schunk_gripper_example src/gripper_example.cpp)
-
-ament_target_dependencies(schunk_gripper_example
   rclcpp sensor_msgs control_msgs rclcpp_action rclcpp_components diagnostic_updater diagnostic_msgs
 )
+
+# Register schunk_gripper_driver as a component node
+rclcpp_components_register_nodes(schunk_gripper_driver "SchunkGripperNode")
 
 # Install targets
 install(TARGETS
   schunk_gripper_driver
   ARCHIVE DESTINATION lib
   LIBRARY DESTINATION lib
-  RUNTIME DESTINATION bin)
+  RUNTIME DESTINATION bin
+)
 
-  install(TARGETS
+# Install schunk_gripper_example executable
+add_executable(schunk_gripper_example src/gripper_example.cpp)
+ament_target_dependencies(schunk_gripper_example
+  rclcpp sensor_msgs control_msgs rclcpp_action rclcpp_components diagnostic_updater diagnostic_msgs
+)
+
+install(TARGETS
   schunk_gripper_example
-  DESTINATION lib/${PROJECT_NAME})
+  DESTINATION lib/${PROJECT_NAME}
+)
 
+# Install include directory
 install(DIRECTORY 
   include/
   DESTINATION include
 )
-# Install launch files.
+
+# Install launch files
 install(DIRECTORY
   launch
   DESTINATION share/${PROJECT_NAME}/
 )
-
 
 # Export include directories and dependencies
 ament_export_include_directories(include)
@@ -128,5 +140,6 @@ rosidl_target_interfaces(schunk_gripper_example
   ${PROJECT_NAME} 
   "rosidl_typesupport_cpp"
 )
+
 # Ament package configuration
 ament_package()
