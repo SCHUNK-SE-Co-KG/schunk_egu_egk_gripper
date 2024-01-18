@@ -920,6 +920,8 @@ void SchunkGripperNode::publishState()
                         std::vector<rclcpp::Parameter> param = {rclcpp::Parameter(element.name,element.value)};
                         parameters_client->set_parameters(param);
                     }
+                    failed_param->changed_parameters.clear();
+                    failed_param->changed_parameters.shrink_to_fit();
                 }
                 
             }
@@ -927,7 +929,8 @@ void SchunkGripperNode::publishState()
         catch(const char *res)
         {
             connection_error = res;
-            rclcpp::Duration sleep = nd->now() - last_time;
+            rclcpp::Duration sleep_time(1,0);
+            rclcpp::Duration sleep = sleep_time - (nd->now() - last_time);
             std::this_thread::sleep_for(sleep.to_chrono<std::chrono::milliseconds>());
         }
         lock.unlock();
@@ -1532,8 +1535,14 @@ int main(int argc, char* argv[])
 
     auto schunkgrippernode = std::make_shared<SchunkGripperNode>(node ,ip, state_frq, rate);
     
-    if(schunkgrippernode->model.size() > 5) RCLCPP_INFO(rclcpp::get_logger("rclcpp"),"%s INITIALISED!", schunkgrippernode->model.c_str());
-    else return -1;
+
+    if(schunkgrippernode->start_connection == false)
+    {
+        RCLCPP_ERROR(rclcpp::get_logger("rclcpp"), "No Gripper to connect");
+        rclcpp::shutdown();
+        return -1;
+    }
+    else if(schunkgrippernode->model.size() > 5) RCLCPP_INFO(rclcpp::get_logger("rclcpp"),"%s INITIALISED!", schunkgrippernode->model.c_str());
     param_des.read_only = false;
     param_des.description = "Model of the gripper";
     node->declare_parameter("model", schunkgrippernode->model, param_des);

@@ -53,6 +53,7 @@ void AnybusCom::receiveWithOffset(const std::string &offset, int count, int elem
             if (res != CURLE_OK)
             {
             fprintf(stderr, "curl_easy_perform_failed: %s\n", curl_easy_strerror(res));
+            curl_easy_reset(curl3);
             throw curl_easy_strerror(res);
             }
 
@@ -131,6 +132,7 @@ void AnybusCom::postCommand()
         if (res != CURLE_OK)
         {
             fprintf(stderr, "curl_easy_perform_failed: %s\n", curl_easy_strerror(res));
+            curl_easy_reset(curl4);
             throw curl_easy_strerror(res);
         }
         else  
@@ -281,6 +283,7 @@ void AnybusCom::getEnums(const char inst[7], const uint16_t &enumNum)
         if (res != CURLE_OK)
         {
             fprintf(stderr, "curl_easy_perform_failed: %s\n", curl_easy_strerror(res));
+            curl_easy_reset(curl2);
             throw curl_easy_strerror(res);
         }
 

@@ -39,12 +39,12 @@ class Gripper : protected AnybusCom
    uint32_t mm2mu(const float &);
 
    std::string getErrorString(const uint8_t &);
-   bool start_connection;
 
    public:
 
    std::string model;
-
+   
+   bool start_connection;
    bool model_M;
    bool grp_pos_lock;           //Lock grip and position with brake
    bool modus_m;                //Strong or basic Grip

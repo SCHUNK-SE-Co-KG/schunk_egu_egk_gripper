@@ -196,6 +196,7 @@ inline void AnybusCom::getWithInstance(const char inst[7], paramtype *param)
         if (res != CURLE_OK)
         {
             fprintf(stderr, "curl_easy_perform_failed: %s\n", curl_easy_strerror(res));
+            curl_easy_reset(curl1);
             throw curl_easy_strerror(res);
         }
         else
