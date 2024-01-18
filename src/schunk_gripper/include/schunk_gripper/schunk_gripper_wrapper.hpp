@@ -86,11 +86,11 @@ class SchunkGripperNode : public Gripper
     schunk_gripper::msg::State msg;
     double abs_pos_param;
 
-    float state_frq;
-    float j_state_frq;
+    double state_frq;
+    double j_state_frq;
 
-    rclcpp::Duration cycletime;
-    rclcpp::Time last_time;
+    std::shared_ptr<rclcpp::Duration> cycletime;
+    rclcpp::Time     last_time;
     rclcpp::Rate     limiting_rate;
 
     std::string actual_command;     

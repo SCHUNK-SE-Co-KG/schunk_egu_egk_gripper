@@ -7,7 +7,7 @@ def generate_launch_description():
     container = Node(
         name='gripper_container',
         package='rclcpp_components',
-        executable='component_container',
+        executable='component_container_mt',
         output='screen',
         emulate_tty=True,
     )

@@ -28,29 +28,14 @@ std::map<std::string, uint32_t> commands_str
 };
 //Start th gripper, so it is ready to operate
 Gripper::Gripper(std::string ip): AnybusCom(ip)
-   {  
+{  
    try
    {
       startGripper();
       //Get parameters
       getActualParameters();
       //Model
-      getEnums(MODULE_TYPE_INST, module_type);
-      model = json_data["string"];
-      //Is it model M
-      if(model.find("_M_") != std::string::npos) 
-      {
-         std::cout << "Grip force and position maintenance!" << std::endl;
-         model_M = true;
-      }
-      else
-      {
-         std::cout << "No grip force and position maintenance!" << std::endl;
-         model_M = false;
-      }
-      
-      std::cout <<  model << " CONNECTED!" << std::endl;
-      start_connection = true;
+      getModel();
    }
    catch(const char* res)
    {
@@ -59,10 +44,11 @@ Gripper::Gripper(std::string ip): AnybusCom(ip)
    }
    catch(...)
    {
+      std::cout << "Failed Connection to gripper: "  << std::endl;
       start_connection = false;
    }
-
 }
+
 void Gripper::getActualParameters()
 {
       grp_pos_lock = gripperBitOutput(USE_GPE);
@@ -83,6 +69,27 @@ void Gripper::getActualParameters()
       max_grip_force = save_data[1];
 }
 //Check if Errors occurred by the gripper
+void Gripper::getModel()
+{
+      //Model
+      getEnums(MODULE_TYPE_INST, module_type);
+      model = json_data["string"];
+      //Is it model M
+      if(model.find("_M_") != std::string::npos) 
+      {
+         std::cout << "Grip force and position maintenance!" << std::endl;
+         model_M = true;
+      }
+      else
+      {
+         std::cout << "No grip force and position maintenance!" << std::endl;
+         model_M = false;
+      }
+      
+      std::cout <<  model << " CONNECTED!" << std::endl;
+      start_connection = true;
+}
+
 bool Gripper::check()
 {
    if(plc_sync_input[3] == 0) return 1;
@@ -253,6 +260,7 @@ bool Gripper::changeIp(const std::string &new_ip)
    }
   
 }
+//
 Gripper::~Gripper()
 {
 

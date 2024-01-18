@@ -15,15 +15,41 @@ std::recursive_mutex lock_mutex;  //Locks if something is receiving or posting d
 SchunkGripperNode::SchunkGripperNode(const rclcpp::NodeOptions &options) :
     Gripper(options.parameter_overrides().at(0).as_string()), 
     nd(std::make_shared<rclcpp::Node>("schunk_gripper_driver", options)),
-    cycletime(1/options.parameter_overrides().at(2).as_double()),
     limiting_rate(1000)
-    //param_server(mutex)
-    //ActionServer
-{   
+{ 
+    while(start_connection == false && rclcpp::ok()) 
+    {
+        if(!rclcpp::ok()) return;
+        
+        try
+        {
+            startGripper();
+            getActualParameters();
+            getModel();
+            
+        }
+        catch(...)
+        {
+            std::this_thread::sleep_for(std::chrono::seconds(1));
+            RCLCPP_ERROR(nd->get_logger(), "Trying to connect...");
+        }
+    }  
 
-    state_frq = options.parameter_overrides().at(1).as_double();
+    nd->declare_parameter("IP", "0.0.0.0", parameter_descriptor("IP-Address of the gripper"));
+    rcl_interfaces::msg::ParameterDescriptor paramDesc;
+    paramDesc.read_only = true;
+    paramDesc.description = "Frequency of state";
+    state_frq = nd->declare_parameter("state_frq", 60.0, paramDesc);
 
-    if(start_connection == false) return;
+    paramDesc.description = "Frequency of joint states";
+    j_state_frq = nd->declare_parameter("rate", 60.0, paramDesc);
+
+    cycletime = std::make_shared<rclcpp::Duration>(1 / state_frq);
+    param_exe = false;
+    action_active = false;
+    action_move = false;
+
+    nd->declare_parameter("model", model, parameter_descriptor("Gripper-model"), true);
 
     using std::placeholders::_1;
     using std::placeholders::_2;
@@ -68,14 +94,13 @@ SchunkGripperNode::SchunkGripperNode(const rclcpp::NodeOptions &options) :
    last_time = nd->now();
     //Advertise state
     statePublisher = nd->create_publisher<schunk_gripper::msg::State>("state", 10);
-    publish_state_timer=nd->create_wall_timer(std::chrono::duration<float>(1/state_frq), std::bind(&SchunkGripperNode::publishState, this), messages_group);
+    publish_state_timer=nd->create_wall_timer(std::chrono::duration<double>(1 / state_frq), std::bind(&SchunkGripperNode::publishState, this), messages_group);
     
     //Initialize diagnostics
     gripper_updater = std::make_shared<diagnostic_updater::Updater>(nd);
     gripper_updater->setHardwareID("Module");
     gripper_updater->add(model, std::bind(&SchunkGripperNode::gripperDiagnostics,this,_1));
     //Look if joint_state_frq is less than state_frq
-    float j_state_frq = options.parameter_overrides().at(2).as_double();
     if(j_state_frq > state_frq)
     {
         j_state_frq = state_frq;
@@ -83,7 +108,7 @@ SchunkGripperNode::SchunkGripperNode(const rclcpp::NodeOptions &options) :
     }
     //Advertise joint_states
     jointStatePublisher = nd->create_publisher<sensor_msgs::msg::JointState>("joint_states", 10);
-    publish_joint_timer = nd->create_wall_timer(std::chrono::duration<float>(1/j_state_frq), std::bind(&SchunkGripperNode::publishJointState, this));
+    publish_joint_timer = nd->create_wall_timer(std::chrono::duration<double>(1 / j_state_frq), std::bind(&SchunkGripperNode::publishJointState, this));
 
     acknowledge_service = nd->create_service<Acknowledge>("acknowledge", std::bind(&SchunkGripperNode::acknowledge_srv,this,_1,_2), rmw_qos_profile_services_default, services_group);
     stop_service = nd->create_service<Stop>("stop", std::bind(&SchunkGripperNode::stop_srv,this,_1,_2), rmw_qos_profile_services_default, services_group);
@@ -361,7 +386,7 @@ void SchunkGripperNode::runActionMove(std::shared_ptr<feedbacktype> feedback, st
 
     while(endCondition() && rclcpp::ok() && (!goal_handle->is_canceling()))
     {   //Publish as fast as in state
-        if(cycletime <= nd->now() - start_time)
+        if(*cycletime <= nd->now() - start_time)
         {
             feedback->current_position = actual_pos;
             feedback->current_velocity = actual_vel;
@@ -395,7 +420,7 @@ void SchunkGripperNode::runActionGrip(std::shared_ptr<feedbacktype> feedback, st
 
     while(endCondition() && rclcpp::ok() && (!goal_handle->is_canceling()))
     {   //Publish as fast as in state
-        if(cycletime <= nd->now() - start_time)
+        if(*cycletime <= nd->now() - start_time)
         {
             feedback->current_position = actual_pos;
             feedback->current_velocity = actual_vel;
@@ -824,7 +849,7 @@ try
 
     while(endCondition() && rclcpp::ok() && (!goal_handle->is_canceling()))
     {
-        if(cycletime <= nd->now() - start_time)
+        if(*cycletime <= nd->now() - start_time)
         {
             feedback->position = actual_pos;
             goal_handle->publish_feedback(feedback);
@@ -893,13 +918,12 @@ void SchunkGripperNode::finishedCommand()
         //Flags
         actual_command = "NO COMMAND";
         msg.doing_command = actual_command;
-
 }
 //publish with x hz gripper data
 void SchunkGripperNode::publishState()
 {
     rclcpp::Time now = nd->now();
-    cycletime = now - last_time;
+    *cycletime = now - last_time;
     last_time = now;
 
     std::unique_lock<std::recursive_mutex> lock(lock_mutex, std::defer_lock);
@@ -1366,7 +1390,6 @@ void SchunkGripperNode::parameterEventCallback(const rcl_interfaces::msg::Parame
             const std::lock_guard<std::recursive_mutex> lock(lock_mutex);
             actual_command = "MOVE TO ABSOLUTE POSITION";
             runPost(MOVE_TO_ABSOLUTE_POSITION, static_cast<uint32_t>(nd->get_parameter("Control_Parameter.move_gripper").as_double()*1000) , static_cast<uint32_t>(nd->get_parameter("Control_Parameter.move_gripper_velocity").as_double()*1000));
-            abs_pos_param = actualPosInterval();
             param_exe = true;
             handshake = gripperBitInput(COMMAND_RECEIVED_TOGGLE);
         }

@@ -24,23 +24,22 @@ class Gripper : protected AnybusCom
 {
    private:
 
-   void startGripper();
 
    protected:
 
    bool handshake;
    bool ip_changed_with_all_param;
 
+   void startGripper();
    void acknowledge();
    void getActualParameters();
+   void getModel();
    bool gripperBitInput(const uint32_t&) const;
    bool gripperBitOutput(const uint32_t&) const;
    bool changeIp(const std::string &);
    uint32_t mm2mu(const float &);
 
    std::string getErrorString(const uint8_t &);
-
-   public:
 
    std::string model;
    
@@ -57,6 +56,8 @@ class Gripper : protected AnybusCom
    void runPost(uint32_t command, uint32_t position = 0, uint32_t velocity = 0, uint32_t effort = 0);
    
    std::array<uint8_t, 3> splitDiagnosis();
+
+   public:
 
    Gripper(std::string ip);          //Gripper initialisation
    ~Gripper();

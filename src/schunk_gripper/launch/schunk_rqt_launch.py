@@ -7,11 +7,15 @@ def generate_launch_description():
     container = Node(
         name='gripper_container',
         package='rclcpp_components',
-        executable='component_container',
+        executable='component_container_mt',
         output='screen',
         emulate_tty=True,
     )
-            
+    rqt_launch = Node(
+            package='rqt_gui',
+            executable='rqt_gui',
+            name='rqt_gui'
+    )        
     load_composable_nodes = LoadComposableNodes(
         target_container='gripper_container',
         composable_node_descriptions=[
@@ -24,22 +28,16 @@ def generate_launch_description():
                             {'IP': '10.49.60.91'},
                             {'state_frq': 60.0},
                             {'rate': 10.0},
-                            {'use_brk': False},
-                            {'grp_pos_margin': 2.0},
-                            {'grp_prepos_delta': 5.0},
-                            {'zero_pos_ofs': 0.0},
-                            {'grp_prehold_time': 0},
-                            {'wp_release_delta': 5.0},
-                            {'wp_lost_distance': 1.0},
+                            {'Gripper_Parameter.use_brk': False},
+                            {'Gripper_Parameter.grp_pos_margin': 2.0},
+                            {'Gripper_Parameter.grp_prepos_delta': 5.0},
+                            {'Gripper_Parameter.zero_pos_ofs': 0.0},
+                            {'Gripper_Parameter.grp_prehold_time': 0},
+                            {'Gripper_Parameter.wp_release_delta': 5.0},
+                            {'Gripper_Parameter.wp_lost_distance': 1.0},
                             ]
                     )
             ],
     )
-    
-    rqt_launch = Node(
-            package='rqt_gui',
-            executable='rqt_gui',
-            name='rqt_gui'
-    )
 
-    return launch.LaunchDescription([container, rqt_launch, load_composable_nodes])
+    return launch.LaunchDescription([container, load_composable_nodes, rqt_launch])
