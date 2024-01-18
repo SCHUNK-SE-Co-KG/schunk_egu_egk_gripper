@@ -31,7 +31,7 @@
 extern std::recursive_mutex lock_mutex;  //Locks if something is receiving or posting data
 extern  std::map<std::string, const char*> parameter_map;
 
-class SchunkGripperNode : public Gripper
+class SchunkGripperNode :  public rclcpp::Node, public Gripper
 {    
     private:
 
@@ -79,7 +79,6 @@ class SchunkGripperNode : public Gripper
     rclcpp::TimerBase::SharedPtr                                   publish_joint_timer;
 
     rclcpp::Time                        diagnostic_time;
-    std::shared_ptr<rclcpp::Node>       nd;
 
     std::shared_ptr<diagnostic_updater::Updater> gripper_updater;
 
@@ -136,8 +135,6 @@ class SchunkGripperNode : public Gripper
     rclcpp::CallbackGroup::SharedPtr rest;
 
     SchunkGripperNode(const rclcpp::NodeOptions&);
-    
-    rclcpp::node_interfaces::NodeBaseInterface::SharedPtr get_node_base_interface() const;
     ~SchunkGripperNode();
 
     rclcpp_action::Server<MovAbsPos>::SharedPtr              move_abs_server;
@@ -193,7 +190,7 @@ inline rclcpp_action::CancelResponse SchunkGripperNode::handle_cancel(const std:
 {
         (void)goal_handle;
 
-        RCLCPP_INFO(nd->get_logger(), "Received request to cancel goal");
+        RCLCPP_INFO(this->get_logger(), "Received request to cancel goal");
         return rclcpp_action::CancelResponse::ACCEPT;
 }
 

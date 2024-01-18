@@ -168,7 +168,7 @@ class AnybusCom
         plc_Array plc_sync_input;   // [0] -> Status double word,  [1]  ->actual Position, [2] ->reserved,      [3] ->diagnose 
         plc_Array plc_sync_output;  // [0] -> Control double word, [1]  ->set_position,    [2] -> set_velocity, [3] ->set_effort 
 
-        AnybusCom(std::string ip);
+        AnybusCom(const std::string &ip);
         ~AnybusCom();
     };
 //Get something with Instance

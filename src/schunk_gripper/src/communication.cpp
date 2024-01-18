@@ -19,7 +19,7 @@ size_t writeCallback(void* contents, size_t size, size_t nmemb, void* userp)
     return total_size;
 }
 //Initialize the plcs and Addresses, get actual data and module 
-AnybusCom::AnybusCom(std::string ip) : ip(ip)
+AnybusCom::AnybusCom(const std::string &ip) : ip(ip)
 {       
         initAddresses();                  //Init addresses for post and get
 
