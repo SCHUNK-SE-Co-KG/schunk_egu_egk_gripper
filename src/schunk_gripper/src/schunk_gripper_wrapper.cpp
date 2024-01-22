@@ -892,6 +892,7 @@ catch(const char* response)
 action_move = false;
 
 }
+
 //Updates final successful state and zero position offset
 void SchunkGripperNode::finishedCommand()
 {   
@@ -996,7 +997,7 @@ void SchunkGripperNode::acknowledge_srv(const std::shared_ptr<Acknowledge::Reque
     acknowledge();
     try
     {
-        if(check()) 
+        if(check()) //TODO handshake
         {
             res->acknowledged = true;
             RCLCPP_WARN(this->get_logger(),"Acknowledged");

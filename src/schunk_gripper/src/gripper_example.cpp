@@ -285,7 +285,6 @@ int main(int argc, char** argv)
 {
     rclcpp::init(argc, argv);
     std::string model;
-
     std::shared_ptr<rclcpp::Node> node = std::make_shared<rclcpp::Node>("schunk_gripper_example");
     
     std::thread spin_thread(&spinFunction, node);

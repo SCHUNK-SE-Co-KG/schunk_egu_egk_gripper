@@ -55,6 +55,8 @@ In the launch file, you can also adjust the frequencies of the 'joint_states', '
 
 **Note:** The 'state' topic will always publish the fastest rate. All other topics publish either at a slower rate or at the same rate, even if a faster rate is specified in the launch file. Actions always publish at the same rate as the 'state'.
 
+**Note:** There is also a namespace. It is recommended to set the model name as the namespace when using a single gripper. If you use multiple grippers of the same model, you can also utilize different namespaces.
+
 # ROS-Node
 This section demonstrates the capabilities of the driver and provides instructions on how to utilize it.
 

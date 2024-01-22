@@ -115,7 +115,7 @@ void AnybusCom::postCommand()
     std::string post;
     post = "inst=0x0048&value=";
 
-    for(int i = 0; i < 4 ; i++) post.append(writeValue2Str<uint32_t>(plc_sync_output[i]));     
+    for(int i = 0; i < 4 ; i++) post.append(writeValue2Str<uint32_t>(plc_sync_output[i]));     //TODO writeValueToString()
     if (curl4) 
     {
         //headers = curl_slist_append(headers, "Content-Type: application/x-www-form-urlencoded");
