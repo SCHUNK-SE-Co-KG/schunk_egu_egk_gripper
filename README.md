@@ -47,7 +47,7 @@ After that, you should be able to start the launch file and interact with the gr
 
 In the launch file, you can also adjust the frequencies of the 'joint_states', 'state', and 'diagnostics' topics.
 
-| topic             | parameter frequency                                 |
+| topic             | parameter frequency                                  |
 | ------            | ------                                               |
 | state             | state_frq                                            |
 | joint_states      | rate                                                 |
@@ -58,7 +58,7 @@ In the launch file, you can also adjust the frequencies of the 'joint_states', '
 **Note:** There is also a namespace. It is recommended to set the model name as the namespace when using a single gripper. If you use multiple grippers of the same model, you can also utilize different namespaces.
 
 # ROS-Node
-This section demonstrates the capabilities of the driver and provides instructions on how to utilize it.
+This section demonstrates the capabilities of the driver and provides instructions on how to utilize it. The node is a ROS2 component.
 
 ## Actions
 All functionalities of the gripper, including movement, are treated as actions. This implies that when gripping, moving, or releasing a workpiece, you need to send a goal and can receive a result or feedback. Releasing a workpiece is the only action where you send an empty goal:
@@ -70,15 +70,9 @@ All functionalities of the gripper, including movement, are treated as actions. 
 - `release_workpiece`
 - `gripper_control`
 
-Depending on your model you have to use different action definitions for `grip` and `grip_with_pos`.
+In contrast to the ROS1 driver, the gripping actions in ROS 2 always have the same name (`grip` and `grip_with_pos`). The ROS 2 driver still automatically recognizes the model and sets the appropriate goal based on the model.
 
-As evident, there are two grip actions for each gripper model. This distinction arises from the model-dependent availability of SoftGrip or StrongGrip. Specifically, the EGK gripper provides SoftGrip, whereas the EGU gripper offers StrongGrip. To perform SoftGrip, when using an EGK gripper, you can specify the desired velocity. If the velocity is set to zero, the gripper performs a BasicGrip operation. Any additional details should be sourced from the programming guide:
-
-------------------------------------------------
-
-**Important:** You can use the gripping actions corresponding to your gripper model; the others will not be available.
-
-'gripper_control' is the only action utilizing „control_msgs/GripperCommand“. It can be used for absolute movement (at half the maximal velocity) and gripping with or without a position. Please note that this action only supports external gripping.
+'gripper_control' is the only action utilizing „control_msgs/action/GripperCommand“. It can be used for absolute movement (at half the maximal velocity) and gripping with or without a position. Please note that this action only supports external gripping.
 
 ## Services
 
