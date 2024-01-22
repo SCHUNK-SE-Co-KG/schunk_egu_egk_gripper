@@ -954,8 +954,11 @@ void SchunkGripperNode::publishState()
         {
             connection_error = res;
             rclcpp::Duration sleep_time(1,0);
-            rclcpp::Duration sleep = sleep_time - (this->now() - last_time);
-            std::this_thread::sleep_for(sleep.to_chrono<std::chrono::milliseconds>());
+            if(sleep_time > this->now() - last_time)
+            {
+                rclcpp::Duration sleep = sleep_time - (this->now() - last_time);
+                std::this_thread::sleep_for(sleep.to_chrono<std::chrono::milliseconds>());
+            }
         }
         lock.unlock();
     }
