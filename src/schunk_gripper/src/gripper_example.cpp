@@ -7,7 +7,7 @@
 #include <rcl_interfaces/msg/parameter_event.hpp>
 #include "sensor_msgs/msg/joint_state.hpp"
 #include <diagnostic_updater/diagnostic_updater.hpp>
-/*
+
 #include "schunk_gripper/action/grip_with_vel.hpp"
 #include "schunk_gripper/action/grip_with_pos_vel.hpp"
 #include "schunk_gripper/action/mov_abs_pos.hpp"
@@ -278,10 +278,10 @@ void spinFunction(std::shared_ptr<rclcpp::Node> node)
     executor.spin();
     rclcpp::shutdown();
 }
-*/
+
 int main(int argc, char** argv)
 {
-    /*
+    
     rclcpp::init(argc, argv);
     std::string model;
     std::shared_ptr<rclcpp::Node> node = std::make_shared<rclcpp::Node>("schunk_gripper_example");
@@ -398,6 +398,6 @@ int main(int argc, char** argv)
     moveAbsWithConfig(param_client);
 
     spin_thread.join();
-*/
+
     return 0;
 }

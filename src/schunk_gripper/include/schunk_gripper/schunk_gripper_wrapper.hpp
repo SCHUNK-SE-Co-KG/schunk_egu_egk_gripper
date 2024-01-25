@@ -99,7 +99,6 @@ class SchunkGripperNode :  public rclcpp::Node, public Gripper
     bool param_exe;
     bool action_active;
     bool action_move;
-    bool zero_changed;
 
     std::array<uint8_t, 3> splitted_Diagnosis;
 

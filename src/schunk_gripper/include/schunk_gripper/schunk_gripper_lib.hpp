@@ -31,7 +31,7 @@ class Gripper : protected AnybusCom
    bool ip_changed_with_all_param;
 
    void startGripper();
-   bool acknowledge();
+   void acknowledge();
    void getActualParameters();
    void getModel();
    bool gripperBitInput(const uint32_t&) const;

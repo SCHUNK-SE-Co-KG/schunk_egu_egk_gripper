@@ -195,7 +195,7 @@ std::string Gripper::getErrorString(const uint8_t &error)
    }
 }
 //Do acknowledge the gripper
-bool Gripper::acknowledge()
+void Gripper::acknowledge()
 {
     plc_sync_output[0] &= mask;
     plc_sync_output[0] |= FAST_STOP;

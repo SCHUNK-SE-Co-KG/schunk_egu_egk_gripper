@@ -913,13 +913,13 @@ void SchunkGripperNode::finishedCommand()
                                                  rclcpp::Parameter("Control_Parameter.move_gripper", actualPosInterval())};
                                                  
         abs_pos_param = actualPosInterval();
-  //      parameters_client->set_parameters(params);
+
         this->set_parameters(params);
         //Was Command successfully processed?
         if(gripperBitInput(SUCCESS) && gripperBitInput(POSITION_REACHED)) 
         RCLCPP_INFO(this->get_logger(),"%s SUCCEEDED", actual_command.c_str());
         
-        if(gripperBitInput(GRIPPED) && zero_changed == false)  
+        if(gripperBitInput(GRIPPED))  
         RCLCPP_WARN(this->get_logger(),"Gripped Workpiece!");
         //Flags
         actual_command = "NO COMMAND";
@@ -942,19 +942,19 @@ void SchunkGripperNode::publishState()
             if(!(connection_error == "OK")) 
             {
                 connection_error = "OK";
-/*
-                if(!failed_param->changed_parameters.empty())
+
+                if(!failed_param.empty())
                 {
-                    for(auto element : failed_param->changed_parameters)
+                    for(auto element : failed_param)
                     {
-                        std::vector<rclcpp::Parameter> param = {rclcpp::Parameter(element.name,element.value)};
-                        parameters_client->set_parameters(param);
+                        std::vector<rclcpp::Parameter> param = {rclcpp::Parameter(element.get_name(),element.get_parameter_value())};
+                        this->set_parameters(param);
                     }
-                    failed_param->changed_parameters.clear();
-                    failed_param->changed_parameters.shrink_to_fit();
-                }
- */               
+                    failed_param.clear();
+                    failed_param.shrink_to_fit();
+                }           
             }
+
         }
         catch(const char *res)
         {
@@ -969,7 +969,7 @@ void SchunkGripperNode::publishState()
         lock.unlock();
     }
     
-    if( ((param_exe == true && !endCondition()) || (zero_changed == true)) && !gripperBitInput(PRE_HOLDING))                   //If param_exe was active and module is in an end state
+    if( ((param_exe == true && !endCondition())) && !gripperBitInput(PRE_HOLDING))                   //If param_exe was active and module is in an end state
     finishedCommand();                                                                      //If zero_offset was changed
 
     if(msg.workpiece_lost != gripperBitInput(WORK_PIECE_LOST) && !msg.workpiece_lost)
@@ -1358,7 +1358,6 @@ void SchunkGripperNode::callback_gripper_parameter(const rclcpp::Parameter &p)
            
             abs_pos_param = actualPosInterval();
             cb_handle[9] =  parameter_event_handler->add_parameter_callback("Control_Parameter.move_gripper", callback_move_param);
-
         }
     }
     else if(p.get_name() == "Gripper_Parameter.grp_prehold_time")
