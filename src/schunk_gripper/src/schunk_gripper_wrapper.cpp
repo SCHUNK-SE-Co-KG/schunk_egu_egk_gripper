@@ -18,6 +18,7 @@ SchunkGripperNode::SchunkGripperNode(const rclcpp::NodeOptions &options) :
     Gripper(this->declare_parameter("IP", "0.0.0.0", parameter_descriptor("IP-Address of the gripper"))),
     limiting_rate(1000)
 { 
+
     while(start_connection == false && rclcpp::ok()) 
     {
         if(!rclcpp::ok()) return;

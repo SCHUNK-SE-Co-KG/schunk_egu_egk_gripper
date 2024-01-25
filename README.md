@@ -11,7 +11,7 @@ The driver communicates with the AnybusCom 40 interface, enabling its use with P
 
 ## Requirements
 
-The used distributution is foxy.
+The used distributution is humble.
 
 Following C++ libraries are required: 
 - [libcurl](https://curl.se/libcurl/)
