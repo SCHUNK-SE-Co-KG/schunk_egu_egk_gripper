@@ -2,11 +2,9 @@ string doing_command
 float32 actual_pos
 float32 actual_vel
 float32 actual_cur
-
 uint8 not_feasible
 uint8 warning
 uint8 error
-
 bool ready_for_operation
 bool control_authority
 bool command_successfully_processed

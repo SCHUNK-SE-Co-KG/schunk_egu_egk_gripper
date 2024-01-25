@@ -18,7 +18,7 @@ size_t writeCallback(void* contents, size_t size, size_t nmemb, void* userp)
     response->append(static_cast<char*>(contents), total_size);
     return total_size;
 }
-//Initialize the plcs and Addresses, get actual data and module 
+//Initialize the plcs and Addresses
 AnybusCom::AnybusCom(const std::string &ip) : ip(ip)
 {       
         initAddresses();                  //Init addresses for post and get
@@ -28,9 +28,22 @@ AnybusCom::AnybusCom(const std::string &ip) : ip(ip)
         curl3 = curl_easy_init();
         curl4 = curl_easy_init();
         curl5 = curl_easy_init();
+        curl6 = curl_easy_init();
+
+        try
+        {
+        //Big/little Endian? -> Different Fieldbuses use different format
+        getInfo();          
+        endian_format = static_cast<bool>(json_data["dataformat"]);
+        not_double_word = true;
+        }
+        catch(...)
+        {
+            std::cout << "Failed detect format or gripper." << std::endl;
+        }
 }
 //Receive data with an offset
-void AnybusCom::receiveWithOffset(const std::string &offset, int count, int elements)
+void AnybusCom::getWithOffset(const std::string &offset, int count, int elements)
 {   
     std::string response;
     CURLcode res;
@@ -107,6 +120,18 @@ std::vector<std::string> AnybusCom::splitResponse(const std::string &hex_str, in
     return splitted;
 }
 //Post Plc_sync_output
+std::string AnybusCom::changeEndianFormat(const std::string &hexString)
+{
+    size_t bytes = hexString.size() / 2;        //On byte are to chars
+    std::string endian_changed;
+
+    for(size_t i = bytes  ; i > 0; i--)
+    {
+        endian_changed.append(hexString.substr((i-1)*2,2));
+    }
+    return endian_changed;
+}
+
 void AnybusCom::postCommand()
 {  
     CURLcode res;
@@ -114,8 +139,13 @@ void AnybusCom::postCommand()
     
     std::string post;
     post = "inst=0x0048&value=";
+    if(endian_format == 0) not_double_word = false;
 
-    for(int i = 0; i < 4 ; i++) post.append(writeValue2Str<uint32_t>(plc_sync_output[i]));     //TODO writeValueToString()
+    for(int i = 0; i < 4 ; i++) 
+    {
+        post.append(writeValueToString<uint32_t>(plc_sync_output[i]));
+        not_double_word = true;
+    }
     if (curl4) 
     {
         //headers = curl_slist_append(headers, "Content-Type: application/x-www-form-urlencoded");
@@ -191,12 +221,14 @@ void AnybusCom::initAddresses()
     get_address = "http:///adi/data.json?";
     send_data_address = "http:///adi/update.json";
     enum_address = "http:///adi/enum.json?";
+    info_address = "http:///adi/info.json";
 
     if(ip.size() >= 100) ip = "0.0.0.0";
     
     get_address.insert(7, ip);
     send_data_address.insert(7, ip);
     enum_address.insert(7,ip);
+    info_address.insert(7,ip);
 
 }
 //Translates the received string of plc_sync_input to an integer[4] an saves it in plc_sync_input
@@ -209,11 +241,13 @@ void AnybusCom::updatePlc(std::string &hex_str,const std::string &inst)
     hex_str.erase(hex_str.end()-2, hex_str.end());
 
     std::string save[4];
+    not_double_word = false;
 
     for(int i = 0; i < 4; i++)
     {
        save[i] = hex_str.substr((i * sizeof(uint32_t) * 2),sizeof(uint32_t) * 2);
        plc->at(i) = readParam<uint32_t>(save[i]);
+       not_double_word = true;
     }
 
 }
@@ -297,7 +331,40 @@ void AnybusCom::getEnums(const char inst[7], const uint16_t &enumNum)
         curl_easy_reset(curl2);
     }
 }
-//clean_up
+
+void AnybusCom::getInfo()
+{
+    std::string response;
+    CURLcode res;
+
+    if(curl6) 
+    {
+        curl_easy_setopt(curl6, CURLOPT_URL, info_address.c_str());
+        curl_easy_setopt(curl6,CURLOPT_WRITEFUNCTION, writeCallback);
+        curl_easy_setopt(curl6, CURLOPT_HTTPGET, 1);
+        curl_easy_setopt(curl6, CURLOPT_WRITEDATA, &response);
+        curl_easy_setopt(curl6, CURLOPT_TIMEOUT, 1L);
+      //  curl_easy_setopt(curl, CURLOPT_VERBOSE, 1L); // Enable verbose output
+        res = curl_easy_perform(curl6);
+
+        if (res != CURLE_OK)
+        {
+            fprintf(stderr, "curl_easy_perform_failed: %s\n", curl_easy_strerror(res));
+            curl_easy_reset(curl6);
+            throw curl_easy_strerror(res);
+        }
+
+        else
+        {
+            response.erase(0, 1);
+            response.erase(response.size()-1, 1);
+            json_data =  nlohmann::json::parse(response);
+        }
+
+        curl_easy_reset(curl6);
+    }
+}
+
 AnybusCom::~AnybusCom()
 {
    curl_easy_cleanup(curl1);

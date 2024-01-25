@@ -30,7 +30,7 @@ std::map<std::string, uint32_t> commands_str
 Gripper::Gripper(const std::string &ip): AnybusCom(ip)
 {  
    try
-   {
+   {    
       startGripper();
       //Get parameters
       getActualParameters();
@@ -64,7 +64,7 @@ void Gripper::getActualParameters()
       getWithInstance<float>(MIN_POS_INST,&min_pos);
       getWithInstance<float>(MAX_VEL_INST,&max_vel);
       getWithInstance<float>(MIN_VEL_INST,&min_vel);
-      receiveWithOffset("86", 2, 2);
+      getWithOffset("86", 2, 2);
       min_grip_force = save_data[0];
       max_grip_force = save_data[1];
 }
@@ -121,7 +121,7 @@ void Gripper::runPost(uint32_t command, uint32_t position, uint32_t velocity, ui
 //Receive Gripper response and actual Data
 void Gripper::runGets()
 {   
-    receiveWithOffset("15", 3, 3);
+    getWithOffset("15", 3, 3);
     getWithInstance<uint32_t>(PLC_SYNC_INPUT_INST);
 }
 //If the gripper is ready for shutdown, so do softreset. DO: Acknowledge and get receive
@@ -131,7 +131,7 @@ void Gripper::startGripper()
         getWithInstance<uint32_t>(PLC_SYNC_INPUT_INST);
         getWithInstance<uint32_t>(PLC_SYNC_OUTPUT_INST);
         //Get actual values
-        receiveWithOffset("15", 3, 3);
+        getWithOffset("15", 3, 3);
 
         getWithInstance<uint16_t>(MODULE_TYPE_INST, &module_type);
 
@@ -195,7 +195,7 @@ std::string Gripper::getErrorString(const uint8_t &error)
    }
 }
 //Do acknowledge the gripper
-void Gripper::acknowledge()
+bool Gripper::acknowledge()
 {
     plc_sync_output[0] &= mask;
     plc_sync_output[0] |= FAST_STOP;

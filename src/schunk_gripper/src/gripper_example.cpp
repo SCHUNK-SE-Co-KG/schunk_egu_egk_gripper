@@ -5,10 +5,9 @@
 #include "rclcpp_components/register_node_macro.hpp"
 #include <rclcpp/parameter.hpp>
 #include <rcl_interfaces/msg/parameter_event.hpp>
-#include "schunk_gripper/schunk_gripper_lib.hpp"
 #include "sensor_msgs/msg/joint_state.hpp"
 #include <diagnostic_updater/diagnostic_updater.hpp>
-
+/*
 #include "schunk_gripper/action/grip_with_vel.hpp"
 #include "schunk_gripper/action/grip_with_pos_vel.hpp"
 #include "schunk_gripper/action/mov_abs_pos.hpp"
@@ -134,8 +133,7 @@ void moveRelativeAndStop(rclcpp_action::Client<MovRelPos>::SharedPtr move_rel_cl
     auto final_res = res.get();
     
     RCLCPP_INFO_STREAM(rclcpp::get_logger("schunk_gripper_example"), "Current Position: " << final_res.result->current_position);
-    RCLCPP_INFO(rclcpp::get_logger("schunk_gripper_example"), "ResultCode: %i", final_res.code);
-    
+    RCLCPP_INFO(rclcpp::get_logger("schunk_gripper_example"), "ResultCode: %i", static_cast<int>(final_res.code));
 }
 
 void MoveRelativeAndCancel(rclcpp_action::Client<MovRelPos>::SharedPtr move_rel_client)
@@ -175,7 +173,7 @@ void changeConfiguration(std::shared_ptr<rclcpp::AsyncParametersClient> param_cl
     RCLCPP_INFO(rclcpp::get_logger("schunk_gripper_example") ,"Parameter before:");
 
     RCLCPP_INFO(rclcpp::get_logger("schunk_gripper_example") ,"%s: %f", parameter.at(0).get_name().c_str(), parameter.at(0).as_double());
-    RCLCPP_INFO(rclcpp::get_logger("schunk_gripper_example") ,"%s: %i", parameter.at(1).get_name().c_str(), parameter.at(1).as_int());
+    RCLCPP_INFO(rclcpp::get_logger("schunk_gripper_example") ,"%s: %li", parameter.at(1).get_name().c_str(), parameter.at(1).as_int());
 
     parameter.at(0) = rclcpp::Parameter(parameter.at(0).get_name(), rclcpp::ParameterValue(double(10.0)));
     parameter.at(1) = rclcpp::Parameter(parameter.at(1).get_name(), int64_t(10000));
@@ -186,7 +184,7 @@ void changeConfiguration(std::shared_ptr<rclcpp::AsyncParametersClient> param_cl
     RCLCPP_INFO(rclcpp::get_logger("schunk_gripper_example") ,"Parameter after:");
     
     RCLCPP_INFO(rclcpp::get_logger("schunk_gripper_example") ,"%s: %f", parameter.at(0).get_name().c_str(), parameter.at(0).as_double());
-    RCLCPP_INFO(rclcpp::get_logger("schunk_gripper_example") ,"%s: %i", parameter.at(1).get_name().c_str(), parameter.at(1).as_int());
+    RCLCPP_INFO(rclcpp::get_logger("schunk_gripper_example") ,"%s: %li", parameter.at(1).get_name().c_str(), parameter.at(1).as_int());
 }
 
 void gripEgu(rclcpp_action::Client<Grip>::SharedPtr grip_client)
@@ -280,9 +278,10 @@ void spinFunction(std::shared_ptr<rclcpp::Node> node)
     executor.spin();
     rclcpp::shutdown();
 }
-
+*/
 int main(int argc, char** argv)
 {
+    /*
     rclcpp::init(argc, argv);
     std::string model;
     std::shared_ptr<rclcpp::Node> node = std::make_shared<rclcpp::Node>("schunk_gripper_example");
@@ -399,6 +398,6 @@ int main(int argc, char** argv)
     moveAbsWithConfig(param_client);
 
     spin_thread.join();
-
+*/
     return 0;
 }

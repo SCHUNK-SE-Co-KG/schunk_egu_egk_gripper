@@ -34,12 +34,10 @@ extern  std::map<std::string, const char*> parameter_map;
 class SchunkGripperNode :  public rclcpp::Node, public Gripper
 {    
     private:
-
     void publishState();
-    void parameterEventCallback(const rcl_interfaces::msg::ParameterEvent::SharedPtr);
     
     std::string connection_error;
-    rcl_interfaces::msg::ParameterEvent::SharedPtr failed_param;
+    std::vector<rclcpp::Parameter> failed_param;
 
     void publishJointState();
 
@@ -126,8 +124,12 @@ class SchunkGripperNode :  public rclcpp::Node, public Gripper
 
 
     public:
-    rclcpp::Subscription<rcl_interfaces::msg::ParameterEvent>::SharedPtr parameter_event;
-    rclcpp::AsyncParametersClient::SharedPtr parameters_client;
+    std::shared_ptr<rclcpp::ParameterEventHandler> parameter_event_handler;
+    std::array<std::shared_ptr<rclcpp::ParameterCallbackHandle>, 12> cb_handle;
+    rclcpp::Node &parameterEventCallback(const rcl_interfaces::msg::ParameterEvent &);
+
+    std::function<void(const rclcpp::Parameter &)> callback_gripper_param;
+    std::function<void(const rclcpp::Parameter &)> callback_move_param;
 
     rclcpp::CallbackGroup::SharedPtr messages_group;
     rclcpp::CallbackGroup::SharedPtr services_group;
@@ -181,6 +183,8 @@ class SchunkGripperNode :  public rclcpp::Node, public Gripper
     void releaseExecute(const std::shared_ptr<rclcpp_action::ServerGoalHandle<ReleaseWorkpiece>>);
     void controlExecute(const std::shared_ptr<rclcpp_action::ServerGoalHandle<GripperCommand>>);
 
+    void callback_gripper_parameter(const rclcpp::Parameter &);
+    void callback_move_parameter(const rclcpp::Parameter &);
 
 
 };

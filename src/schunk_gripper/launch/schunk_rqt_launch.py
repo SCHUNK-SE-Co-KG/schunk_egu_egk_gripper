@@ -7,7 +7,7 @@ def generate_launch_description():
     container = Node(
         name='gripper_container',
         package='rclcpp_components',
-        executable='component_container',
+        executable='component_container_mt',
         output='screen',
         emulate_tty=True,
     )
@@ -27,7 +27,7 @@ def generate_launch_description():
                     parameters=[
                             {'state_frq': 60.0},
                             {'rate': 10.0},
-                            {'IP': '10.49.60.91'},
+                            {'IP': '10.49.60.86'},
                             {'Gripper_Parameter.use_brk': False},
                             {'Gripper_Parameter.grp_pos_margin': 2.0},
                             {'Gripper_Parameter.grp_prepos_delta': 5.0},

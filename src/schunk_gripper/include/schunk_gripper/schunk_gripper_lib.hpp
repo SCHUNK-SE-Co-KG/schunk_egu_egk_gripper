@@ -31,7 +31,7 @@ class Gripper : protected AnybusCom
    bool ip_changed_with_all_param;
 
    void startGripper();
-   void acknowledge();
+   bool acknowledge();
    void getActualParameters();
    void getModel();
    bool gripperBitInput(const uint32_t&) const;
@@ -68,7 +68,7 @@ class Gripper : protected AnybusCom
 template <typename parametertype>
 inline void Gripper::changeParameter(const char inst[7], parametertype new_value, parametertype *store)
 {
-   std::string value = writeValue2Str<parametertype>(new_value);
+   std::string value = writeValueToString<parametertype>(new_value);
    postParameter(inst, value);
    std::string instance = inst;
 

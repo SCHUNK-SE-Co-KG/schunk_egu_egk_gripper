@@ -62,6 +62,7 @@
 #define PLC_SYNC_OUTPUT_INST "0x0048"
 #define GRP_PREHOLD_TIME_INST "0x0380"
 #define MODULE_TYPE_INST "0x0500"
+#define FIELDBUS_TYPE_INST "0x1130"
 #define WP_LOST_DISTANCE_INST "0x0528"
 #define WP_RELEASE_DELTA_INST "0x0540"
 #define GRP_POS_MARGIN_INST "0x0580"
@@ -87,10 +88,12 @@ class AnybusCom
         CURL *curl3;
         CURL *curl4;
         CURL *curl5;
+        CURL *curl6;
 
         std::string send_data_address;
         std::string get_address;
         std::string enum_address;
+        std::string info_address;
 
         uint32_t command;
 
@@ -102,25 +105,31 @@ class AnybusCom
         
         void updatePlc(std::string &, const std::string &);
         void updateFeedback(const std::string &);
+        std::string changeEndianFormat(const std::string &);
         std::vector<std::string> splitResponse(const std::string &, int);
+        bool endian_format;
 
     protected:
     
         void initAddresses();
+        void getInfo();
+
         std::string ip;
+        bool not_double_word;
 
         uint32_t last_command;
         uint16_t module_type;
+        uint16_t fieldbus_type;
 
         float max_allow_force;       //strong grip
 
         const uint32_t mask = FAST_STOP | USE_GPE | GRIP_DIRECTION | REPEAT_COMMAND_TOGGLE;
 
-        void receiveWithOffset(const std::string &offset, int count, int elements);                           //A Function just for Gripper Feedback
-                                                                                                                //TODO getWithOffset() Parameter 
+        void getWithOffset(const std::string &offset, int count, int elements);                           //A Function just for Gripper Feedback
+                                                                                                            
        
         template<typename paramtype>
-        std::string writeValue2Str(paramtype);
+        std::string writeValueToString(paramtype);
         template<typename paramtype>
         paramtype readParam(std::string);
 
@@ -216,6 +225,8 @@ inline paramtype AnybusCom::readParam(std::string hex_str)
             hex_str.erase(hex_str.begin(), hex_str.begin() + 2);
             hex_str.erase(hex_str.end()-2, hex_str.end());
         }
+
+        if(endian_format == 0 && not_double_word == true) hex_str = changeEndianFormat(hex_str);
         //if float
         if (std::is_same<paramtype, float>::value) 
         {
@@ -239,7 +250,7 @@ inline paramtype AnybusCom::readParam(std::string hex_str)
 }
 //Function which converts datatype into bytestring
 template<typename paramtype>
-inline std::string AnybusCom::writeValue2Str(paramtype param)
+inline std::string AnybusCom::writeValueToString(paramtype param)
 {
     std::stringstream stream;
     //if float
@@ -250,8 +261,12 @@ inline std::string AnybusCom::writeValue2Str(paramtype param)
      }
     //if integer
     else stream << std::hex << std::setw(sizeof(paramtype) * 2) << std::setfill('0') << param;
-    
-    return stream.str();
+
+    std::string value_string = stream.str();
+
+    if(endian_format == 0 && not_double_word == true) value_string = changeEndianFormat(value_string);
+
+    return value_string;
 }
 
 #endif
