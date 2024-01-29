@@ -107,7 +107,7 @@ class AnybusCom
         void updateFeedback(const std::string &);
         std::string changeEndianFormat(const std::string &);
         std::vector<std::string> splitResponse(const std::string &, int);
-        bool endian_format;
+        uint8_t endian_format;
 
     protected:
     

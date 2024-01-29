@@ -28,7 +28,6 @@ SchunkGripperNode::SchunkGripperNode(const rclcpp::NodeOptions &options) :
             startGripper();
             getActualParameters();
             getModel();
-            
         }
         catch(...)
         {
@@ -264,6 +263,7 @@ rcl_interfaces::msg::ParameterDescriptor SchunkGripperNode::parameter_descriptor
 rcl_interfaces::msg::ParameterDescriptor SchunkGripperNode::parameter_descriptor(const std::string& description) 
 {
     rcl_interfaces::msg::ParameterDescriptor descriptor;
+    descriptor.dynamic_typing = true;
     descriptor.description = description;
     return descriptor;
 }
@@ -943,7 +943,25 @@ void SchunkGripperNode::publishState()
             if(!(connection_error == "OK")) 
             {
                 connection_error = "OK";
+                
+                if(ip_changed_with_all_param == false)
+                {
+                    startGripper();
+                    getActualParameters();
+                    getModel();
 
+                    this->undeclare_parameter("model");
+                    this->declare_parameter("model", model, parameter_descriptor("Model of the gripper"));
+                    this->set_parameter(rclcpp::Parameter("Gripper_Parameter.use_brk", grp_pos_lock));
+                    this->set_parameter(rclcpp::Parameter("Gripper_Parameter.grp_pos_margin", grp_pos_margin));
+                    this->set_parameter(rclcpp::Parameter("Gripper_Parameter.grp_prepos_delta", grp_prepos_delta));
+                    this->set_parameter(rclcpp::Parameter("Gripper_Parameter.zero_pos_ofs", zero_pos_ofs));
+                    this->set_parameter(rclcpp::Parameter("Gripper_Parameter.grp_prehold_time", grp_prehold_time));
+                    this->set_parameter(rclcpp::Parameter("Gripper_Parameter.wp_release_delta", wp_release_delta));
+                    this->set_parameter(rclcpp::Parameter("Gripper_Parameter.wp_lost_distance", wp_lost_dst));
+                    this->set_parameter(rclcpp::Parameter("Control_Parameter.move_gripper", actualPosInterval()));
+                    abs_pos_param = actualPosInterval();
+                }
                 if(!failed_param.empty())
                 {
                     for(auto element : failed_param)
@@ -1032,9 +1050,7 @@ void SchunkGripperNode::acknowledge_srv(const std::shared_ptr<Acknowledge::Reque
 }
 //Ip change service, if the ip should change during runtime of the program
 void SchunkGripperNode::change_ip_srv(const std::shared_ptr<ChangeIp::Request> req, std::shared_ptr<ChangeIp::Response> res)
-{   std::string b=req->new_ip;
-    res->ip_changed = true;
-    /*
+{   
     std::lock_guard<std::recursive_mutex> lock(lock_mutex);
     res->ip_changed = changeIp(req->new_ip);
     if(res->ip_changed == false)
@@ -1047,16 +1063,13 @@ void SchunkGripperNode::change_ip_srv(const std::shared_ptr<ChangeIp::Request> r
     if(res->ip_changed == true) 
     {
         this->undeclare_parameter("IP");
-        this->undeclare_parameter("model");
-        rcl_interfaces::msg::ParameterDescriptor param_des;
-        param_des.description = "Ip address of the gripper";
-        this->declare_parameter("IP", req->new_ip, param_des);
-        param_des.description = "Model of the gripper";
-        this->declare_parameter("model", model, param_des);
+        this->declare_parameter("IP", req->new_ip, parameter_descriptor("Ip address of the gripper"));
     }
 
     if(ip_changed_with_all_param == true)
     {
+    this->undeclare_parameter("model");
+    this->declare_parameter("model", model, parameter_descriptor("Model of the gripper"));
     this->set_parameter(rclcpp::Parameter("Gripper_Parameter.use_brk", grp_pos_lock));
     this->set_parameter(rclcpp::Parameter("Gripper_Parameter.grp_pos_margin", grp_pos_margin));
     this->set_parameter(rclcpp::Parameter("Gripper_Parameter.grp_prepos_delta", grp_prepos_delta));
@@ -1067,7 +1080,6 @@ void SchunkGripperNode::change_ip_srv(const std::shared_ptr<ChangeIp::Request> r
     this->set_parameter(rclcpp::Parameter("Control_Parameter.move_gripper", actualPosInterval()));
     abs_pos_param = actualPosInterval();
     }
-   */ 
 
 }
 //Stop service callback

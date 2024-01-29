@@ -36,10 +36,17 @@ Gripper::Gripper(const std::string &ip): AnybusCom(ip)
       getActualParameters();
       //Model
       getModel();
+
+      ip_changed_with_all_param = true;
    }
    catch(const char* res)
    {
       std::cout << "Failed Connection to gripper: " << res << std::endl;
+      start_connection = false;
+   }
+   catch(const nlohmann::json::parse_error &e)
+   {
+      std::cout << "message: " << e.what()  << "\nexception id: " << e.id << std::endl;
       start_connection = false;
    }
    catch(...)
@@ -127,6 +134,8 @@ void Gripper::runGets()
 //If the gripper is ready for shutdown, so do softreset. DO: Acknowledge and get receive
 void Gripper::startGripper()
 {     
+        //get dataformat -> big/little endian
+        getInfo();
         //Get plc Values
         getWithInstance<uint32_t>(PLC_SYNC_INPUT_INST);
         getWithInstance<uint32_t>(PLC_SYNC_OUTPUT_INST);
@@ -156,7 +165,6 @@ void Gripper::startGripper()
         std::cout << ("ACKNOWLEDGED!") << std::endl;
         runGets();
         handshake = gripperBitInput(COMMAND_RECEIVED_TOGGLE);
-        ip_changed_with_all_param = true;
 }
 //mu to mm conversion from float to uint32_t
 uint32_t Gripper::mm2mu(const float &convert_float)
@@ -217,28 +225,16 @@ bool Gripper::changeIp(const std::string &new_ip)
    //Control if it is the same gripper
    try
    {
-      getWithInstance<uint16_t>(MODULE_TYPE_INST, &module_type);
-      getEnums(MODULE_TYPE_INST, module_type);
-
-      if(model ==  json_data["string"]) std::cout << model <<" found."  << std::endl;
-      else
-      {
-         model = json_data["string"];
-         std::cout << "New model detected: " << model << std::endl;
-         std::cout << "It is recommended to restart the node." << std::endl;
-      }
-
-      getWithInstance<uint32_t>(PLC_SYNC_OUTPUT_INST);
-      runGets();
+      startGripper();
       getActualParameters();
+      getModel();
 
-      ip_changed_with_all_param = true;        //All most important Data 
       return true;
    }
    catch(const char* res)
    {
       ip_changed_with_all_param = false;
-      std::cout << "No Gripper found: " <<  ip << std::endl;
+      std::cout << "No Gripper found. New IP: " <<  ip << std::endl;
       initAddresses();
       return true;
    }

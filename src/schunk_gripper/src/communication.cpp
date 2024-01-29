@@ -29,18 +29,6 @@ AnybusCom::AnybusCom(const std::string &ip) : ip(ip)
         curl4 = curl_easy_init();
         curl5 = curl_easy_init();
         curl6 = curl_easy_init();
-
-        try
-        {
-        //Big/little Endian? -> Different Fieldbuses use different format
-        getInfo();          
-        endian_format = static_cast<bool>(json_data["dataformat"]);
-        not_double_word = true;
-        }
-        catch(...)
-        {
-            std::cout << "Failed detect format or gripper." << std::endl;
-        }
 }
 //Receive data with an offset
 void AnybusCom::getWithOffset(const std::string &offset, int count, int elements)
@@ -356,9 +344,9 @@ void AnybusCom::getInfo()
 
         else
         {
-            response.erase(0, 1);
-            response.erase(response.size()-1, 1);
             json_data =  nlohmann::json::parse(response);
+            endian_format = json_data["dataformat"];
+            not_double_word = true;
         }
 
         curl_easy_reset(curl6);
