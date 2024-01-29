@@ -1339,10 +1339,11 @@ void SchunkGripperNode::info_srv(const std::shared_ptr<GripperInfo::Request>, st
                     <<    "Min. warning logic temperature: " << save_data_float[6] << " C\n"
                     <<    "Max. warning logic temperature: " << save_data_float[7] << " C" << std::endl);
         
+
         std::vector<std::string> char_strings;
         uint32_t data;
         uint16_t data2;
-
+        //Get the char-Parameter and save them as strings in char_strings
         getWithOffset(SERIAL_NO_TXT_OFFSET, 1, 16, false);
         char_strings.push_back(save_data_char.data());
         getWithOffset(ORDER_NO_TXT_OFFSET, 1, 16, false);
@@ -1355,6 +1356,7 @@ void SchunkGripperNode::info_srv(const std::shared_ptr<GripperInfo::Request>, st
         char_strings.push_back(save_data_char.data());
         getWithOffset(COMM_VERSION_TXT_OFFSET, 1, 12, false);
         char_strings.push_back(save_data_char.data());
+        
         getWithInstance(SERIAL_NO_NUM_INST, &data);
         getWithInstance<uint16_t>(SW_VERSION_NUM_INST, &data2);
 
