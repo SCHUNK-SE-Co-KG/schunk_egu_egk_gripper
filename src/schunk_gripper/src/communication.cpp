@@ -31,7 +31,7 @@ AnybusCom::AnybusCom(const std::string &ip) : ip(ip)
         curl6 = curl_easy_init();
 }
 //Receive data with an offset
-void AnybusCom::getWithOffset(const std::string &offset, int count, int elements)
+void AnybusCom::getWithOffset(const std::string &offset, int count, int elements, bool is_float)
 {   
     std::string response;
     CURLcode res;
@@ -60,28 +60,30 @@ void AnybusCom::getWithOffset(const std::string &offset, int count, int elements
 
             else
             {   
-                if(count == 3 && offset == "15") updateFeedback(response);
-                else updateSavedata(response, count, elements);
+                if(count == 3 && offset == ACTUAL_POS_OFFSET) updateFeedback(response);
+                else updateSavedata(response, count, elements, is_float);
             }
          curl_easy_reset(curl3);
         }
 }
-//Savedata is a vector, which stores floats. This is used for printing out te info
-void AnybusCom::updateSavedata(std::string hexStr, const int &count, const int &elements)
+//Savedata is a vector, which stores floats. This is used for printing out the info
+void AnybusCom::updateSavedata(std::string hexStr, const int &count, const int &elements, bool is_float)
 {
     std::vector<std::string> splitted;
     if(count != 1)
     {
         splitted = splitResponse(hexStr,count);
-        save_data.clear();
-        save_data.resize(count);
+        save_data_float.clear();
+        save_data_float.resize(count);
 
-        for(int i = 0; i < elements; i++) save_data[i] = readParam<float>(splitted[i]);
+        for(int i = 0; i < elements; i++) save_data_float[i] = readParam<float>(splitted[i]);
     }
     else
     {
-        save_data.clear();
-        save_data.resize(elements);
+        if(is_float == true)
+        {
+        save_data_float.clear();
+        save_data_float.resize(elements);
 
         
         hexStr.erase(hexStr.begin(), hexStr.begin() + 2);
@@ -90,10 +92,28 @@ void AnybusCom::updateSavedata(std::string hexStr, const int &count, const int &
         std::vector<std::string> save;
         save.resize(elements);
 
-        for(int i = 0; i < elements; i++)
+            for(int i = 0; i < elements; i++)
+            {
+                save[i] = hexStr.substr((i * sizeof(float) * 2),sizeof(float) * 2);
+                save_data_float.at(i) = readParam<float>(save[i]);
+            }
+        }
+        else
         {
-            save[i] = hexStr.substr((i * sizeof(float) * 2),sizeof(float) * 2);
-            save_data.at(i) = readParam<float>(save[i]);
+            save_data_char.clear();
+            save_data_char.resize(elements);
+            
+            hexStr.erase(hexStr.begin(), hexStr.begin() + 2);
+            hexStr.erase(hexStr.end()-2, hexStr.end());
+
+            std::vector<std::string> save;
+            save.resize(elements);
+
+            for(int i = 0; i < elements; i++)
+            {
+                save[i] = hexStr.substr((i * sizeof(char) * 2), sizeof(char) * 2);
+                save_data_char.at(i) = (readParam<char>(save[i]));
+            }
         }
 
     }

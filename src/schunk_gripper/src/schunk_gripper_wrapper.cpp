@@ -1284,18 +1284,18 @@ void SchunkGripperNode::info_srv(const std::shared_ptr<GripperInfo::Request>, st
         RCLCPP_INFO_STREAM(this->get_logger(),"\n\n\nGRIPPER TYPE: " << model.c_str()
                         << "\nIP: " << ip  << std::endl);
         
-        getWithOffset("40", 1, 1);
-        RCLCPP_INFO_STREAM(this->get_logger(),"\nNet mass of the Gripper: " << save_data[0] << " kg" << std::endl);
+        getWithOffset(DEAD_LOAD_KG_OFFSET, 1, 1);
+        RCLCPP_INFO_STREAM(this->get_logger(),"\nNet mass of the Gripper: " << save_data_float[0] << " kg" << std::endl);
         
-        getWithOffset("41", 1,6);
+        getWithOffset(TOOL_CENT_POINT_OFFSET, 1,6);
         RCLCPP_INFO_STREAM(this->get_logger(),"\nTool center point 6D-Frame: \n" 
-        << save_data[0] << " mm  " << save_data[1] << " mm  " << save_data[2] << " mm\n" 
-        << save_data[3] << "  " << save_data[4] << "  " << save_data[5] << std::endl);
+        << save_data_float[0] << " mm  " << save_data_float[1] << " mm  " << save_data_float[2] << " mm\n" 
+        << save_data_float[3] << "  " << save_data_float[4] << "  " << save_data_float[5] << std::endl);
         
-        getWithOffset("42", 1,6);
+        getWithOffset(CENT_OF_MASS_OFFSET, 1,6);
         RCLCPP_INFO_STREAM(this->get_logger(), "\nCenter of Mass 6D-frame: \n" 
-        << save_data[0] << " mm  " << save_data[1] << " mm  " << save_data[2] << " mm\n"
-        << save_data[3] << " kg*m^2  " << save_data[4] << " kg*m^2  "<< save_data[5] << " kg*m^2"<< std::endl);
+        << save_data_float[0] << " mm  " << save_data_float[1] << " mm  " << save_data_float[2] << " mm\n"
+        << save_data_float[3] << " kg*m^2  " << save_data_float[4] << " kg*m^2  "<< save_data_float[5] << " kg*m^2"<< std::endl);
 
         RCLCPP_INFO_STREAM(this->get_logger(),"\nMin. absolute position: " << min_pos << " mm\n" 
         << "Max. absolute position: " << max_pos << " mm\n"
@@ -1303,39 +1303,83 @@ void SchunkGripperNode::info_srv(const std::shared_ptr<GripperInfo::Request>, st
 
         RCLCPP_INFO_STREAM(this->get_logger(),"\nMin. velocity: " << min_vel << " mm/s\n"
         << "Max. velocity: " << max_vel << " mm/s" <<std::endl);
-        getWithOffset("85", 1, 1);
-        RCLCPP_INFO_STREAM(this->get_logger(),"\nMax. grip velocity: "<< save_data[0] << " mm/s\n" 
+
+        RCLCPP_INFO_STREAM(this->get_logger(),"\nMax. grip velocity: "<< max_grp_vel << " mm/s\n" 
         << "Min. grip force: "   << min_grip_force << " N\n" 
         << "Max. grip force: "   << max_grip_force << " N" << std::endl);
 
-        if(model.find("_M_") != std::string::npos && model.find("EGU") != std::string::npos)
+        if(model.find("EGU") != std::string::npos)
         {
-        getWithOffset("93", 1, 1);
-        RCLCPP_INFO_STREAM(this->get_logger(),"\nMax allowed grip force StrongGrip: " << save_data[0]  << " N  " << std::endl);
+        RCLCPP_INFO_STREAM(this->get_logger(),"\nMax allowed grip force StrongGrip: " << max_allow_force  << " N  " << std::endl);
         }
 
-        getWithOffset("11", 1, 1);
-        RCLCPP_INFO_STREAM(this->get_logger(),"\nUsed current limit: " << save_data[0] << " A" << std::endl);
-        getWithOffset("70", 1, 1);
-        RCLCPP_INFO_STREAM(this->get_logger(),"Max. physical stroke: " << save_data[0] << " mm" << std::endl);
-        getWithOffset("96", 6, 6);
-        RCLCPP_INFO_STREAM(this->get_logger(),"\nMin. error motor voltage: " << save_data[0] << " V\n"
-                    <<    "Max. error motor voltage: " << save_data[1] << " V\n"
-                    <<    "Min. error logic voltage: " << save_data[2] << " V\n"
-                    <<    "Max. error logic voltage: " << save_data[3] << " V\n"
-                    <<    "Min. error logic temperature: " << save_data[4] << " C\n"
-                    <<    "Max. error logic temperature: " << save_data[5] << " C" << std::endl);
+        getWithOffset(USED_CUR_LIMIT_OFFSET, 1, 1);
+        RCLCPP_INFO_STREAM(this->get_logger(),"\nUsed current limit: " << save_data_float[0] << " A" << std::endl);
+        getWithOffset(MAX_PHYS_STROKE_OFFSET, 1, 1);
+        RCLCPP_INFO_STREAM(this->get_logger(),"Max. physical stroke: " << save_data_float[0] << " mm" << std::endl);
+        getWithOffset(MIN_ERR_MOT_VOLT_OFFSET, 6, 6);
+        RCLCPP_INFO_STREAM(this->get_logger(),"\nMin. error motor voltage: " << save_data_float[0] << " V\n"
+                    <<    "Max. error motor voltage: " << save_data_float[1] << " V\n"
+                    <<    "Min. error logic voltage: " << save_data_float[2] << " V\n"
+                    <<    "Max. error logic voltage: " << save_data_float[3] << " V\n"
+                    <<    "Min. error logic temperature: " << save_data_float[4] << " C\n"
+                    <<    "Max. error logic temperature: " << save_data_float[5] << " C" << std::endl);
         
-        getWithOffset("112", 6, 6);
-        RCLCPP_INFO_STREAM(this->get_logger(),"\nMin. warning motor voltage: " << save_data[0] << " V\n"
-                    <<    "Max. warning motor voltage: " << save_data[1] << " V\n"
-                    <<    "Min. warning logic voltage: " << save_data[2] << " V\n"
-                    <<    "Max. warning logic voltage: " << save_data[3] << " V\n"
-                    <<    "Min. warning logic temperature: " << save_data[4] << " C\n"
-                    <<    "Max. warning logic temperature: " << save_data[5] << " C" << std::endl);
-        uint32_t uptime;
-        getWithInstance("0x1400", &uptime);
-        RCLCPP_INFO_STREAM(this->get_logger(),"\nSystem uptime: " << uptime << " s" << std::endl);
+        getWithInstance<float>(MEAS_LGC_TEMP_INST, &save_data_float[0]);
+        RCLCPP_INFO_STREAM(this->get_logger(), "Measured logic temperature: " << save_data_float[0] << " C" << std::endl);
+
+        getWithOffset(MEAS_LGC_VOLT_OFFSET, 8, 8);
+        RCLCPP_INFO_STREAM(this->get_logger(),
+                          "\nMeasured logic voltage: " << save_data_float[0] <<  " V\n"
+                    <<    "Measured motor voltage: " << save_data_float[1] <<     " V\n"
+                    <<    "Min. warning motor voltage: " << save_data_float[2] << " V\n"
+                    <<    "Max. warning motor voltage: " << save_data_float[3] << " V\n"
+                    <<    "Min. warning logic voltage: " << save_data_float[4] << " V\n"
+                    <<    "Max. warning logic voltage: " << save_data_float[5] << " V\n"
+                    <<    "Min. warning logic temperature: " << save_data_float[6] << " C\n"
+                    <<    "Max. warning logic temperature: " << save_data_float[7] << " C" << std::endl);
+        
+        std::vector<std::string> char_strings;
+        uint32_t data;
+        uint16_t data2;
+
+        getWithOffset(SERIAL_NO_TXT_OFFSET, 1, 16, false);
+        char_strings.push_back(save_data_char.data());
+        getWithOffset(ORDER_NO_TXT_OFFSET, 1, 16, false);
+        char_strings.push_back(save_data_char.data());
+        getWithOffset(SW_BUILD_DATE_OFFSET, 1, 12, false);
+        char_strings.push_back(save_data_char.data());
+        getWithOffset(SW_BUILD_TIME_OFFSET, 1, 9, false);
+        char_strings.push_back(save_data_char.data());
+        getWithOffset(SW_VERSION_TXT_OFFSET, 1, 22, false);
+        char_strings.push_back(save_data_char.data());
+        getWithOffset(COMM_VERSION_TXT_OFFSET, 1, 12, false);
+        char_strings.push_back(save_data_char.data());
+        getWithInstance(SERIAL_NO_NUM_INST, &data);
+        getWithInstance<uint16_t>(SW_VERSION_NUM_INST, &data2);
+
+        RCLCPP_INFO_STREAM(this->get_logger(),"\nSerial number text:  " << char_strings[0]
+                                            <<"\nOrder number text:  " <<  char_strings[1]
+                                            <<"\nDevice serial number encoded: " << data
+                                            <<"\nMain software build date:  " << char_strings[2]
+                                            <<"\nMain software build time:  " << char_strings[3]
+                                            <<"\nMain software version short:  " << data2
+                                            <<"\nMain software version:  " << char_strings[4]
+                                            <<"\nCommunication software version:  " << char_strings[5] << std::endl);
+        
+        getEnums(FIELDBUS_TYPE_INST,fieldbus_type);
+        getWithOffset(MAC_ADDR_OFFSET, 1, 6, false);
+        std::array<uint16_t,6> mac;
+        
+        for(size_t i = 0; i < 6; i++){mac[i] = static_cast<uint16_t>(save_data_char.at(i));}
+            
+        RCLCPP_INFO_STREAM(this->get_logger(),
+                               "\nFieldbustype:  " << json_data["string"] 
+                               << "\nMac-address: " << std::hex << mac[0] << ":" << mac[1] << ":" << mac[2] << ":" << mac[3] << ":"
+                               << mac[4] << ":" << mac[5] << std::endl);
+
+        getWithInstance(UPTIME_INST, &data);
+        RCLCPP_INFO_STREAM(this->get_logger(),"\nSystem uptime: " << data << " s" << std::endl);
     }
     catch(const char* res)
     {

@@ -73,6 +73,33 @@
 #define MIN_POS_INST "0x0600"
 #define MIN_VEL_INST "0x0628"
 #define MAX_VEL_INST "0x0630"
+#define MAX_GRP_VEL_INST "0x0650"
+#define MAX_ALLOW_FORCE_INST "0x06A8"
+#define MIN_GRP_FORCE_INST "0x0658"
+#define MAX_GRP_FORCE_INST "0x0660"
+#define UPTIME_INST "0x1400"
+#define MEAS_LGC_TEMP_INST "0x0840"
+#define ORDER_NO_TXT_INST "0x1008"
+
+#define SERIAL_NO_NUM_INST "0x1020"
+#define SW_VERSION_NUM_INST "0x1110"
+
+//Offset
+#define ACTUAL_POS_OFFSET "15"
+#define DEAD_LOAD_KG_OFFSET "40"
+#define TOOL_CENT_POINT_OFFSET "41"
+#define CENT_OF_MASS_OFFSET "42"
+#define USED_CUR_LIMIT_OFFSET "11"
+#define MAX_PHYS_STROKE_OFFSET "70"
+#define MIN_ERR_MOT_VOLT_OFFSET "96"
+#define MEAS_LGC_VOLT_OFFSET "110"
+#define SERIAL_NO_TXT_OFFSET "122"
+#define ORDER_NO_TXT_OFFSET "123"
+#define SW_BUILD_DATE_OFFSET "127"
+#define SW_BUILD_TIME_OFFSET "128"
+#define SW_VERSION_TXT_OFFSET "130"
+#define COMM_VERSION_TXT_OFFSET "131"
+#define MAC_ADDR_OFFSET "134"
 
 size_t writeCallback(void*, size_t, size_t, void*);
 
@@ -105,64 +132,74 @@ class AnybusCom
         
         void updatePlc(std::string &, const std::string &);
         void updateFeedback(const std::string &);
+
         std::string changeEndianFormat(const std::string &);
+
         std::vector<std::string> splitResponse(const std::string &, int);
-        uint8_t endian_format;
 
     protected:
-    
-        void initAddresses();
-        void getInfo();
 
-        std::string ip;
-        bool not_double_word;
+        std::string ip;                                                                             //IP to the connected gripper
 
-        uint32_t last_command;
-        uint16_t module_type;
-        uint16_t fieldbus_type;
+        uint8_t endian_format;                                                                      //Flag for big/little Endian
+        bool not_double_word;                                                                       //Flag if double word is requested (double words are always big Endian)
 
-        float max_allow_force;       //strong grip
+        const uint32_t mask = FAST_STOP | USE_GPE | GRIP_DIRECTION | REPEAT_COMMAND_TOGGLE;         //Mask for setting Command bits to zero 
 
-        const uint32_t mask = FAST_STOP | USE_GPE | GRIP_DIRECTION | REPEAT_COMMAND_TOGGLE;
+        void initAddresses();                                                                       
+        void getInfo();                                                                                    //Function to get Endian format
+        void getWithOffset(const std::string &offset, int count, int elements, bool is_float = true);      //A Function just for Gripper Feedback
 
-        void getWithOffset(const std::string &offset, int count, int elements);                           //A Function just for Gripper Feedback
+        uint32_t last_command;                                                                      //Saves last Command
+
+        uint16_t module_type;                                                                       //module type enum number
+        uint16_t fieldbus_type;                                                                     //fieldbus_type enum number
                                                                                                             
-       
         template<typename paramtype>
-        std::string writeValueToString(paramtype);
-        template<typename paramtype>
-        paramtype readParam(std::string);
+        std::string writeValueToString(paramtype);                                                  //Writes a given value to a hexadecimals string
+        template<typename paramtype>                                                                
+        paramtype readParam(std::string);                                                           //Reads a hexadecimal string to value
 
-        void updateSavedata(std::string, const int &counts, const int &elements);
-        void updatePlcOutput(uint32_t, uint32_t  = 0, uint32_t = 0, uint32_t = 0);
-        void postCommand();
-        void postParameter(std::string, std::string);   
-        template<typename paramtype>
-        void getWithInstance(const char inst[7], paramtype *param = NULL);               //Gripper Response
-        void getEnums(const char[7],const uint16_t &);
+        void updateSavedata(std::string, const int &counts, const int &elements, bool is_float = true);                   //Updates variable save_data
+        void updatePlcOutput(uint32_t, uint32_t  = 0, uint32_t = 0, uint32_t = 0);                  //Updates plc_sync_output[4]
+        void postCommand();                                                                         //Post plc_sync_output[4]
+        void postParameter(std::string, std::string);                                               //Post a Parameter with instance
+        template<typename paramtype>    
+        void getWithInstance(const char inst[7], paramtype *param = NULL);                          //Get a Parameter with Instance
+        void getEnums(const char[7],const uint16_t &);                                              //Get to an enum number the string
 
     public:
+        
+        plc_Array plc_sync_input;   // [0] -> Status double word,  [1]  ->actual Position, [2] ->reserved,      [3] ->diagnose 
+        plc_Array plc_sync_output;  // [0] -> Control double word, [1]  ->set_position,    [2] -> set_velocity, [3] ->set_effort 
 
-        nlohmann::json json_data;
+        nlohmann::json json_data;       //Json-Data used in get... 
 
-        bool pre_grip;
+        std::vector<float> save_data_float;   //Can save multiple floats from getOffset
+        std::vector<char> save_data_char;   //Can save multiple floats from getOffset
 
         uint16_t grp_prehold_time;   //Grip prehold time
+        
+        bool grp_pos_lock;
 
         float wp_lost_dst;           //Max. distance after workpiece lost
         float wp_release_delta;      //Workpiece release delta position
         float grp_pos_margin;        //Margin for workpiece detections
-        float max_pos;
-        float min_pos;
-        float min_vel;
-        float max_vel;
-        float max_grip_force;
-        float min_grip_force;
         float grp_prepos_delta;      //Gripping pre-position delta
         float zero_pos_ofs;          //zero position offset
-        float actual_pos, actual_vel, actual_cur;
+        
+        float max_pos;               //max absolute position of gripper
+        float min_pos;               //min absolute position of gripper           
+        float min_vel;               //min velocity
+        float max_vel;               //max velocity
+        float max_grip_force;        //max. grip force
+        float min_grip_force;        //min. grip_force
+        float max_allow_force;       //strong grip
+        float max_grp_vel;           //max. grip velocity
 
-         std::map<std::string, float*> instFloats
+        float actual_pos, actual_vel, actual_cur;       //actual values (feedback) 
+
+         std::map<std::string, float*> instFloats       
         {   
             {WP_LOST_DISTANCE_INST, &wp_lost_dst},
             {WP_RELEASE_DELTA_INST, &wp_release_delta},
@@ -171,11 +208,6 @@ class AnybusCom
             {ZERO_POS_OFS_INST, &zero_pos_ofs},
             {WP_RELEASE_DELTA_INST, &wp_release_delta}
         };
-
-        std::vector<float> save_data;
-
-        plc_Array plc_sync_input;   // [0] -> Status double word,  [1]  ->actual Position, [2] ->reserved,      [3] ->diagnose 
-        plc_Array plc_sync_output;  // [0] -> Control double word, [1]  ->set_position,    [2] -> set_velocity, [3] ->set_effort 
 
         AnybusCom(const std::string &ip);
         ~AnybusCom();
@@ -239,6 +271,13 @@ inline paramtype AnybusCom::readParam(std::string hex_str)
             std::memcpy(&floatValue, &intValue, sizeof(float));
             
             return floatValue;
+        }
+        else if(std::is_same<paramtype, char>::value)
+        {
+        std::istringstream hexStream(hex_str);
+        uint16_t value;
+        hexStream >> std::hex >> value;
+        return static_cast<char>(value);
         }
         //if an integer
         else 

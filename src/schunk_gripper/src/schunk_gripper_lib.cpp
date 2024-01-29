@@ -71,9 +71,9 @@ void Gripper::getActualParameters()
       getWithInstance<float>(MIN_POS_INST,&min_pos);
       getWithInstance<float>(MAX_VEL_INST,&max_vel);
       getWithInstance<float>(MIN_VEL_INST,&min_vel);
-      getWithOffset("86", 2, 2);
-      min_grip_force = save_data[0];
-      max_grip_force = save_data[1];
+      getWithInstance<float>(MAX_GRP_FORCE_INST, &max_grip_force);
+      getWithInstance<float>(MIN_GRP_FORCE_INST, &min_grip_force);
+      getWithInstance<float>(MAX_GRP_VEL_INST, &max_grp_vel);
 }
 //Check if Errors occurred by the gripper
 void Gripper::getModel()
@@ -92,6 +92,7 @@ void Gripper::getModel()
          std::cout << "No grip force and position maintenance!" << std::endl;
          model_M = false;
       }
+      if(model.find("EGU") != std::string::npos) getWithInstance<float>(MAX_ALLOW_FORCE_INST,&max_allow_force);
       
       std::cout <<  model << " CONNECTED!" << std::endl;
       start_connection = true;
@@ -128,7 +129,7 @@ void Gripper::runPost(uint32_t command, uint32_t position, uint32_t velocity, ui
 //Receive Gripper response and actual Data
 void Gripper::runGets()
 {   
-    getWithOffset("15", 3, 3);
+    getWithOffset(ACTUAL_POS_OFFSET, 3, 3);
     getWithInstance<uint32_t>(PLC_SYNC_INPUT_INST);
 }
 //If the gripper is ready for shutdown, so do softreset. DO: Acknowledge and get receive
@@ -140,9 +141,10 @@ void Gripper::startGripper()
         getWithInstance<uint32_t>(PLC_SYNC_INPUT_INST);
         getWithInstance<uint32_t>(PLC_SYNC_OUTPUT_INST);
         //Get actual values
-        getWithOffset("15", 3, 3);
+        getWithOffset(ACTUAL_POS_OFFSET, 3, 3);
 
         getWithInstance<uint16_t>(MODULE_TYPE_INST, &module_type);
+        getWithInstance<uint16_t>(FIELDBUS_TYPE_INST, &fieldbus_type);
 
         last_command = 0;
 

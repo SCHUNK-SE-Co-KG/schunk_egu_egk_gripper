@@ -22,44 +22,41 @@ extern std::map<std::string, uint32_t> commands_str;
 
 class Gripper : protected AnybusCom
 {
-   private:
-
 
    protected:
 
-   bool handshake;
-   bool ip_changed_with_all_param;
-
-   void startGripper();
-   void acknowledge();
-   void getActualParameters();
-   void getModel();
-   bool gripperBitInput(const uint32_t&) const;
-   bool gripperBitOutput(const uint32_t&) const;
-   bool changeIp(const std::string &);
-   uint32_t mm2mu(const float &);
-
-   std::string getErrorString(const uint8_t &);
-
-   std::string model;
+   void startGripper();                            //get all necessary
+   void getActualParameters();                     //Get all necessary parameters
+   void getModel();                                //Get the string of the model and set flags
    
+   bool handshake;
    bool start_connection;
    bool model_M;
-   bool grp_pos_lock;           //Lock grip and position with brake
-   bool modus_m;                //Strong or basic Grip
+   std::string model;                              
+
+   bool gripperBitInput(const uint32_t&) const;    //retrieve individual bits from the status double word
+   bool gripperBitOutput(const uint32_t&) const;   //retrieve individual bits from the control double word
+   
+   void acknowledge();                             //acknowledge
+   bool changeIp(const std::string &);             //changeIP
+   
+   bool ip_changed_with_all_param;
+
+   uint32_t mm2mu(const float &);                  //Convert millimeters to micrometers. All unsigned -> For control double word
 
    template <typename parametertype>
-   void changeParameter(const char[7] , parametertype, parametertype *param = NULL);
-   bool check();
-   bool endCondition(); 
-   void runGets();
-   void runPost(uint32_t command, uint32_t position = 0, uint32_t velocity = 0, uint32_t effort = 0);
-   
-   std::array<uint8_t, 3> splitDiagnosis();
+   void changeParameter(const char[7] , parametertype, parametertype *param = NULL);                  //Post a parameter
+   void runGets();                                                                                    //Get actual data
+   void runPost(uint32_t command, uint32_t position = 0, uint32_t velocity = 0, uint32_t effort = 0); //Post control d
+   bool check();                                                                                      //Check for errors
+   bool endCondition();                                                                               //Is the gripper in an endCondition? -> example Successbit is set
+
+   std::string getErrorString(const uint8_t &);                                         //Get for the error code the error string
+   std::array<uint8_t, 3> splitDiagnosis();                                             //Split the diagnosis to get error, warning and not-feasible     
 
    public:
 
-   Gripper(const std::string &ip);          //Gripper initialisation
+   Gripper(const std::string &ip);                                                        //Gripper initialisation
    ~Gripper();
 
 };
