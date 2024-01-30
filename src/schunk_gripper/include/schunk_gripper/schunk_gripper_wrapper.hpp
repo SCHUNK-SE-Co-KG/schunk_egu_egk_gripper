@@ -16,6 +16,7 @@
 #include "schunk_gripper/action/mov_rel_pos.hpp"
 #include "schunk_gripper/msg/state.hpp"
 #include "schunk_gripper/srv/acknowledge.hpp"
+#include "schunk_gripper/srv/brake_test.hpp"
 #include "schunk_gripper/srv/stop.hpp"
 #include "schunk_gripper/srv/fast_stop.hpp"
 #include "schunk_gripper/srv/prepare_for_shutdown.hpp"
@@ -42,6 +43,7 @@ class SchunkGripperNode :  public rclcpp::Node, public Gripper
     void publishJointState();
 
     using Acknowledge = schunk_gripper::srv::Acknowledge;
+    using BrakeTest = schunk_gripper::srv::BrakeTest;
     using Stop = schunk_gripper::srv::Stop;
     using FastStop =  schunk_gripper::srv::FastStop;
     using ReleaseForManMov = schunk_gripper::srv::ReleaseForManMov;
@@ -60,7 +62,7 @@ class SchunkGripperNode :  public rclcpp::Node, public Gripper
     using GripperCommand = control_msgs::action::GripperCommand;
 
     void acknowledge_srv(const std::shared_ptr<Acknowledge::Request>, std::shared_ptr<Acknowledge::Response> );
-    
+    void brake_test_srv(const std::shared_ptr<BrakeTest::Request>, std::shared_ptr<BrakeTest::Response> );
     void stop_srv(const std::shared_ptr<Stop::Request>, std::shared_ptr<Stop::Response> );
     void fast_stop_srv(const std::shared_ptr<FastStop::Request>, std::shared_ptr<FastStop::Response>);
     void releaseForManualMov_srv(const std::shared_ptr<ReleaseForManMov::Request>, std::shared_ptr<ReleaseForManMov::Response>);
@@ -123,6 +125,7 @@ class SchunkGripperNode :  public rclcpp::Node, public Gripper
 
 
     public:
+
     std::shared_ptr<rclcpp::ParameterEventHandler> parameter_event_handler;
     std::array<std::shared_ptr<rclcpp::ParameterCallbackHandle>, 12> cb_handle;
     rclcpp::Node &parameterEventCallback(const rcl_interfaces::msg::ParameterEvent &);
@@ -149,6 +152,7 @@ class SchunkGripperNode :  public rclcpp::Node, public Gripper
 
 
     rclcpp::Service<Acknowledge>::SharedPtr            acknowledge_service;
+    rclcpp::Service<BrakeTest>::SharedPtr              brake_test_service;
     rclcpp::Service<Stop>::SharedPtr                   stop_service;
     rclcpp::Service<FastStop>::SharedPtr               fast_stop_service;
     rclcpp::Service<ReleaseForManMov>::SharedPtr       releaseForManualMov_service;

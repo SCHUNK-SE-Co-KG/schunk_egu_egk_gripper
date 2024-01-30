@@ -270,7 +270,7 @@ void AnybusCom::updateFeedback(const std::string &hex_str)
     actual_cur=  readParam<float>(splitted[2]);
 }
 //Update the plcOutput if a Command is send
-void AnybusCom::updatePlcOutput(uint32_t command,uint32_t position, uint32_t velocity, uint32_t effort)
+void AnybusCom::updatePlcOutput(uint32_t command, uint32_t position, uint32_t velocity, uint32_t effort)
 {   
     uint32_t actual_command = command & (~GRIP_DIRECTION);      //Command without Grip direction
 

@@ -105,6 +105,7 @@ SchunkGripperNode::SchunkGripperNode(const rclcpp::NodeOptions &options) :
     publish_joint_timer = this->create_wall_timer(std::chrono::duration<double>(1 / j_state_frq), std::bind(&SchunkGripperNode::publishJointState, this));
 
     acknowledge_service = this->create_service<Acknowledge>("acknowledge", std::bind(&SchunkGripperNode::acknowledge_srv,this,_1,_2), rmw_qos_profile_services_default, services_group);
+    if(sw_version >= 502) brake_test_service = this->create_service<BrakeTest>("brake_test", std::bind(&SchunkGripperNode::brake_test_srv, this,_1,_2), rmw_qos_profile_services_default, services_group);
     stop_service = this->create_service<Stop>("stop", std::bind(&SchunkGripperNode::stop_srv,this,_1,_2), rmw_qos_profile_services_default, services_group);
     softreset_service = this->create_service<Softreset>("softreset", std::bind(&SchunkGripperNode::softreset_srv,this,_1,_2), rmw_qos_profile_services_default, services_group);
     releaseForManualMov_service = this->create_service<ReleaseForManMov>("release_for_manual_movement", std::bind(&SchunkGripperNode::releaseForManualMov_srv,this,_1,_2), rmw_qos_profile_services_default, services_group);
@@ -1055,6 +1056,43 @@ void SchunkGripperNode::acknowledge_srv(const std::shared_ptr<Acknowledge::Reque
     finishedCommand();
 }
 //Ip change service, if the ip should change during runtime of the program
+void SchunkGripperNode::brake_test_srv(const std::shared_ptr<BrakeTest::Request>, std::shared_ptr<BrakeTest::Response> res)
+{
+    std::lock_guard<std::recursive_mutex> lock(lock_mutex);
+    try
+    {
+        //send stop
+        runPost(BRAKE_TEST);
+        //if command received, get values
+        if(handshake != gripperBitInput(COMMAND_RECEIVED_TOGGLE)) 
+        while (rclcpp::ok() && check() && !gripperBitInput(SUCCESS))   
+        runGets();   
+    }  
+    catch(const char* res)
+    {
+        connection_error = res;
+        RCLCPP_ERROR(this->get_logger(), "Failed Connection! %s", connection_error.c_str());
+    } 
+
+    if((gripperBitInput(SUCCESS) == true) && (handshake != gripperBitInput(COMMAND_RECEIVED_TOGGLE)))
+    {
+        res->brake_test_successful = true;
+        res->error_code = error_str;
+        RCLCPP_INFO(this->get_logger(),"Brake test successful!");
+    }
+    else
+    {
+        runGets();
+        gripper_updater->force_update();
+        res->error_code = error_str;
+        res->brake_test_successful = false;
+        RCLCPP_INFO(this->get_logger(),"Brake test not successful!");
+    }
+
+
+    handshake = gripperBitInput(COMMAND_RECEIVED_TOGGLE);
+
+}
 void SchunkGripperNode::change_ip_srv(const std::shared_ptr<ChangeIp::Request> req, std::shared_ptr<ChangeIp::Response> res)
 {   
     std::lock_guard<std::recursive_mutex> lock(lock_mutex);
