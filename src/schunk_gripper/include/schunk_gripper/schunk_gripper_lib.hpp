@@ -9,7 +9,6 @@
  * communication and the Ros-Wrapper.
  * 
  */
-
 #ifndef SCHUNK_GRIPPER_HPP
 #define SCHUNK_GRIPPER_HPP
 

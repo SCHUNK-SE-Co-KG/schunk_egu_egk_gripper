@@ -36,6 +36,12 @@ SchunkGripperNode::SchunkGripperNode(const rclcpp::NodeOptions &options) :
         }
     }  
     
+    if(comm_version.find("1.5") == std::string::npos && sw_version > 502)
+    {
+        RCLCPP_ERROR(this->get_logger(),"Wrong software version");
+    }
+
+
     messages_group = this->create_callback_group(rclcpp::CallbackGroupType::MutuallyExclusive);
     services_group = this->create_callback_group(rclcpp::CallbackGroupType::MutuallyExclusive);
     actions_group  = this->create_callback_group(rclcpp::CallbackGroupType::MutuallyExclusive);
@@ -1371,9 +1377,9 @@ void SchunkGripperNode::info_srv(const std::shared_ptr<GripperInfo::Request>, st
         
         getEnums(FIELDBUS_TYPE_INST,fieldbus_type);
         getWithOffset(MAC_ADDR_OFFSET, 1, 6, false);
-        std::array<uint16_t,6> mac;
+        std::array<int16_t,6> mac;
         
-        for(size_t i = 0; i < 6; i++){mac[i] = static_cast<uint16_t>(save_data_char.at(i));}
+        for(size_t i = 0; i < 6; i++){mac[i] = static_cast<int16_t>(static_cast<unsigned char>(save_data_char.at(i)));}
             
         RCLCPP_INFO_STREAM(this->get_logger(),
                                "\nFieldbustype:  " << json_data["string"] 
@@ -1387,6 +1393,10 @@ void SchunkGripperNode::info_srv(const std::shared_ptr<GripperInfo::Request>, st
     {
     connection_error = res;
     RCLCPP_ERROR(this->get_logger(), "Failed Connection! %s", connection_error.c_str());
+    }
+    catch(const std::exception &e)
+    {
+        RCLCPP_ERROR(this->get_logger(), "%s", e.what());
     }
 }
 

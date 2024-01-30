@@ -30,12 +30,17 @@ std::map<std::string, uint32_t> commands_str
 Gripper::Gripper(const std::string &ip): AnybusCom(ip)
 {  
    try
-   {    
+   {  
+
       startGripper();
       //Get parameters
       getActualParameters();
       //Model
       getModel();
+      //get Versions
+      getWithInstance<uint16_t>(SW_VERSION_NUM_INST, &sw_version);
+      getWithInstance<char>(COMM_VERSION_TXT_INST, NULL, 12);
+      comm_version = save_data_char.data();
 
       ip_changed_with_all_param = true;
    }

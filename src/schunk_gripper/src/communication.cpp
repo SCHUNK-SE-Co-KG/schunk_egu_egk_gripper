@@ -91,10 +91,10 @@ void AnybusCom::updateSavedata(std::string hexStr, const int &count, const int &
 
         std::vector<std::string> save;
         save.resize(elements);
-
             for(int i = 0; i < elements; i++)
             {
-                save[i] = hexStr.substr((i * sizeof(float) * 2),sizeof(float) * 2);
+                save[i] = hexStr.substr((i * sizeof(float) * 2), sizeof(float) * 2);
+
                 save_data_float.at(i) = readParam<float>(save[i]);
             }
         }
