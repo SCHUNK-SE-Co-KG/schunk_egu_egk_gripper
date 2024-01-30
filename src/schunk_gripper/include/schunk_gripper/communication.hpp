@@ -81,44 +81,33 @@
 #define UPTIME_INST "0x1400"
 #define MEAS_LGC_TEMP_INST "0x0840"
 #define ORDER_NO_TXT_INST "0x1008"
+#define MAC_ADDR_INST "0x1138"
+#define DEAD_LOAD_KG_INST "0x03A8"
+#define TOOL_CENT_POINT_INST "0x03B0"
+#define CENT_OF_MASS_INST "0x03B8"
+#define USED_CUR_LIMIT_INST "0x0210"
+#define MAX_PHYS_STROKE_INST "0x0588"
 
 #define SERIAL_NO_NUM_INST "0x1020"
 #define SW_VERSION_NUM_INST "0x1110"
 #define COMM_VERSION_TXT_INST "0x1120"
+#define SERIAL_NO_TXT_INST "0x1000"
+#define ORDER_NO_TXT_INST "0x1008"
+#define SW_BUILD_DATE_INST "0x1100"
+#define SW_BUILD_TIME_INST "0x1108"
+#define SW_VERSION_TXT_INST "0x1118"
+
 //Offset (Mostly used for gripper_info)
-#define ACTUAL_POS_OFFSET "15" //Used for Feedbacks!
 /*
 //New comm_version 2.1 & sw_version 5.3.0
-#define DEAD_LOAD_KG_OFFSET "38"
-#define TOOL_CENT_POINT_OFFSET "39"
-#define CENT_OF_MASS_OFFSET "40"
-#define USED_CUR_LIMIT_OFFSET "11"
-#define MAX_PHYS_STROKE_OFFSET "68"
+#define ACTUAL_POS_OFFSET "15" //Used for Feedbacks!
 #define MIN_ERR_MOT_VOLT_OFFSET "94"
 #define MEAS_LGC_VOLT_OFFSET "108"
-#define SERIAL_NO_TXT_OFFSET "116"
-#define ORDER_NO_TXT_OFFSET "117"
-#define SW_BUILD_DATE_OFFSET "121"
-#define SW_BUILD_TIME_OFFSET "122"
-#define SW_VERSION_TXT_OFFSET "124"
-#define COMM_VERSION_TXT_OFFSET "125"
-#define MAC_ADDR_OFFSET "128"
 */
 //Old comm_version 1.55.1 & sw_version 5.2.0.81896
-#define DEAD_LOAD_KG_OFFSET "40"
-#define TOOL_CENT_POINT_OFFSET "41"
-#define CENT_OF_MASS_OFFSET "42"
-#define USED_CUR_LIMIT_OFFSET "11"
-#define MAX_PHYS_STROKE_OFFSET "70"
+#define ACTUAL_POS_OFFSET "15" //Used for Feedbacks!
 #define MIN_ERR_MOT_VOLT_OFFSET "96"
 #define MEAS_LGC_VOLT_OFFSET "110"
-#define SERIAL_NO_TXT_OFFSET "122"
-#define ORDER_NO_TXT_OFFSET "123"
-#define SW_BUILD_DATE_OFFSET "127"
-#define SW_BUILD_TIME_OFFSET "128"
-#define SW_VERSION_TXT_OFFSET "130"
-#define COMM_VERSION_TXT_OFFSET "131"
-#define MAC_ADDR_OFFSET "134"
 
 size_t writeCallback(void*, size_t, size_t, void*);
 
@@ -265,7 +254,7 @@ inline void AnybusCom::getWithInstance(const char inst[7], paramtype *param, int
         {
            if (instance == PLC_SYNC_INPUT_INST || instance == PLC_SYNC_OUTPUT_INST) updatePlc(response, instance);
            else if(std::is_same<paramtype, char>::value) updateSavedata(response, 1, elements, false);
-           else if(std::is_same<paramtype, float>::value && elements != 1) updateSavedata(response, 1, elements, true);
+           else if(std::is_same<paramtype, float>::value && elements > 1) updateSavedata(response, 1, elements);
            else   *param = readParam<paramtype>(response);   
         }
     curl_easy_reset(curl1);

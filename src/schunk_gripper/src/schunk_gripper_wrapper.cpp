@@ -38,8 +38,10 @@ SchunkGripperNode::SchunkGripperNode(const rclcpp::NodeOptions &options) :
     
     if(comm_version.find("1.5") == std::string::npos && sw_version > 502)
     {
-        RCLCPP_ERROR(this->get_logger(),"Wrong software version");
+        RCLCPP_WARN(this->get_logger(),"Using not suitable software-version.");
+        wrong_version = true;
     }
+    else wrong_version = false;
 
 
     messages_group = this->create_callback_group(rclcpp::CallbackGroupType::MutuallyExclusive);
@@ -1055,7 +1057,7 @@ void SchunkGripperNode::acknowledge_srv(const std::shared_ptr<Acknowledge::Reque
     gripper_updater->force_update();
     finishedCommand();
 }
-//Ip change service, if the ip should change during runtime of the program
+//Brake test
 void SchunkGripperNode::brake_test_srv(const std::shared_ptr<BrakeTest::Request>, std::shared_ptr<BrakeTest::Response> res)
 {
     std::lock_guard<std::recursive_mutex> lock(lock_mutex);
@@ -1093,6 +1095,7 @@ void SchunkGripperNode::brake_test_srv(const std::shared_ptr<BrakeTest::Request>
     handshake = gripperBitInput(COMMAND_RECEIVED_TOGGLE);
 
 }
+//Ip change service, if the ip should change during runtime of the program
 void SchunkGripperNode::change_ip_srv(const std::shared_ptr<ChangeIp::Request> req, std::shared_ptr<ChangeIp::Response> res)
 {   
     std::lock_guard<std::recursive_mutex> lock(lock_mutex);
@@ -1199,7 +1202,7 @@ void SchunkGripperNode::softreset_srv(const std::shared_ptr<Softreset::Request>,
     std::unique_lock<std::recursive_mutex> lock(lock_mutex);
     try
     {
-        RCLCPP_INFO(this->get_logger(),"SOFT RESET");
+        RCLCPP_INFO(this->get_logger(),"SOFTRESET");
         runPost(SOFT_RESET);
     }
     catch(const char* res){}
@@ -1325,18 +1328,64 @@ void SchunkGripperNode::info_srv(const std::shared_ptr<GripperInfo::Request>, st
     const std::lock_guard<std::recursive_mutex> lock(lock_mutex);
     try
     {
+        if(wrong_version) RCLCPP_WARN_STREAM(this->get_logger(),"Using not suitable software-version. Some informations may be misleading");
+
+        std::vector<std::string> char_strings;
+        uint32_t data;
+        uint16_t data2;
+        float data3;
+
         RCLCPP_INFO_STREAM(this->get_logger(),"\n\n\nGRIPPER TYPE: " << model.c_str()
                         << "\nIP: " << ip  << std::endl);
         
-        getWithOffset(DEAD_LOAD_KG_OFFSET, 1, 1);
-        RCLCPP_INFO_STREAM(this->get_logger(),"\nNet mass of the Gripper: " << save_data_float[0] << " kg" << std::endl);
+        getEnums(FIELDBUS_TYPE_INST,fieldbus_type);
+        getWithInstance<char>(MAC_ADDR_INST, NULL, 6);
+        std::array<int16_t,6> mac;
         
-        getWithOffset(TOOL_CENT_POINT_OFFSET, 1,6);
+        for(size_t i = 0; i < 6; i++){mac[i] = static_cast<int16_t>(static_cast<unsigned char>(save_data_char.at(i)));}
+            
+        RCLCPP_INFO_STREAM(this->get_logger(),
+                               "\nFieldbustype:  " << json_data["string"] 
+                               << "\nMac-address: " << std::hex << mac[0] << ":" << mac[1] << ":" << mac[2] << ":" << mac[3] << ":"
+                               << mac[4] << ":" << mac[5] << std::endl);
+
+                
+        //Get the char-Parameter and save them as strings in char_strings
+        getWithInstance<char>(SERIAL_NO_TXT_INST, NULL, 16);
+        char_strings.push_back(save_data_char.data());
+        getWithInstance<char>(ORDER_NO_TXT_INST, NULL, 16);
+        char_strings.push_back(save_data_char.data());
+        getWithInstance<char>(SW_BUILD_DATE_INST, NULL, 12);
+        char_strings.push_back(save_data_char.data());
+        getWithInstance<char>(SW_BUILD_TIME_INST, NULL, 9);
+        char_strings.push_back(save_data_char.data());
+        getWithInstance<char>(SW_VERSION_TXT_INST, NULL, 22);
+        char_strings.push_back(save_data_char.data());
+        
+        getWithInstance(SERIAL_NO_NUM_INST, &data);
+        getWithInstance<uint16_t>(SW_VERSION_NUM_INST, &data2);
+
+        RCLCPP_INFO_STREAM(this->get_logger(),"\nSerial number text:  " << char_strings[0]
+                                            <<"\nOrder number text:  " <<  char_strings[1]
+                                            <<"\nDevice serial number encoded: " << data
+                                            <<"\nMain software build date:  " << char_strings[2]
+                                            <<"\nMain software build time:  " << char_strings[3]
+                                            <<"\nMain software version short:  " << data2
+                                            <<"\nMain software version:  " << char_strings[4]
+                                            <<"\nCommunication software version:  " << comm_version << std::endl);
+
+        getWithInstance<uint32_t>(UPTIME_INST, &data);
+        RCLCPP_INFO_STREAM(this->get_logger(),"\nSystem uptime: " << data << " s" << std::endl);
+        
+        getWithInstance<float>(DEAD_LOAD_KG_INST, &data3);
+        RCLCPP_INFO_STREAM(this->get_logger(),"\nNet mass of the Gripper: " << data3 << " kg" << std::endl);
+        
+        getWithInstance<float>(TOOL_CENT_POINT_INST, NULL, 6);
         RCLCPP_INFO_STREAM(this->get_logger(),"\nTool center point 6D-Frame: \n" 
         << save_data_float[0] << " mm  " << save_data_float[1] << " mm  " << save_data_float[2] << " mm\n" 
         << save_data_float[3] << "  " << save_data_float[4] << "  " << save_data_float[5] << std::endl);
         
-        getWithOffset(CENT_OF_MASS_OFFSET, 1,6);
+        getWithInstance<float>(CENT_OF_MASS_INST, NULL, 6);
         RCLCPP_INFO_STREAM(this->get_logger(), "\nCenter of Mass 6D-frame: \n" 
         << save_data_float[0] << " mm  " << save_data_float[1] << " mm  " << save_data_float[2] << " mm\n"
         << save_data_float[3] << " kg*m^2  " << save_data_float[4] << " kg*m^2  "<< save_data_float[5] << " kg*m^2"<< std::endl);
@@ -1357,10 +1406,10 @@ void SchunkGripperNode::info_srv(const std::shared_ptr<GripperInfo::Request>, st
         RCLCPP_INFO_STREAM(this->get_logger(),"\nMax allowed grip force StrongGrip: " << max_allow_force  << " N  " << std::endl);
         }
 
-        getWithOffset(USED_CUR_LIMIT_OFFSET, 1, 1);
-        RCLCPP_INFO_STREAM(this->get_logger(),"\nUsed current limit: " << save_data_float[0] << " A" << std::endl);
-        getWithOffset(MAX_PHYS_STROKE_OFFSET, 1, 1);
-        RCLCPP_INFO_STREAM(this->get_logger(),"Max. physical stroke: " << save_data_float[0] << " mm" << std::endl);
+        getWithInstance<float>(USED_CUR_LIMIT_INST, &data3);
+        RCLCPP_INFO_STREAM(this->get_logger(),"\nUsed current limit: " << data3 << " A" << std::endl);
+        getWithInstance<float>(MAX_PHYS_STROKE_INST, &data3);
+        RCLCPP_INFO_STREAM(this->get_logger(),"Max. physical stroke: " << data3 << " mm" << std::endl);
         getWithOffset(MIN_ERR_MOT_VOLT_OFFSET, 6, 6);
         RCLCPP_INFO_STREAM(this->get_logger(),"\nMin. error motor voltage: " << save_data_float[0] << " V\n"
                     <<    "Max. error motor voltage: " << save_data_float[1] << " V\n"
@@ -1369,8 +1418,8 @@ void SchunkGripperNode::info_srv(const std::shared_ptr<GripperInfo::Request>, st
                     <<    "Min. error logic temperature: " << save_data_float[4] << " C\n"
                     <<    "Max. error logic temperature: " << save_data_float[5] << " C" << std::endl);
         
-        getWithInstance<float>(MEAS_LGC_TEMP_INST, &save_data_float[0]);
-        RCLCPP_INFO_STREAM(this->get_logger(), "Measured logic temperature: " << save_data_float[0] << " C" << std::endl);
+        getWithInstance<float>(MEAS_LGC_TEMP_INST, &data3);
+        RCLCPP_INFO_STREAM(this->get_logger(), "Measured logic temperature: " << data3 << " C" << std::endl);
 
         getWithOffset(MEAS_LGC_VOLT_OFFSET, 8, 8);
         RCLCPP_INFO_STREAM(this->get_logger(),
@@ -1383,49 +1432,6 @@ void SchunkGripperNode::info_srv(const std::shared_ptr<GripperInfo::Request>, st
                     <<    "Min. warning logic temperature: " << save_data_float[6] << " C\n"
                     <<    "Max. warning logic temperature: " << save_data_float[7] << " C" << std::endl);
         
-
-        std::vector<std::string> char_strings;
-        uint32_t data;
-        uint16_t data2;
-        //Get the char-Parameter and save them as strings in char_strings
-        getWithOffset(SERIAL_NO_TXT_OFFSET, 1, 16, false);
-        char_strings.push_back(save_data_char.data());
-        getWithOffset(ORDER_NO_TXT_OFFSET, 1, 16, false);
-        char_strings.push_back(save_data_char.data());
-        getWithOffset(SW_BUILD_DATE_OFFSET, 1, 12, false);
-        char_strings.push_back(save_data_char.data());
-        getWithOffset(SW_BUILD_TIME_OFFSET, 1, 9, false);
-        char_strings.push_back(save_data_char.data());
-        getWithOffset(SW_VERSION_TXT_OFFSET, 1, 22, false);
-        char_strings.push_back(save_data_char.data());
-        getWithOffset(COMM_VERSION_TXT_OFFSET, 1, 12, false);
-        char_strings.push_back(save_data_char.data());
-        
-        getWithInstance(SERIAL_NO_NUM_INST, &data);
-        getWithInstance<uint16_t>(SW_VERSION_NUM_INST, &data2);
-
-        RCLCPP_INFO_STREAM(this->get_logger(),"\nSerial number text:  " << char_strings[0]
-                                            <<"\nOrder number text:  " <<  char_strings[1]
-                                            <<"\nDevice serial number encoded: " << data
-                                            <<"\nMain software build date:  " << char_strings[2]
-                                            <<"\nMain software build time:  " << char_strings[3]
-                                            <<"\nMain software version short:  " << data2
-                                            <<"\nMain software version:  " << char_strings[4]
-                                            <<"\nCommunication software version:  " << char_strings[5] << std::endl);
-        
-        getEnums(FIELDBUS_TYPE_INST,fieldbus_type);
-        getWithOffset(MAC_ADDR_OFFSET, 1, 6, false);
-        std::array<int16_t,6> mac;
-        
-        for(size_t i = 0; i < 6; i++){mac[i] = static_cast<int16_t>(static_cast<unsigned char>(save_data_char.at(i)));}
-            
-        RCLCPP_INFO_STREAM(this->get_logger(),
-                               "\nFieldbustype:  " << json_data["string"] 
-                               << "\nMac-address: " << std::hex << mac[0] << ":" << mac[1] << ":" << mac[2] << ":" << mac[3] << ":"
-                               << mac[4] << ":" << mac[5] << std::endl);
-
-        getWithInstance(UPTIME_INST, &data);
-        RCLCPP_INFO_STREAM(this->get_logger(),"\nSystem uptime: " << data << " s" << std::endl);
     }
     catch(const char* res)
     {
