@@ -28,7 +28,6 @@ class Gripper : protected AnybusCom
    void getActualParameters();                     //Get all necessary parameters
    void getModel();                                //Get the string of the model and set flags
    
-   bool handshake;
    bool start_connection;
    bool model_M;
    std::string model;                              
@@ -39,7 +38,7 @@ class Gripper : protected AnybusCom
    void acknowledge();                             //acknowledge
    bool changeIp(const std::string &);             //changeIP
    
-   bool ip_changed_with_all_param;
+   bool ip_changed_with_all_param;                 //IP and parameter changed
 
    uint32_t mm2mu(const float &);                  //Convert millimeters to micrometers. All unsigned -> For control double word
 
@@ -64,10 +63,10 @@ class Gripper : protected AnybusCom
 template <typename parametertype>
 inline void Gripper::changeParameter(const char inst[7], parametertype new_value, parametertype *store)
 {
-   std::string value = writeValueToString<parametertype>(new_value);
-   postParameter(inst, value);
-   std::string instance = inst;
-
+   std::string value = writeValueToString<parametertype>(new_value);   //Hexstring Value
+   postParameter(inst, value);                                         //Post
+   std::string instance = inst;                                       
+   //GET and store parameter
    if(std::is_same<parametertype, float>::value) getWithInstance<float>(inst, instFloats.at(instance));
    else getWithInstance<parametertype>(inst, store);
 }

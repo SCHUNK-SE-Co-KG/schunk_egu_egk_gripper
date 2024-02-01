@@ -35,12 +35,6 @@ extern  std::map<std::string, const char*> parameter_map;
 class SchunkGripperNode :  public rclcpp::Node, public Gripper
 {    
     private:
-    void publishState();
-    
-    std::string connection_error;
-    std::vector<rclcpp::Parameter> failed_param;
-
-    void publishJointState();
 
     using Acknowledge = schunk_gripper::srv::Acknowledge;
     using BrakeTest = schunk_gripper::srv::BrakeTest;
@@ -60,7 +54,58 @@ class SchunkGripperNode :  public rclcpp::Node, public Gripper
     using GripWithPos = schunk_gripper::action::GripWithPos;
     using ReleaseWorkpiece = schunk_gripper::action::ReleaseWorkpiece;
     using GripperCommand = control_msgs::action::GripperCommand;
+    //Flags
+    bool param_exe;
+    bool action_active;
+    bool action_move;
+    bool wrong_version;
+    bool handshake;                                 //handshake
+    //Topic publishing
+    void publishJointState();
+    void publishState();
 
+    rclcpp::Publisher<sensor_msgs::msg::JointState>::SharedPtr     jointStatePublisher;
+    rclcpp::Publisher<schunk_gripper::msg::State>::SharedPtr       statePublisher;
+    rclcpp::TimerBase::SharedPtr                                   publish_state_timer;
+    rclcpp::TimerBase::SharedPtr                                   publish_joint_timer;
+
+    schunk_gripper::msg::State msg;
+    double state_frq;
+    double j_state_frq;
+    //Diagnostic updater
+    std::shared_ptr<diagnostic_updater::Updater> gripper_updater;
+
+    std::array<uint8_t,3> old_diagnosis; 
+    std::string error_str;
+    std::string warn_str;
+
+    std::array<uint8_t, 3> splitted_Diagnosis;
+    std::string connection_error;
+    std::vector<rclcpp::Parameter> failed_param;
+
+    void gripperDiagnostics(diagnostic_updater::DiagnosticStatusWrapper&);
+
+    double actualPosInterval();                                                         //Parameter accept just Position in Interval
+    void callback_gripper_parameter(const rclcpp::Parameter &);
+    void callback_move_parameter(const rclcpp::Parameter &);
+
+    double abs_pos_param;
+    std::string actual_command; 
+    std::shared_ptr<rclcpp::Duration> cycletime;
+    rclcpp::Time     last_time;
+    rclcpp::Rate     limiting_rate;    
+    //Basic Functions
+    void updateStateMsg();
+    void finishedCommand();
+    void declareParameter();
+    //Describing Parameters
+    rcl_interfaces::msg::ParameterDescriptor parameter_descriptor(const std::string&, const rcl_interfaces::msg::FloatingPointRange&);
+    rcl_interfaces::msg::ParameterDescriptor parameter_descriptor(const std::string&, const rcl_interfaces::msg::IntegerRange&);
+    rcl_interfaces::msg::ParameterDescriptor parameter_descriptor(const std::string&);
+    rcl_interfaces::msg::FloatingPointRange FloatingPointRange(double, double, double step = 0.0);
+    rcl_interfaces::msg::IntegerRange IntegerRange(int64_t, int64_t, uint64_t step = 0);
+    
+    //Services
     void acknowledge_srv(const std::shared_ptr<Acknowledge::Request>, std::shared_ptr<Acknowledge::Response> );
     void brake_test_srv(const std::shared_ptr<BrakeTest::Request>, std::shared_ptr<BrakeTest::Response> );
     void stop_srv(const std::shared_ptr<Stop::Request>, std::shared_ptr<Stop::Response> );
@@ -71,40 +116,7 @@ class SchunkGripperNode :  public rclcpp::Node, public Gripper
     void info_srv(const std::shared_ptr<GripperInfo::Request>, std::shared_ptr<GripperInfo::Response>);
     void change_ip_srv(const std::shared_ptr<ChangeIp::Request>, std::shared_ptr<ChangeIp::Response>);
 
-    double actualPosInterval();                                                         //Parameter accept just Position in Interval
-
-    rclcpp::Publisher<sensor_msgs::msg::JointState>::SharedPtr     jointStatePublisher;
-    rclcpp::Publisher<schunk_gripper::msg::State>::SharedPtr       statePublisher;
-    rclcpp::TimerBase::SharedPtr                                   publish_state_timer;
-    rclcpp::TimerBase::SharedPtr                                   publish_joint_timer;
-
-    rclcpp::Time                        diagnostic_time;
-
-    std::shared_ptr<diagnostic_updater::Updater> gripper_updater;
-
-    schunk_gripper::msg::State msg;
-    double abs_pos_param;
-
-    double state_frq;
-    double j_state_frq;
-
-    std::shared_ptr<rclcpp::Duration> cycletime;
-    rclcpp::Time     last_time;
-    rclcpp::Rate     limiting_rate;
-
-    std::string actual_command;     
-
-    std::array<uint8_t,3> old_diagnosis; 
-    std::string error_str;
-    std::string warn_str;
-
-    bool param_exe;
-    bool action_active;
-    bool action_move;
-    bool wrong_version;
-
-    std::array<uint8_t, 3> splitted_Diagnosis;
-
+    //Action-basic-functions
     template<typename GoalType, typename ResType>
     void exceptionHandling(const std::shared_ptr<rclcpp_action::ServerGoalHandle<GoalType>>, const int32_t &, const std::shared_ptr<ResType>);
     template<typename restype, typename goaltype>
@@ -113,31 +125,45 @@ class SchunkGripperNode :  public rclcpp::Node, public Gripper
     void runActionMove(std::shared_ptr<feedbacktype>, std::shared_ptr<rclcpp_action::ServerGoalHandle<goaltype>>);
     template<typename feedbacktype, typename goaltype>
     void runActionGrip(std::shared_ptr<feedbacktype>, std::shared_ptr<rclcpp_action::ServerGoalHandle<goaltype>>);
-    void updateStateMsg();
-    void declareParameter();
-    void gripperDiagnostics(diagnostic_updater::DiagnosticStatusWrapper&);
-    void finishedCommand();
+    //Actions
+    void handle_accepted_abs(const std::shared_ptr<rclcpp_action::ServerGoalHandle<MovAbsPos>>);
+    void handle_accepted_rel(const std::shared_ptr<rclcpp_action::ServerGoalHandle<MovRelPos>>);
+    void handle_accepted_grip_egk(const std::shared_ptr<rclcpp_action::ServerGoalHandle<GripWithVel>>);
+    void handle_accepted_grip_egu(const std::shared_ptr<rclcpp_action::ServerGoalHandle<Grip>>);
+    void handle_accepted_gripPos_egk(const std::shared_ptr<rclcpp_action::ServerGoalHandle<GripWithPosVel>>);
+    void handle_accepted_gripPos_egu(const std::shared_ptr<rclcpp_action::ServerGoalHandle<GripWithPos>>);
+    void handle_accepted_release(const std::shared_ptr<rclcpp_action::ServerGoalHandle<ReleaseWorkpiece>>);
+    void handle_accepted_control(const std::shared_ptr<rclcpp_action::ServerGoalHandle<GripperCommand>>);
 
-    rcl_interfaces::msg::ParameterDescriptor parameter_descriptor(const std::string&, const rcl_interfaces::msg::FloatingPointRange&);
-    rcl_interfaces::msg::ParameterDescriptor parameter_descriptor(const std::string&, const rcl_interfaces::msg::IntegerRange&);
-    rcl_interfaces::msg::ParameterDescriptor parameter_descriptor(const std::string&);
-    rcl_interfaces::msg::FloatingPointRange FloatingPointRange(double, double, double step = 0.0);
-    rcl_interfaces::msg::IntegerRange IntegerRange(int64_t, int64_t, uint64_t step = 0);
+    void moveAbsExecute(const std::shared_ptr<rclcpp_action::ServerGoalHandle<MovAbsPos>>);
+    void moveRelExecute(const std::shared_ptr<rclcpp_action::ServerGoalHandle<MovRelPos>>);
+    void gripExecute(const std::shared_ptr<rclcpp_action::ServerGoalHandle<GripWithVel>>);
+    void grip_eguExecute(const std::shared_ptr<rclcpp_action::ServerGoalHandle<Grip>>);
+    void gripWithPositionExecute(const std::shared_ptr<rclcpp_action::ServerGoalHandle<GripWithPosVel>>);
+    void gripWithPosition_eguExecute(const std::shared_ptr<rclcpp_action::ServerGoalHandle<GripWithPos>>);
+    void releaseExecute(const std::shared_ptr<rclcpp_action::ServerGoalHandle<ReleaseWorkpiece>>);
+    void controlExecute(const std::shared_ptr<rclcpp_action::ServerGoalHandle<GripperCommand>>);
 
+    template<typename goaltype>
+    rclcpp_action::GoalResponse handle_goal(const rclcpp_action::GoalUUID & uuid,
+    std::shared_ptr<const goaltype> goal);
 
-    public:
+    template<typename GoalType>
+    rclcpp_action::CancelResponse handle_cancel(const std::shared_ptr<rclcpp_action::ServerGoalHandle<GoalType>> cancel);
 
+    //Parameter
     std::shared_ptr<rclcpp::ParameterEventHandler> parameter_event_handler;
     std::array<std::shared_ptr<rclcpp::ParameterCallbackHandle>, 12> cb_handle;
-    rclcpp::Node &parameterEventCallback(const rcl_interfaces::msg::ParameterEvent &);
 
     std::function<void(const rclcpp::Parameter &)> callback_gripper_param;
     std::function<void(const rclcpp::Parameter &)> callback_move_param;
-
+    //Callback groups
     rclcpp::CallbackGroup::SharedPtr messages_group;
     rclcpp::CallbackGroup::SharedPtr services_group;
     rclcpp::CallbackGroup::SharedPtr actions_group;
     rclcpp::CallbackGroup::SharedPtr rest;
+
+    public:
 
     SchunkGripperNode(const rclcpp::NodeOptions&);
     ~SchunkGripperNode();
@@ -160,37 +186,7 @@ class SchunkGripperNode :  public rclcpp::Node, public Gripper
     rclcpp::Service<Softreset>::SharedPtr              softreset_service;
     rclcpp::Service<PrepareForShutdown>::SharedPtr     prepare_for_shutdown_service;
     rclcpp::Service<GripperInfo>::SharedPtr            info_service;
-    rclcpp::Service<ChangeIp>::SharedPtr              change_ip_service;
-
-    template<typename goaltype>
-    rclcpp_action::GoalResponse handle_goal(const rclcpp_action::GoalUUID & uuid,
-    std::shared_ptr<const goaltype> goal);
-
-    template<typename GoalType>
-    rclcpp_action::CancelResponse handle_cancel(const std::shared_ptr<rclcpp_action::ServerGoalHandle<GoalType>> cancel);
-
-    void handle_accepted_abs(const std::shared_ptr<rclcpp_action::ServerGoalHandle<MovAbsPos>>);
-    void handle_accepted_rel(const std::shared_ptr<rclcpp_action::ServerGoalHandle<MovRelPos>>);
-    void handle_accepted_grip_egk(const std::shared_ptr<rclcpp_action::ServerGoalHandle<GripWithVel>>);
-    void handle_accepted_grip_egu(const std::shared_ptr<rclcpp_action::ServerGoalHandle<Grip>>);
-    void handle_accepted_gripPos_egk(const std::shared_ptr<rclcpp_action::ServerGoalHandle<GripWithPosVel>>);
-    void handle_accepted_gripPos_egu(const std::shared_ptr<rclcpp_action::ServerGoalHandle<GripWithPos>>);
-    void handle_accepted_release(const std::shared_ptr<rclcpp_action::ServerGoalHandle<ReleaseWorkpiece>>);
-    void handle_accepted_control(const std::shared_ptr<rclcpp_action::ServerGoalHandle<GripperCommand>>);
-
-    void moveAbsExecute(const std::shared_ptr<rclcpp_action::ServerGoalHandle<MovAbsPos>>);
-    void moveRelExecute(const std::shared_ptr<rclcpp_action::ServerGoalHandle<MovRelPos>>);
-    void gripExecute(const std::shared_ptr<rclcpp_action::ServerGoalHandle<GripWithVel>>);
-    void grip_eguExecute(const std::shared_ptr<rclcpp_action::ServerGoalHandle<Grip>>);
-    void gripWithPositionExecute(const std::shared_ptr<rclcpp_action::ServerGoalHandle<GripWithPosVel>>);
-    void gripWithPosition_eguExecute(const std::shared_ptr<rclcpp_action::ServerGoalHandle<GripWithPos>>);
-    void releaseExecute(const std::shared_ptr<rclcpp_action::ServerGoalHandle<ReleaseWorkpiece>>);
-    void controlExecute(const std::shared_ptr<rclcpp_action::ServerGoalHandle<GripperCommand>>);
-
-    void callback_gripper_parameter(const rclcpp::Parameter &);
-    void callback_move_parameter(const rclcpp::Parameter &);
-
-
+    rclcpp::Service<ChangeIp>::SharedPtr               change_ip_service;
 };
 
 template<typename GoalType>

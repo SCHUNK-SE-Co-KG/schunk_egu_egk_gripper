@@ -178,19 +178,7 @@ class AnybusCom
         void getWithInstance(const char inst[7], paramtype *param = NULL, int elements = 1);                          //Get a Parameter with Instance
         void getEnums(const char[7],const uint16_t &);                                              //Get to an enum number the string
 
-    public:
-        
-        plc_Array plc_sync_input;   // [0] -> Status double word,  [1]  ->actual Position, [2] ->reserved,      [3] ->diagnose 
-        plc_Array plc_sync_output;  // [0] -> Control double word, [1]  ->set_position,    [2] -> set_velocity, [3] ->set_effort 
-
-        nlohmann::json json_data;       //Json-Data used in get... 
-
-        std::vector<float> save_data_float;   //Can save multiple floats from getOffset
-        std::vector<char> save_data_char;   //Can save multiple floats from getOffset
-
-        uint16_t grp_prehold_time;   //Grip prehold time
-        
-        bool grp_pos_lock;
+        bool grp_pos_lock;           //GPE
 
         float wp_lost_dst;           //Max. distance after workpiece lost
         float wp_release_delta;      //Workpiece release delta position
@@ -208,6 +196,18 @@ class AnybusCom
         float max_grp_vel;           //max. grip velocity
 
         float actual_pos, actual_vel, actual_cur;       //actual values (feedback) 
+
+    public:
+        
+        plc_Array plc_sync_input;   // [0] -> Status double word,  [1]  ->actual Position, [2] ->reserved,      [3] ->diagnose 
+        plc_Array plc_sync_output;  // [0] -> Control double word, [1]  ->set_position,    [2] -> set_velocity, [3] ->set_effort 
+
+        nlohmann::json json_data;       //raw Json-Data 
+
+        std::vector<float> save_data_float;   //Can save multiple floats from gets
+        std::vector<char> save_data_char;     //Can save multiple chars from gets
+
+        uint16_t grp_prehold_time;   //Grip prehold time
 
          std::map<std::string, float*> instFloats       
         {   
@@ -230,18 +230,18 @@ inline void AnybusCom::getWithInstance(const char inst[7], paramtype *param, int
     CURLcode res;
 
     std::string instance = inst;
-    
+    //Set instance
     std::string address = get_address;
     address.append("inst=" + instance + "&count=1");
 
     if(curl1) 
     {
+        //GET CURL
         curl_easy_setopt(curl1, CURLOPT_URL, address.c_str());
         curl_easy_setopt(curl1,CURLOPT_WRITEFUNCTION, writeCallback);
         curl_easy_setopt(curl1, CURLOPT_HTTPGET, 1);
         curl_easy_setopt(curl1, CURLOPT_WRITEDATA, &response);
         curl_easy_setopt(curl1, CURLOPT_TIMEOUT, 1L);
-       // curl_easy_setopt(curl, CURLOPT_VERBOSE, 1L); // Enable verbose output
         res = curl_easy_perform(curl1);
         
         if (res != CURLE_OK)
@@ -252,10 +252,10 @@ inline void AnybusCom::getWithInstance(const char inst[7], paramtype *param, int
         }
         else
         {
-           if (instance == PLC_SYNC_INPUT_INST || instance == PLC_SYNC_OUTPUT_INST) updatePlc(response, instance);
-           else if(std::is_same<paramtype, char>::value) updateSavedata(response, 1, elements, false);
-           else if(std::is_same<paramtype, float>::value && elements > 1) updateSavedata(response, 1, elements);
-           else   *param = readParam<paramtype>(response);   
+           if (instance == PLC_SYNC_INPUT_INST || instance == PLC_SYNC_OUTPUT_INST) updatePlc(response, instance);  //If double word
+           else if(std::is_same<paramtype, char>::value) updateSavedata(response, 1, elements, false);              //If array of chars
+           else if(std::is_same<paramtype, float>::value && elements > 1) updateSavedata(response, 1, elements);    //If array of floats
+           else   *param = readParam<paramtype>(response);                                                          //If single parameter
         }
     curl_easy_reset(curl1);
     }
@@ -270,7 +270,7 @@ inline paramtype AnybusCom::readParam(std::string hex_str)
             hex_str.erase(hex_str.end()-2, hex_str.end());
         }
 
-        if(endian_format == 0 && not_double_word == true) hex_str = changeEndianFormat(hex_str);
+        if(endian_format == 0 && not_double_word == true) hex_str = changeEndianFormat(hex_str);    //If little Endian
         //if float
         if (std::is_same<paramtype, float>::value) 
         {
@@ -291,8 +291,7 @@ inline paramtype AnybusCom::readParam(std::string hex_str)
         hexStream >> std::hex >> value;
         return static_cast<char>(value);
         }
-        //if an integer
-        else 
+        else        //if an integer 
         {
             uint32_t l = std::stoul(hex_str, nullptr, 16);
             return static_cast<paramtype>(l);;
@@ -315,7 +314,7 @@ inline std::string AnybusCom::writeValueToString(paramtype param)
 
     std::string value_string = stream.str();
 
-    if(endian_format == 0 && not_double_word == true) value_string = changeEndianFormat(value_string);
+    if(endian_format == 0 && not_double_word == true) value_string = changeEndianFormat(value_string);  //If little Endian
 
     return value_string;
 }

@@ -31,7 +31,6 @@ Gripper::Gripper(const std::string &ip): AnybusCom(ip)
 {  
    try
    {  
-
       startGripper();
       //Get parameters
       getActualParameters();
@@ -171,7 +170,6 @@ void Gripper::startGripper()
         acknowledge();
         std::cout << ("ACKNOWLEDGED!") << std::endl;
         runGets();
-        handshake = gripperBitInput(COMMAND_RECEIVED_TOGGLE);
 }
 //mu to mm conversion from float to uint32_t
 uint32_t Gripper::mm2mu(const float &convert_float)
@@ -200,7 +198,7 @@ std::string Gripper::getErrorString(const uint8_t &error)
    try
    {
    json_data.clear();
-   getEnums(ERROR_CODE_INST, error);
+   getEnums(ERROR_CODE_INST, error);   //saves it in raw json_data
    return json_data["string"];
    }
    catch(const nlohmann::json::parse_error &e)
@@ -235,7 +233,7 @@ bool Gripper::changeIp(const std::string &new_ip)
       startGripper();
       getActualParameters();
       getModel();
-
+   
       return true;
    }
    catch(const char* res)
@@ -247,9 +245,10 @@ bool Gripper::changeIp(const std::string &new_ip)
    }
    catch(const nlohmann::json::parse_error &e)
    {
-      ip_changed_with_all_param = true;
+      ip_changed_with_all_param = true;    
       ip = old_ip;
       std::cout << "message: " << e.what()  << "\nexception id: " << e.id << std::endl;
+      std::cout << "Setting to old IP: " << ip << std::endl;
       initAddresses();
       return false;
    }

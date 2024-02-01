@@ -42,13 +42,13 @@ void AnybusCom::getWithOffset(const std::string &offset, int count, int elements
     else throw "Offset to many symbols";
 
         if(curl3) 
-        {
+        {   //GET
             curl_easy_setopt(curl3, CURLOPT_URL, address.c_str());
             curl_easy_setopt(curl3, CURLOPT_HTTPGET, 1);
             curl_easy_setopt(curl3,CURLOPT_WRITEFUNCTION, writeCallback);
             curl_easy_setopt(curl3, CURLOPT_WRITEDATA, &response);
             curl_easy_setopt(curl3, CURLOPT_TIMEOUT, 1);
-       //   curl_easy_setopt(curl2, CURLOPT_VERBOSE, 1L); // Enable verbose output
+
             res = curl_easy_perform(curl3); 
             
             if (res != CURLE_OK)
@@ -60,16 +60,17 @@ void AnybusCom::getWithOffset(const std::string &offset, int count, int elements
 
             else
             {   
-                if(count == 3 && offset == ACTUAL_POS_OFFSET) updateFeedback(response);
-                else updateSavedata(response, count, elements, is_float);
+                if(count == 3 && offset == ACTUAL_POS_OFFSET) updateFeedback(response); //If ROS-Feedback
+                else updateSavedata(response, count, elements, is_float);               
             }
          curl_easy_reset(curl3);
         }
 }
-//Savedata is a vector, which stores floats. This is used for printing out the info
+//Savedata is a vector, which stores floats. save_data_...[] is cache. Used for Parameter Arrays (float, char)
 void AnybusCom::updateSavedata(std::string hexStr, const int &count, const int &elements, bool is_float)
 {
     std::vector<std::string> splitted;
+    //If multiple same Parameters from one Request (Floats, doesn't work for chars)
     if(count != 1)
     {
         splitted = splitResponse(hexStr,count);
@@ -80,7 +81,7 @@ void AnybusCom::updateSavedata(std::string hexStr, const int &count, const int &
     }
     else
     {
-        if(is_float == true)
+        if(is_float == true)    //If floats array
         {
         save_data_float.clear();
         save_data_float.resize(elements);
@@ -90,15 +91,16 @@ void AnybusCom::updateSavedata(std::string hexStr, const int &count, const int &
         hexStr.erase(hexStr.end()-2, hexStr.end());
 
         std::vector<std::string> save;
+
         save.resize(elements);
             for(int i = 0; i < elements; i++)
             {
                 save[i] = hexStr.substr((i * sizeof(float) * 2), sizeof(float) * 2);
 
-                save_data_float.at(i) = readParam<float>(save[i]);
+                save_data_float.at(i) = readParam<float>(save[i]);      
             }
         }
-        else
+        else               //If char_array
         {
             save_data_char.clear();
             save_data_char.resize(elements);
@@ -147,24 +149,24 @@ void AnybusCom::postCommand()
     
     std::string post;
     post = "inst=0x0048&value=";
-    if(endian_format == 0) not_double_word = false;
+
+    if(endian_format == 0) not_double_word = false;                     //Double_words are always big endian
 
     for(int i = 0; i < 4 ; i++) 
     {
-        post.append(writeValueToString<uint32_t>(plc_sync_output[i]));
+        post.append(writeValueToString<uint32_t>(plc_sync_output[i])); //Array to HexString
         not_double_word = true;
     }
     if (curl4) 
     {
-        //headers = curl_slist_append(headers, "Content-Type: application/x-www-form-urlencoded");
+        //POST
         curl_easy_setopt(curl4, CURLOPT_URL, send_data_address.c_str());
         curl_easy_setopt(curl4, CURLOPT_POSTFIELDS, post.c_str());
         curl_easy_setopt(curl4, CURLOPT_POST, 1);
         curl_easy_setopt(curl4,CURLOPT_WRITEFUNCTION, writeCallback);
         curl_easy_setopt(curl4, CURLOPT_WRITEDATA, &response);
         curl_easy_setopt(curl4, CURLOPT_TIMEOUT, 1L);
-        //curl_easy_setopt(curl3, CURLOPT_TRANSFER_ENCODING, 1L);
-        //curl_easy_setopt(curl3, CURLOPT_HTTPHEADER, headers);
+
         res = curl_easy_perform(curl4);
 
         if (res != CURLE_OK)
@@ -176,7 +178,7 @@ void AnybusCom::postCommand()
         else  
         {
             json_data.clear();
-            json_data = nlohmann::json::parse(response);
+            json_data = nlohmann::json::parse(response);    //Parse server response
             if(json_data["result"] != 0)  std::cout << "Server response: " << json_data["result"] << std::endl;
         }
     curl_easy_reset(curl4);
@@ -197,14 +199,12 @@ void AnybusCom::postParameter(std::string inst, std::string value)
 
     if (curl5) 
     {
-     //   headers = curl_slist_append(headers, "Content-Type: application/x-www-form-urlencoded");
         curl_easy_setopt(curl5, CURLOPT_URL, send_data_address.c_str());
         curl_easy_setopt(curl5, CURLOPT_POSTFIELDS, post.c_str());
         curl_easy_setopt(curl5,CURLOPT_WRITEFUNCTION, writeCallback);
         curl_easy_setopt(curl5, CURLOPT_WRITEDATA, &response);
         curl_easy_setopt(curl5, CURLOPT_TIMEOUT, 1L);
-     //   curl_easy_setopt(curl, CURLOPT_TRANSFER_ENCODING, 1L);
-     //   curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
+
         res = curl_easy_perform(curl5);
 
         if (res != CURLE_OK)
@@ -216,7 +216,7 @@ void AnybusCom::postParameter(std::string inst, std::string value)
         else  
         {
             json_data.clear();
-            json_data = nlohmann::json::parse(response);
+            json_data = nlohmann::json::parse(response);    //Parse server response
             if(json_data["result"] != 0)  std::cout << "Server response: " << json_data["result"] << std::endl;
         }
     }
@@ -239,7 +239,7 @@ void AnybusCom::initAddresses()
     info_address.insert(7,ip);
 
 }
-//Translates the received string of plc_sync_input to an integer[4] an saves it in plc_sync_input
+//Translates the received string of double_word to an integer[4] an saves it in plc_sync_input
 void AnybusCom::updatePlc(std::string &hex_str,const std::string &inst)
 {   
     plc_Array *plc = plc_pairs.at(inst); 
@@ -280,18 +280,18 @@ void AnybusCom::updatePlcOutput(uint32_t command, uint32_t position, uint32_t ve
     if(GRIP_DIRECTION == (command & GRIP_DIRECTION)) plc_sync_output[0] ^= GRIP_DIRECTION;  //if command have an positive Grip direction bit
                                                                                             //Change the direction
 
-    if(command == FAST_STOP) 
+    if(command == FAST_STOP)                                                                //If fast stop is requested
     {
         plc_sync_output[0] &= ~FAST_STOP;
         last_command = 0;
     }
-    else if(command == USE_GPE) 
+    else if(command == USE_GPE)                                                             //If GPE is requested toggle 
     {
         plc_sync_output[0] ^= command;
         last_command = actual_command;
     }
-    else if(last_command == actual_command) plc_sync_output[0] ^= REPEAT_COMMAND_TOGGLE;
-    else if(command == EMERGENCY_RELEASE) plc_sync_output[0] |= (FAST_STOP | EMERGENCY_RELEASE);
+    else if(last_command == actual_command) plc_sync_output[0] ^= REPEAT_COMMAND_TOGGLE;    //REPEAT_COMMAND
+    else if(command == EMERGENCY_RELEASE) plc_sync_output[0] |= (FAST_STOP | EMERGENCY_RELEASE);    
     else 
     {   
         last_command = actual_command;
@@ -310,16 +310,17 @@ void AnybusCom::getEnums(const char inst[7], const uint16_t &enumNum)
     std::string instance = inst;
     std::string address = enum_address;
     address.append("inst=" + instance);
-    address.append("&value=" + std::to_string(enumNum));
+    address.append("&value=" + std::to_string(enumNum));    //Enum code to string
 
     if(curl2) 
-    {
+    {   
+        //GET
         curl_easy_setopt(curl2, CURLOPT_URL, address.c_str());
         curl_easy_setopt(curl2,CURLOPT_WRITEFUNCTION, writeCallback);
         curl_easy_setopt(curl2, CURLOPT_HTTPGET, 1);
         curl_easy_setopt(curl2, CURLOPT_WRITEDATA, &response);
         curl_easy_setopt(curl2, CURLOPT_TIMEOUT, 1L);
-      //  curl_easy_setopt(curl, CURLOPT_VERBOSE, 1L); // Enable verbose output
+
         res = curl_easy_perform(curl2);
 
         if (res != CURLE_OK)
@@ -333,13 +334,13 @@ void AnybusCom::getEnums(const char inst[7], const uint16_t &enumNum)
         {
             response.erase(0, 1);
             response.erase(response.size()-1, 1);
-            json_data =  nlohmann::json::parse(response);
+            json_data =  nlohmann::json::parse(response);   //Save string in raw json
         }
 
         curl_easy_reset(curl2);
     }
 }
-
+//Used for getting dataformat
 void AnybusCom::getInfo()
 {
     std::string response;
@@ -347,12 +348,13 @@ void AnybusCom::getInfo()
 
     if(curl6) 
     {
+        //GET
         curl_easy_setopt(curl6, CURLOPT_URL, info_address.c_str());
         curl_easy_setopt(curl6,CURLOPT_WRITEFUNCTION, writeCallback);
         curl_easy_setopt(curl6, CURLOPT_HTTPGET, 1);
         curl_easy_setopt(curl6, CURLOPT_WRITEDATA, &response);
         curl_easy_setopt(curl6, CURLOPT_TIMEOUT, 1L);
-      //  curl_easy_setopt(curl, CURLOPT_VERBOSE, 1L); // Enable verbose output
+
         res = curl_easy_perform(curl6);
 
         if (res != CURLE_OK)
@@ -365,7 +367,7 @@ void AnybusCom::getInfo()
         else
         {
             json_data =  nlohmann::json::parse(response);
-            endian_format = json_data["dataformat"];
+            endian_format = json_data["dataformat"];    //Set up data_format
             not_double_word = true;
         }
 
