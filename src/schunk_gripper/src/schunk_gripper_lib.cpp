@@ -315,9 +315,20 @@ bool Gripper::changeIp(const std::string &new_ip)
    try
    {
       startGripper();
-      
+      getActualParameters();
+      getModel();
+
+      getWithInstance<uint16_t>(SW_VERSION_NUM_INST, &sw_version);
+      getWithInstance<char>(COMM_VERSION_TXT_INST, NULL, 12);
+      comm_version = save_data_char.data();
+
+      if(old_model != model)
+      {
+         std::cout << "New model: " << model << "\nIt is recommended to restart the node." << std::endl;
+      }
+
       ip_changed_with_all_param = true;
-   
+
       return true;
    }
    catch(const char* res)
