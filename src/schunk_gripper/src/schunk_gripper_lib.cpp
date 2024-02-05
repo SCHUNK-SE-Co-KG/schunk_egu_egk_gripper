@@ -233,6 +233,7 @@ bool Gripper::changeIp(const std::string &new_ip)
       startGripper();
       getActualParameters();
       getModel();
+      ip_changed_with_all_param = true;
    
       return true;
    }
