@@ -1043,10 +1043,12 @@ void SchunkGripperNode::acknowledge_srv(const std::shared_ptr<Acknowledge::Reque
     const std::lock_guard<std::recursive_mutex> lock(lock_mutex);
     actual_command = "ACKNOWLEDGE";
     msg.doing_command = actual_command;
-    //Acknowledge
-    acknowledge();
     try
     {
+
+        //Acknowledge
+        acknowledge();
+
         if(check()) //TODO handshake
         {
             res->acknowledged = true;
@@ -1081,28 +1083,31 @@ void SchunkGripperNode::brake_test_srv(const std::shared_ptr<BrakeTest::Request>
         //if command received, get values
         if(handshake != gripperBitInput(COMMAND_RECEIVED_TOGGLE)) 
         while (rclcpp::ok() && check() && !gripperBitInput(SUCCESS))   
-        runGets();   
-    }  
-    catch(const char* res)
+        runGets();
+
+        if((gripperBitInput(SUCCESS) == true) && (handshake != gripperBitInput(COMMAND_RECEIVED_TOGGLE)))
+        {
+            res->brake_test_successful = true;
+            res->error_code = error_str;
+            RCLCPP_INFO(this->get_logger(),"Brake test successful!");
+        }
+        else
+        {
+            runGets();
+            gripper_updater->force_update();
+            res->error_code = error_str;
+            res->brake_test_successful = false;
+            RCLCPP_INFO(this->get_logger(),"Brake test not successful!");
+            
+        }
+    }
+    catch(const char* server_response)
     {
-        connection_error = res;
+        connection_error = server_response;
+        res->error_code = server_response;
+        res->brake_test_successful = false;
         RCLCPP_ERROR(this->get_logger(), "Failed Connection! %s", connection_error.c_str());
     } 
-
-    if((gripperBitInput(SUCCESS) == true) && (handshake != gripperBitInput(COMMAND_RECEIVED_TOGGLE)))
-    {
-        res->brake_test_successful = true;
-        res->error_code = error_str;
-        RCLCPP_INFO(this->get_logger(),"Brake test successful!");
-    }
-    else
-    {
-        runGets();
-        gripper_updater->force_update();
-        res->error_code = error_str;
-        res->brake_test_successful = false;
-        RCLCPP_INFO(this->get_logger(),"Brake test not successful!");
-    }
 
 
     handshake = gripperBitInput(COMMAND_RECEIVED_TOGGLE);
@@ -1245,6 +1250,7 @@ void SchunkGripperNode::softreset_srv(const std::shared_ptr<Softreset::Request>,
             connection_once_lost = true;
         }
     }
+    else RCLCPP_WARN(this->get_logger(), "No Command received");
 
     if(connection_once_lost == true && rclcpp::ok() && connection_error == "OK")
     {
