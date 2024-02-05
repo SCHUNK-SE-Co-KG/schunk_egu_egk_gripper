@@ -1315,6 +1315,7 @@ void SchunkGripperNode::releaseForManualMov_srv(const std::shared_ptr<ReleaseFor
         while(rclcpp::ok() && !gripperBitInput(EMERGENCY_RELEASED))
         runGets();
     }
+    
     catch(const char* res)
     {
         connection_error = res;
@@ -1567,16 +1568,18 @@ void SchunkGripperNode::gripperDiagnostics(diagnostic_updater::DiagnosticStatusW
 
     try
     {
-    if(connection_error != "OK")
-    {
-    status.summaryf(diagnostic_msgs::msg::DiagnosticStatus::ERROR, "Connection failed: %s", connection_error.c_str());
-    return;
-    }
-    if(gripperBitInput(EMERGENCY_RELEASED)) 
-    status.summary(diagnostic_msgs::msg::DiagnosticStatus::WARN, "If you want to end this mode, perform a fast stop and acknowledge!");
+        if(connection_error != "OK")    //If connection lost
+        {
+        status.summaryf(diagnostic_msgs::msg::DiagnosticStatus::ERROR, "Connection failed: %s", connection_error.c_str());
+        return;
+        }
+        if(gripperBitInput(EMERGENCY_RELEASED)) //If release for manual Movement active
+        status.summary(diagnostic_msgs::msg::DiagnosticStatus::WARN, "If you want to end this mode, perform a fast stop and acknowledge!");
+        
+        else if(gripperBitInput(READY_FOR_SHUTDOWN)) //If ready for shutdown
+        status.summary(diagnostic_msgs::msg::DiagnosticStatus::WARN, "Ready for shutdown!");
     
-    else if(gripperBitInput(READY_FOR_SHUTDOWN)) 
-    status.summary(diagnostic_msgs::msg::DiagnosticStatus::WARN, "Ready for shutdown!");
+    
     //If an error or waning occurred
     else if(plc_sync_input[3] != 0)
     {  //if error
@@ -1615,6 +1618,7 @@ void SchunkGripperNode::gripperDiagnostics(diagnostic_updater::DiagnosticStatusW
             status.summaryf(diagnostic_msgs::msg::DiagnosticStatus::WARN, "Warning: %i\n%s",splitted_Diagnosis[1], warn_str.c_str());
         }
     }
+
  else //No errors
     {  
         if(splitted_Diagnosis != old_diagnosis) 
@@ -1626,13 +1630,14 @@ void SchunkGripperNode::gripperDiagnostics(diagnostic_updater::DiagnosticStatusW
         status.summary(diagnostic_msgs::msg::DiagnosticStatus::OK, error_str);
     }
 }
-catch(const char* res)
+
+catch(const char* res)  //Lost Connection catch
 {
     connection_error = res;
     RCLCPP_ERROR(this->get_logger(), "Failed Connection! %s", connection_error.c_str());
 }
 
-    old_diagnosis = splitted_Diagnosis;
+    old_diagnosis = splitted_Diagnosis; 
 
     status.add("Ready for operation", gripperBitInput(READY_FOR_OPERATION));
     status.add("Command successfully processed", gripperBitInput(SUCCESS));
