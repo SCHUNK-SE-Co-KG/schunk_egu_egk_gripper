@@ -125,6 +125,8 @@ class SchunkGripperNode :  public rclcpp::Node, public Gripper
     void runActionMove(std::shared_ptr<feedbacktype>, std::shared_ptr<rclcpp_action::ServerGoalHandle<goaltype>>);
     template<typename feedbacktype, typename goaltype>
     void runActionGrip(std::shared_ptr<feedbacktype>, std::shared_ptr<rclcpp_action::ServerGoalHandle<goaltype>>);
+
+    void reconnect();
     //Actions
     void handle_accepted_abs(const std::shared_ptr<rclcpp_action::ServerGoalHandle<MovAbsPos>>);
     void handle_accepted_rel(const std::shared_ptr<rclcpp_action::ServerGoalHandle<MovRelPos>>);

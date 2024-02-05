@@ -430,7 +430,6 @@ void SchunkGripperNode::runActionMove(std::shared_ptr<feedbacktype> feedback, st
 
     goal_handle->publish_feedback(feedback);
 }
-
 //Action publishing feedback as long the gripper is moving
 template<typename feedbacktype, typename goaltype>
 void SchunkGripperNode::runActionGrip(std::shared_ptr<feedbacktype> feedback, std::shared_ptr<rclcpp_action::ServerGoalHandle<goaltype>> goal_handle)
@@ -472,7 +471,6 @@ void SchunkGripperNode::runActionGrip(std::shared_ptr<feedbacktype> feedback, st
 
     goal_handle->publish_feedback(feedback);
 }
-
 //Move absolute action callback
 void SchunkGripperNode::moveAbsExecute(const std::shared_ptr<rclcpp_action::ServerGoalHandle<MovAbsPos>> goal_handle)
 {
@@ -518,7 +516,6 @@ catch(const char* response)
 }
 
 }
-
 //Move relative action callback
 void SchunkGripperNode::moveRelExecute(const std::shared_ptr<rclcpp_action::ServerGoalHandle<MovRelPos>> goal_handle)
 {   
@@ -594,9 +591,7 @@ try
             runPost(goal_command, 0, goal_velocity, goal_effort);
             //Look if gripper received command
             if(handshake == gripperBitInput(COMMAND_RECEIVED_TOGGLE)) throw int32_t(-1);
-            handshake = gripperBitInput(COMMAND_RECEIVED_TOGGLE);
-            
-            
+            handshake = gripperBitInput(COMMAND_RECEIVED_TOGGLE);           
 
         lock.unlock();
 
@@ -968,37 +963,12 @@ void SchunkGripperNode::publishState()
             
             if(!(connection_error == "OK")) 
             {
-                
-                if(ip_changed_with_all_param == false)
-                {
-                    startGripper();
-                    getModel();
-
-                    getWithInstance<uint16_t>(SW_VERSION_NUM_INST, &sw_version);
-                    getWithInstance<char>(COMM_VERSION_TXT_INST, NULL, 12);
-                    comm_version = save_data_char.data();
-                    ip_changed_with_all_param = true;
-
-                }
-
-                getActualParameters();
-
-                this->set_parameter(rclcpp::Parameter("Gripper_Parameter.use_brk", grp_pos_lock));
-                this->set_parameter(rclcpp::Parameter("Gripper_Parameter.grp_pos_margin", grp_pos_margin));
-                this->set_parameter(rclcpp::Parameter("Gripper_Parameter.grp_prepos_delta", grp_prepos_delta));
-                this->set_parameter(rclcpp::Parameter("Gripper_Parameter.zero_pos_ofs", zero_pos_ofs));
-                this->set_parameter(rclcpp::Parameter("Gripper_Parameter.grp_prehold_time", grp_prehold_time));
-                this->set_parameter(rclcpp::Parameter("Gripper_Parameter.wp_release_delta", wp_release_delta));
-                this->set_parameter(rclcpp::Parameter("Gripper_Parameter.wp_lost_distance", wp_lost_dst));
-                this->set_parameter(rclcpp::Parameter("Control_Parameter.move_gripper", actualPosInterval()));
-                abs_pos_param = actualPosInterval();    
-
-                connection_error = "OK";  
+                reconnect();
             }
 
         }
         catch(const char *res)
-        {
+        {  
             connection_error = res;
             rclcpp::Duration sleep_time(1,0);
             if(sleep_time > this->now() - last_time)
@@ -1025,6 +995,37 @@ void SchunkGripperNode::publishState()
     updateStateMsg();
     //Publish state
     statePublisher->publish(msg);
+}
+//Reconnect
+void SchunkGripperNode::reconnect()
+{
+ 
+                if(ip_changed_with_all_param == false)  //If Connection was found after the IP-changed
+                {
+                    startGripper();
+                    getModel();
+                    this->set_parameter(rclcpp::Parameter("model", model));
+
+                    getWithInstance<uint16_t>(SW_VERSION_NUM_INST, &sw_version);
+                    getWithInstance<char>(COMM_VERSION_TXT_INST, NULL, 12);
+                    comm_version = save_data_char.data();
+                    ip_changed_with_all_param = true;
+
+                }
+
+                getActualParameters();                 //Get and set the possible new Parameter
+
+                this->set_parameter(rclcpp::Parameter("Gripper_Parameter.use_brk", grp_pos_lock));
+                this->set_parameter(rclcpp::Parameter("Gripper_Parameter.grp_pos_margin", grp_pos_margin));
+                this->set_parameter(rclcpp::Parameter("Gripper_Parameter.grp_prepos_delta", grp_prepos_delta));
+                this->set_parameter(rclcpp::Parameter("Gripper_Parameter.zero_pos_ofs", zero_pos_ofs));
+                this->set_parameter(rclcpp::Parameter("Gripper_Parameter.grp_prehold_time", grp_prehold_time));
+                this->set_parameter(rclcpp::Parameter("Gripper_Parameter.wp_release_delta", wp_release_delta));
+                this->set_parameter(rclcpp::Parameter("Gripper_Parameter.wp_lost_distance", wp_lost_dst));
+                this->set_parameter(rclcpp::Parameter("Control_Parameter.move_gripper", actualPosInterval()));
+                abs_pos_param = actualPosInterval();    
+
+                connection_error = "OK";  
 }
 //JointStatePublisher
 void SchunkGripperNode::publishJointState()
@@ -1127,26 +1128,16 @@ void SchunkGripperNode::change_ip_srv(const std::shared_ptr<ChangeIp::Request> r
 
     if(res->ip_changed == true) 
     {
-        this->undeclare_parameter("IP");
-        this->declare_parameter("IP", req->new_ip, parameter_descriptor("IP-address of the gripper"));
+        this->set_parameter(rclcpp::Parameter("IP", req->new_ip));
     }
 
     if(ip_changed_with_all_param == true)
     {
-    this->undeclare_parameter("model");
-    this->declare_parameter("model", model, parameter_descriptor("Model of the gripper"));
+        this->set_parameter(rclcpp::Parameter("model", model));
        
-       if(connection_error == "OK")
+        if(connection_error == "OK")
         {
-        this->set_parameter(rclcpp::Parameter("Gripper_Parameter.use_brk", grp_pos_lock));
-        this->set_parameter(rclcpp::Parameter("Gripper_Parameter.grp_pos_margin", grp_pos_margin));
-        this->set_parameter(rclcpp::Parameter("Gripper_Parameter.grp_prepos_delta", grp_prepos_delta));
-        this->set_parameter(rclcpp::Parameter("Gripper_Parameter.zero_pos_ofs", zero_pos_ofs));
-        this->set_parameter(rclcpp::Parameter("Gripper_Parameter.grp_prehold_time", grp_prehold_time));
-        this->set_parameter(rclcpp::Parameter("Gripper_Parameter.wp_release_delta", wp_release_delta));
-        this->set_parameter(rclcpp::Parameter("Gripper_Parameter.wp_lost_distance", wp_lost_dst));
-        this->set_parameter(rclcpp::Parameter("Control_Parameter.move_gripper", actualPosInterval()));
-        abs_pos_param = actualPosInterval();
+            reconnect();
         }
     }
 
