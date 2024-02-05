@@ -82,7 +82,7 @@ Services are functionalities that do not involve movement or occur so rapidly th
 - `stop`
 - `fast_stop`
 - `softreset`
-- `change_ip`
+- `reconnect`
 - `release_for_manual_movement`
 - `prepare_for_shutdown`
 - `gripper_info`

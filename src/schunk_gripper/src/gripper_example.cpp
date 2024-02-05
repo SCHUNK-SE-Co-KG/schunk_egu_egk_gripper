@@ -2,6 +2,7 @@
 //this program will exhibit undefined behavior.
 #include "rclcpp/rclcpp.hpp"
 #include "rclcpp_action/rclcpp_action.hpp"
+#include "rclcpp/wait_for_message.hpp"
 #include "rclcpp_components/register_node_macro.hpp"
 #include <rclcpp/parameter.hpp>
 #include <rcl_interfaces/msg/parameter_event.hpp>
@@ -333,7 +334,7 @@ int main(int argc, char** argv)
     auto joint_state_sub = node->create_subscription<sensor_msgs::msg::JointState>(name_space+"joint_states", 1, jointStateCallback);
     auto diagnostics_sub = node->create_subscription<diagnostic_msgs::msg::DiagnosticArray>("diagnostics", 1, diagnosticsCallback);
 
-    std::this_thread::sleep_for(std::chrono::seconds(2));
+    std::this_thread::sleep_for(std::chrono::seconds(1));
     //acknowledge if the gripper has an error
     Acknowledge::Request::SharedPtr acknowledge_req;
     if(diagnostic_msg.status[0].level == diagnostic_msgs::msg::DiagnosticStatus::ERROR) 
@@ -348,8 +349,6 @@ int main(int argc, char** argv)
     //Move to 0 mm with 100 mm/s and get result
     moveAbsoluteAndWaitForResult(move_abs_client);
     
-    //(Not necessary, just that the gripper do not move immediately)
-    
 
     //Move relative
     moveRelativeAndStop(move_rel_client, stop_client);
@@ -360,24 +359,15 @@ int main(int argc, char** argv)
     //Cancel the goal
     MoveRelativeAndCancel(move_rel_client);
 
-    //Fast stop/cancel causes an Error. Show the error in diagnostics (or state as error_code)
-    //Print diagnostics
-  //  rclcpp::topic::waitForMessage<diagnostic_msgs::DiagnosticArray>("diagnostics");
-  //  RCLCPP_ERROR(node->get_logger(),"%s",diagnostic_msg.status.at(0).message.c_str());
-    
     std::this_thread::sleep_for(std::chrono::seconds(3));
     
     acknowledge(acknowledge_client);
-
-    //print diagnostics
-  //  rclcpp::topic::waitForMessage<diagnostic_msgs::DiagnosticArray>("diagnostics");
- //   RCLCPP_INFO(node->get_logger(), "%s", diagnostic_msg.status.at(0).message.c_str());
 
     std::this_thread::sleep_for(std::chrono::seconds(3));
 
     //Change grip prehold time and workpiece release delta
     changeConfiguration(param_client);
-//
+
     std::this_thread::sleep_for(std::chrono::seconds(3));
     
     //Grip
@@ -385,7 +375,6 @@ int main(int argc, char** argv)
     else if(model_param[0].as_string().find("EGK") != std::string::npos) gripEgk(grip_egk_client);
     else RCLCPP_INFO(node->get_logger(), "No model");
 
-  //  rclcpp::topic::waitForMessage<schunk_gripper::state>("state");
     
     //Release Workpiece
     if(state_msg.workpiece_gripped == true) releaseWorkpiece(release_client);
