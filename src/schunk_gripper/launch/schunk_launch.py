@@ -21,7 +21,7 @@ def generate_launch_description():
                     name='schunk_gripper_driver',
                     namespace='EGK_50_M_B',
                     parameters=[
-                            {'IP': '10.49.60.86'},
+                            {'IP': '10.49.60.91'},
                             {'state_frq': 60.0},
                             {'rate': 10.0},
                             {'use_brk': False},

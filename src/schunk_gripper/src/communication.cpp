@@ -29,6 +29,7 @@ AnybusCom::AnybusCom(const std::string &ip) : ip(ip)
         curl4 = curl_easy_init();
         curl5 = curl_easy_init();
         curl6 = curl_easy_init();
+
 }
 //Receive data with an offset
 void AnybusCom::getWithOffset(const std::string &offset, int count, int elements, bool is_float)

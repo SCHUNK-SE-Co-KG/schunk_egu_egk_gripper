@@ -49,9 +49,9 @@ In the launch file, you can also adjust the frequencies of the 'joint_states', '
 
 | topic             | parameter frequency                                  |
 | ------            | ------                                               |
-| state             | state_frq                                            |
+| state             | state_frq (1.0 Hz - ca. 60 Hz)                       |
 | joint_states      | rate                                                 |
-| diagnostics       | diagnostics_period (**Note:** Period, not frequency)|
+| diagnostics       | diagnostics_period (**Note:** Period, not frequency) |
 
 **Note:** The 'state' topic will always publish the fastest rate. All other topics publish either at a slower rate or at the same rate, even if a faster rate is specified in the launch file. Actions always publish at the same rate as the 'state'.
 
