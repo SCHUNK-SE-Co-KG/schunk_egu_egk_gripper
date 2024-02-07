@@ -18,33 +18,6 @@ SchunkGripperNode::SchunkGripperNode(const rclcpp::NodeOptions &options) :
     Gripper(this->declare_parameter("IP", "0.0.0.0", parameter_descriptor("IP-Address of the gripper"))),
     limiting_rate(1000) //limiting_rate for loops
 { 
-
-    while(start_connection == false && rclcpp::ok())    //If gripper something went wrong with the first connection
-    {
-        if(!rclcpp::ok()) return;                       //If User ^C
-        
-        try
-        {
-            startGripper();
-            getActualParameters();
-            getModel();
-            ip_changed_with_all_param = true;  
-        }
-        catch(...)
-        {
-            std::this_thread::sleep_for(std::chrono::seconds(1));
-            RCLCPP_ERROR(this->get_logger(), "Trying to connect...");
-        }
-    }  
-    
-    if(comm_version.find("1.5") == std::string::npos && sw_version > 502)       //Version right?
-    {
-        RCLCPP_WARN(this->get_logger(),"Using not suitable software-version.");
-        wrong_version = true;
-    }
-    else wrong_version = false;
-
-    connection_error = "OK";
     //Callback groups
     messages_group = this->create_callback_group(rclcpp::CallbackGroupType::MutuallyExclusive);
     services_group = this->create_callback_group(rclcpp::CallbackGroupType::MutuallyExclusive);
@@ -63,8 +36,6 @@ SchunkGripperNode::SchunkGripperNode(const rclcpp::NodeOptions &options) :
 
     paramDesc.description = "Frequency of joint states";
     j_state_frq = this->declare_parameter("rate", 60.0, paramDesc);
-    //Set model (not read only)
-    this->declare_parameter("model", model, parameter_descriptor("Gripper-model"), true);
 
     //Cycletime
     cycletime = std::make_shared<rclcpp::Duration>(std::chrono::milliseconds(static_cast<int>(1/state_frq)*1000));
@@ -74,11 +45,6 @@ SchunkGripperNode::SchunkGripperNode(const rclcpp::NodeOptions &options) :
     action_move = false;
     //Set Parametereventhandler
     parameter_event_handler = std::make_shared<rclcpp::ParameterEventHandler>(this);
-
-    declareParameter();
-
-    using std::placeholders::_1;
-    using std::placeholders::_2;
 
     //Actually no Command
     actual_command = "NO COMMAND";
@@ -91,84 +57,28 @@ SchunkGripperNode::SchunkGripperNode(const rclcpp::NodeOptions &options) :
    catch(const char* res)
    {
       RCLCPP_ERROR_STREAM(this->get_logger(), "Failed Connection to gripper. "<< res << std::endl);
+      connection_error = res;
    }
-    
-    //Advertise state
-    last_time = this->now(); //Initialize last_time 
-    statePublisher = this->create_publisher<schunk_gripper::msg::State>("state", 10);
-    publish_state_timer=this->create_wall_timer(std::chrono::duration<double>(1 / state_frq), std::bind(&SchunkGripperNode::publishState, this), messages_group);
-    
-    //Initialize diagnostics
-    gripper_updater = std::make_shared<diagnostic_updater::Updater>(this);
-    gripper_updater->setHardwareID("Module");
-    gripper_updater->add(model, std::bind(&SchunkGripperNode::gripperDiagnostics,this,_1));
-    
-    //Look if joint_state_frq is less than state_frq
-    if(j_state_frq > state_frq)
-    {
-        j_state_frq = state_frq;
-        RCLCPP_WARN(this->get_logger(),"joint_state topic will publish with %f!", j_state_frq);
-    }
-    //Advertise joint_states
-    jointStatePublisher = this->create_publisher<sensor_msgs::msg::JointState>("joint_states", 10);
-    publish_joint_timer = this->create_wall_timer(std::chrono::duration<double>(1 / j_state_frq), std::bind(&SchunkGripperNode::publishJointState, this));
-    //Create Services
-    acknowledge_service = this->create_service<Acknowledge>("acknowledge", std::bind(&SchunkGripperNode::acknowledge_srv,this,_1,_2), rmw_qos_profile_services_default, services_group);
-    if(sw_version >= 502) brake_test_service = this->create_service<BrakeTest>("brake_test", std::bind(&SchunkGripperNode::brake_test_srv, this,_1,_2), rmw_qos_profile_services_default, services_group);
-    stop_service = this->create_service<Stop>("stop", std::bind(&SchunkGripperNode::stop_srv,this,_1,_2), rmw_qos_profile_services_default, services_group);
-    softreset_service = this->create_service<Softreset>("softreset", std::bind(&SchunkGripperNode::softreset_srv,this,_1,_2), rmw_qos_profile_services_default, services_group);
-    releaseForManualMov_service = this->create_service<ReleaseForManMov>("release_for_manual_movement", std::bind(&SchunkGripperNode::releaseForManualMov_srv,this,_1,_2), rmw_qos_profile_services_default, services_group);
-    prepare_for_shutdown_service = this->create_service<PrepareForShutdown>("prepare_for_shutdown", std::bind(&SchunkGripperNode::prepare_for_shutdown_srv,this,_1,_2), rmw_qos_profile_services_default, services_group);
-    fast_stop_service = this->create_service<FastStop>("fast_stop", std::bind(&SchunkGripperNode::fast_stop_srv,this,_1,_2), rmw_qos_profile_services_default, services_group);
-    info_service = this->create_service<GripperInfo>("gripper_info", std::bind(&SchunkGripperNode::info_srv,this,_1,_2), rmw_qos_profile_services_default, rest);
-    change_ip_service = this->create_service<ChangeIp>("reconnect",  std::bind(&SchunkGripperNode::change_ip_srv,this,_1,_2), rmw_qos_profile_services_default, rest);
-    
-    //Create Actions  
 
-    move_abs_server = rclcpp_action::create_server<MovAbsPos>(this, "move_absolute", std::bind(&SchunkGripperNode::handle_goal<MovAbsPos::Goal>, this, _1, _2),
-                                                                                   std::bind(&SchunkGripperNode::handle_cancel<MovAbsPos>, this, _1),
-                                                                                   std::bind(&SchunkGripperNode::handle_accepted_abs, this, _1),rcl_action_server_get_default_options(), actions_group);
-   
-    move_rel_server = rclcpp_action::create_server<MovRelPos>(this, "move_relative", std::bind(&SchunkGripperNode::handle_goal<MovRelPos::Goal>, this, _1, _2),
-                                                                                   std::bind(&SchunkGripperNode::handle_cancel<MovRelPos>, this, _1),
-                                                                                   std::bind(&SchunkGripperNode::handle_accepted_rel, this, _1),rcl_action_server_get_default_options(), actions_group);  
-    
-    release_wp_server = rclcpp_action::create_server<ReleaseWorkpiece>(this, "release_workpiece",     std::bind(&SchunkGripperNode::handle_goal<ReleaseWorkpiece::Goal>, this, _1, _2),
-                                                                                                    std::bind(&SchunkGripperNode::handle_cancel<ReleaseWorkpiece>, this, _1),
-                                                                                                    std::bind(&SchunkGripperNode::handle_accepted_release, this, _1),rcl_action_server_get_default_options(), actions_group);
-    
-    control_server = rclcpp_action::create_server<GripperCommand>(this, "gripper_control",            std::bind(&SchunkGripperNode::handle_goal<GripperCommand::Goal>, this, _1, _2),
-                                                                                                    std::bind(&SchunkGripperNode::handle_cancel<GripperCommand>, this, _1),
-                                                                                                    std::bind(&SchunkGripperNode::handle_accepted_control, this, _1),rcl_action_server_get_default_options(), actions_group);
-    
-    if(model.find("EGK") != std::string::npos)
+    callback_gripper_param =  std::bind(&SchunkGripperNode::callback_gripper_parameter,this,std::placeholders::_1);
+    callback_move_param =  std::bind(&SchunkGripperNode::callback_move_parameter,this ,std::placeholders::_1);
+
+    if(start_connection == true) 
     {
-        grip_server = rclcpp_action::create_server<GripWithVel>(this, "grip",     std::bind(&SchunkGripperNode::handle_goal<GripWithVel::Goal>, this, _1, _2),
-                                                                                std::bind(&SchunkGripperNode::handle_cancel<GripWithVel>, this, _1),
-                                                                                std::bind(&SchunkGripperNode::handle_accepted_grip_egk, this, _1),rcl_action_server_get_default_options(), actions_group);
-        
-        grip_w_pos_server = rclcpp_action::create_server<GripWithPosVel>(this, "grip_with_pos",       std::bind(&SchunkGripperNode::handle_goal<GripWithPosVel::Goal>, this, _1, _2),
-                                                                                                    std::bind(&SchunkGripperNode::handle_cancel<GripWithPosVel>, this, _1),
-                                                                                                    std::bind(&SchunkGripperNode::handle_accepted_gripPos_egk, this, _1),rcl_action_server_get_default_options(), actions_group);
-    
+        advertiseConnectionRelevant();
+        ip_changed_with_all_param = true;
+        connection_error = "OK";
     }
-    else if(model.find("EGU") != std::string::npos)
+    else 
     {
-        grip_egu_server = rclcpp_action::create_server<Grip>(this, "grip",    std::bind(&SchunkGripperNode::handle_goal<Grip::Goal>, this, _1, _2),
-                                                                            std::bind(&SchunkGripperNode::handle_cancel<Grip>, this, _1),
-                                                                            std::bind(&SchunkGripperNode::handle_accepted_grip_egu, this, _1),rcl_action_server_get_default_options(), actions_group);
-    
-        grip_w_pos_egu_server = rclcpp_action::create_server<GripWithPos>(this, "grip_with_pos_egu",    std::bind(&SchunkGripperNode::handle_goal<GripWithPos::Goal>, this, _1, _2),
-                                                                                                      std::bind(&SchunkGripperNode::handle_cancel<GripWithPos>, this, _1),
-                                                                                                      std::bind(&SchunkGripperNode::handle_accepted_gripPos_egu, this, _1),rcl_action_server_get_default_options(), actions_group);
-    }
-    else
-    {
-        RCLCPP_ERROR(this->get_logger(),"GRIPPER NOT FOUND! PLEASE SHUTDOWN");
-        return;
+        ip_changed_with_all_param = false;
+        connection_error = "";
     }
 
-    handshake = gripperBitInput(COMMAND_RECEIVED_TOGGLE);
+    declareParameter();
+    advertiseTopics();
+    advertiseServices();
+    advertiseActions();
 }
 //State msg update
 void SchunkGripperNode::updateStateMsg()
@@ -202,27 +112,102 @@ void SchunkGripperNode::updateStateMsg()
     msg.grip_force_and_maintenance = gripperBitInput(BRAKE_ACTIVE);
 }
 //parameter limits
-void SchunkGripperNode::declareParameter()
+void SchunkGripperNode::advertiseServices()
+{
+    //Create Services
+    acknowledge_service = this->create_service<Acknowledge>("acknowledge", std::bind(&SchunkGripperNode::acknowledge_srv,this,std::placeholders::_1,std::placeholders::_2), rmw_qos_profile_services_default, services_group);
+    stop_service = this->create_service<Stop>("stop", std::bind(&SchunkGripperNode::stop_srv,this,std::placeholders::_1,std::placeholders::_2), rmw_qos_profile_services_default, services_group);
+    softreset_service = this->create_service<Softreset>("softreset", std::bind(&SchunkGripperNode::softreset_srv,this,std::placeholders::_1,std::placeholders::_2), rmw_qos_profile_services_default, services_group);
+    releaseForManualMov_service = this->create_service<ReleaseForManMov>("release_for_manual_movement", std::bind(&SchunkGripperNode::releaseForManualMov_srv,this,std::placeholders::_1,std::placeholders::_2), rmw_qos_profile_services_default, services_group);
+    prepare_for_shutdown_service = this->create_service<PrepareForShutdown>("prepare_for_shutdown", std::bind(&SchunkGripperNode::prepare_for_shutdown_srv,this,std::placeholders::_1,std::placeholders::_2), rmw_qos_profile_services_default, services_group);
+    fast_stop_service = this->create_service<FastStop>("fast_stop", std::bind(&SchunkGripperNode::fast_stop_srv,this,std::placeholders::_1,std::placeholders::_2), rmw_qos_profile_services_default, services_group);
+    info_service = this->create_service<GripperInfo>("gripper_info", std::bind(&SchunkGripperNode::info_srv,this,std::placeholders::_1,std::placeholders::_2), rmw_qos_profile_services_default, rest);
+    change_ip_service = this->create_service<ChangeIp>("reconnect",  std::bind(&SchunkGripperNode::change_ip_srv,this,std::placeholders::_1,std::placeholders::_2), rmw_qos_profile_services_default, rest);
+  
+}
+
+void SchunkGripperNode::advertiseActions()
+{
+    //Create Actions  
+    move_abs_server = rclcpp_action::create_server<MovAbsPos>(this, "move_absolute", std::bind(&SchunkGripperNode::handle_goal<MovAbsPos::Goal>, this, std::placeholders::_1, std::placeholders::_2),
+                                                                                     std::bind(&SchunkGripperNode::handle_cancel<MovAbsPos>, this, std::placeholders::_1),
+                                                                                     std::bind(&SchunkGripperNode::handle_accepted_abs, this, std::placeholders::_1),rcl_action_server_get_default_options(), actions_group);
+   
+    move_rel_server = rclcpp_action::create_server<MovRelPos>(this, "move_relative", std::bind(&SchunkGripperNode::handle_goal<MovRelPos::Goal>, this, std::placeholders::_1, std::placeholders::_2),
+                                                                                     std::bind(&SchunkGripperNode::handle_cancel<MovRelPos>, this, std::placeholders::_1),
+                                                                                     std::bind(&SchunkGripperNode::handle_accepted_rel, this, std::placeholders::_1),rcl_action_server_get_default_options(), actions_group);  
+    
+    release_wp_server = rclcpp_action::create_server<ReleaseWorkpiece>(this, "release_workpiece",   std::bind(&SchunkGripperNode::handle_goal<ReleaseWorkpiece::Goal>, this, std::placeholders::_1, std::placeholders::_2),
+                                                                                                    std::bind(&SchunkGripperNode::handle_cancel<ReleaseWorkpiece>, this, std::placeholders::_1),
+                                                                                                    std::bind(&SchunkGripperNode::handle_accepted_release, this, std::placeholders::_1),rcl_action_server_get_default_options(), actions_group);
+    
+    control_server = rclcpp_action::create_server<GripperCommand>(this, "gripper_control",          std::bind(&SchunkGripperNode::handle_goal<GripperCommand::Goal>, this, std::placeholders::_1, std::placeholders::_2),
+                                                                                                    std::bind(&SchunkGripperNode::handle_cancel<GripperCommand>, this, std::placeholders::_1),
+                                                                                                    std::bind(&SchunkGripperNode::handle_accepted_control, this, std::placeholders::_1),rcl_action_server_get_default_options(), actions_group);
+    
+}
+
+void SchunkGripperNode::advertiseTopics()
+{
+    //Advertise state
+    last_time = this->now(); //Initialize last_time 
+    statePublisher = this->create_publisher<schunk_gripper::msg::State>("state", 10);
+    publish_state_timer=this->create_wall_timer(std::chrono::duration<double>(1 / state_frq), std::bind(&SchunkGripperNode::publishState, this), messages_group);
+    
+    //Initialize diagnostics
+    gripper_updater = std::make_shared<diagnostic_updater::Updater>(this);
+    gripper_updater->setHardwareID("Module");
+    gripper_updater->add(model, std::bind(&SchunkGripperNode::gripperDiagnostics,this,std::placeholders::_1));
+    
+    //Look if joint_state_frq is less than state_frq
+    if(j_state_frq > state_frq)
+    {
+        j_state_frq = state_frq;
+        RCLCPP_WARN(this->get_logger(),"joint_state topic will publish with %f!", j_state_frq);
+    }
+    //Advertise joint_states
+    jointStatePublisher = this->create_publisher<sensor_msgs::msg::JointState>("joint_states", 10);
+    publish_joint_timer = this->create_wall_timer(std::chrono::duration<double>(1 / j_state_frq), std::bind(&SchunkGripperNode::publishJointState, this));
+}
+
+void SchunkGripperNode::advertiseConnectionRelevant()
 {   
+    //Need Firmware
+    if(sw_version >= 502) brake_test_service = this->create_service<BrakeTest>("brake_test", std::bind(&SchunkGripperNode::brake_test_srv, this,std::placeholders::_1,std::placeholders::_2), rmw_qos_profile_services_default, services_group);
+    //Grip-action need the Gripper model
+    if(model.find("EGK") != std::string::npos)
+    {
+        grip_server = rclcpp_action::create_server<GripWithVel>(this, "grip",   std::bind(&SchunkGripperNode::handle_goal<GripWithVel::Goal>, this, std::placeholders::_1, std::placeholders::_2),
+                                                                                std::bind(&SchunkGripperNode::handle_cancel<GripWithVel>, this, std::placeholders::_1),
+                                                                                std::bind(&SchunkGripperNode::handle_accepted_grip_egk, this, std::placeholders::_1),rcl_action_server_get_default_options(), actions_group);
+        
+        grip_w_pos_server = rclcpp_action::create_server<GripWithPosVel>(this, "grip_with_pos",     std::bind(&SchunkGripperNode::handle_goal<GripWithPosVel::Goal>, this, std::placeholders::_1, std::placeholders::_2),
+                                                                                                    std::bind(&SchunkGripperNode::handle_cancel<GripWithPosVel>, this, std::placeholders::_1),
+                                                                                                    std::bind(&SchunkGripperNode::handle_accepted_gripPos_egk, this, std::placeholders::_1),rcl_action_server_get_default_options(), actions_group);
+    
+    }
+    else if(model.find("EGU") != std::string::npos)
+    {
+        grip_egu_server = rclcpp_action::create_server<Grip>(this, "grip",  std::bind(&SchunkGripperNode::handle_goal<Grip::Goal>, this, std::placeholders::_1, std::placeholders::_2),
+                                                                            std::bind(&SchunkGripperNode::handle_cancel<Grip>, this, std::placeholders::_1),
+                                                                            std::bind(&SchunkGripperNode::handle_accepted_grip_egu, this, std::placeholders::_1),rcl_action_server_get_default_options(), actions_group);
+    
+        grip_w_pos_egu_server = rclcpp_action::create_server<GripWithPos>(this, "grip_with_pos_egu",  std::bind(&SchunkGripperNode::handle_goal<GripWithPos::Goal>, this, std::placeholders::_1, std::placeholders::_2),
+                                                                                                      std::bind(&SchunkGripperNode::handle_cancel<GripWithPos>, this, std::placeholders::_1),
+                                                                                                      std::bind(&SchunkGripperNode::handle_accepted_gripPos_egu, this, std::placeholders::_1),rcl_action_server_get_default_options(), actions_group);
+    }
+    else
+    {
+        RCLCPP_ERROR(this->get_logger(),"Gripper was not found");
+    }
+
+    //Set model (not read only)
+    this->declare_parameter("model", model, parameter_descriptor("Gripper-model"), true);
+    //declare Moving Parameter
+    this->declare_parameter("Control_Parameter.move_gripper_velocity", static_cast<double>(min_vel), parameter_descriptor("Changing the velocity for move_Gripper in mm/s", FloatingPointRange(min_vel, max_vel)));
     this->declare_parameter("Control_Parameter.move_gripper", actualPosInterval(), parameter_descriptor("Moving the gripper with parameter in mm", FloatingPointRange(min_pos, max_pos)));
     abs_pos_param = actualPosInterval();
-    // Gripper Parameter
-    this->declare_parameter("Gripper_Parameter.use_brk", false, parameter_descriptor("Use brake"));
-    this->declare_parameter("Gripper_Parameter.grp_pos_margin", 2.0, parameter_descriptor("Grip position margin in mm", FloatingPointRange(1.0, 10.0, 0.01)));
-    this->declare_parameter("Gripper_Parameter.grp_prepos_delta", 5.0, parameter_descriptor("Grip position delta in mm", FloatingPointRange(1.0, 50.0, 0.01)));
-    this->declare_parameter("Gripper_Parameter.zero_pos_ofs", 0.0, parameter_descriptor("Zero position offset in mm", FloatingPointRange(-10000.0, 10000.0, 0.01)));
-    this->declare_parameter("Gripper_Parameter.grp_prehold_time", 0, parameter_descriptor("Grip prehold time in ms", IntegerRange(0, 60000, 1)));
-    this->declare_parameter("Gripper_Parameter.wp_release_delta", 5.0, parameter_descriptor("Workpiece release delta in mm", FloatingPointRange(1.0, 50.0, 0.01)));
-    this->declare_parameter("Gripper_Parameter.wp_lost_distance", 1.0, parameter_descriptor("Max. distance after workpiece lost in mm", FloatingPointRange(0.1, 50.0, 0.01)));
-    // Control Parameter
-    this->declare_parameter("Control_Parameter.move_gripper_velocity", static_cast<double>(min_vel), parameter_descriptor("Changing the velocity for move_Gripper in mm/s", FloatingPointRange(min_vel, max_vel)));
-    this->declare_parameter("Control_Parameter.grip_direction", false, parameter_descriptor("Grip direction for parameter gripping"));
-    this->declare_parameter("Control_Parameter.grip", false, parameter_descriptor("Grip with parameter"));
-    this->declare_parameter("Control_Parameter.grip_force", 50.0, parameter_descriptor("Grip force in %", FloatingPointRange(50.0, 100.0, 0.01)));
-    this->declare_parameter("Control_Parameter.release_workpiece", false, parameter_descriptor("Release Workpiece"));
-
-    callback_gripper_param =  std::bind(&SchunkGripperNode::callback_gripper_parameter,this,std::placeholders::_1);
-    callback_move_param =  std::bind(&SchunkGripperNode::callback_move_parameter,this ,std::placeholders::_1);
+    
     //Callbacks for Parameters
     cb_handle[0] =  parameter_event_handler->add_parameter_callback("Gripper_Parameter.use_brk", callback_gripper_param);
     cb_handle[1] =  parameter_event_handler->add_parameter_callback("Gripper_Parameter.grp_pos_margin", callback_gripper_param);
@@ -235,6 +220,23 @@ void SchunkGripperNode::declareParameter()
     cb_handle[7] =  parameter_event_handler->add_parameter_callback("Control_Parameter.grip", callback_move_param);
     cb_handle[8] =  parameter_event_handler->add_parameter_callback("Control_Parameter.release_workpiece", callback_move_param);
     cb_handle[9] =  parameter_event_handler->add_parameter_callback("Control_Parameter.move_gripper", callback_move_param);
+}
+
+void SchunkGripperNode::declareParameter()
+{   
+    // Gripper Parameter
+    this->declare_parameter("Gripper_Parameter.use_brk", false, parameter_descriptor("Use brake"));
+    this->declare_parameter("Gripper_Parameter.grp_pos_margin", 2.0, parameter_descriptor("Grip position margin in mm", FloatingPointRange(1.0, 10.0, 0.01)));
+    this->declare_parameter("Gripper_Parameter.grp_prepos_delta", 5.0, parameter_descriptor("Grip position delta in mm", FloatingPointRange(1.0, 50.0, 0.01)));
+    this->declare_parameter("Gripper_Parameter.zero_pos_ofs", 0.0, parameter_descriptor("Zero position offset in mm", FloatingPointRange(-10000.0, 10000.0, 0.01)));
+    this->declare_parameter("Gripper_Parameter.grp_prehold_time", 0, parameter_descriptor("Grip prehold time in ms", IntegerRange(0, 60000, 1)));
+    this->declare_parameter("Gripper_Parameter.wp_release_delta", 5.0, parameter_descriptor("Workpiece release delta in mm", FloatingPointRange(1.0, 50.0, 0.01)));
+    this->declare_parameter("Gripper_Parameter.wp_lost_distance", 1.0, parameter_descriptor("Max. distance after workpiece lost in mm", FloatingPointRange(0.1, 50.0, 0.01)));
+    // Control Parameter
+    this->declare_parameter("Control_Parameter.grip_direction", false, parameter_descriptor("Grip direction for parameter gripping"));
+    this->declare_parameter("Control_Parameter.grip", false, parameter_descriptor("Grip with parameter"));
+    this->declare_parameter("Control_Parameter.grip_force", 50.0, parameter_descriptor("Grip force in %", FloatingPointRange(50.0, 100.0, 0.01)));
+    this->declare_parameter("Control_Parameter.release_workpiece", false, parameter_descriptor("Release Workpiece"));
 }
 // Helper function to create a FloatingPointRange
 rcl_interfaces::msg::FloatingPointRange SchunkGripperNode::FloatingPointRange(double from, double to, double step) 
@@ -305,13 +307,13 @@ rclcpp_action::GoalResponse SchunkGripperNode::handle_goal(const rclcpp_action::
         try
         {
             //send fast stop
+            handshake = gripperBitInput(COMMAND_RECEIVED_TOGGLE);
             runPost(FAST_STOP);
             //if command received, get values
             if(handshake != gripperBitInput(COMMAND_RECEIVED_TOGGLE)) 
             while (rclcpp::ok() && check())
             runGets(); 
 
-            handshake = gripperBitInput(COMMAND_RECEIVED_TOGGLE);
             gripper_updater->force_update();
         }
         catch(const char* server_err)
@@ -358,13 +360,12 @@ void SchunkGripperNode::setFinalState(std::shared_ptr<restype> res, const std::s
         
         std::lock_guard<std::recursive_mutex> lock(lock_mutex);
             //Fast stop
+            handshake = gripperBitInput(COMMAND_RECEIVED_TOGGLE);
             runPost(FAST_STOP);
             if(handshake != gripperBitInput(COMMAND_RECEIVED_TOGGLE)) 
             while (rclcpp::ok() && check())
             runGets();
-            
-            handshake = gripperBitInput(COMMAND_RECEIVED_TOGGLE);
-
+        
         gripper_updater->force_update();
         finishedCommand();
         
@@ -381,7 +382,6 @@ void SchunkGripperNode::setFinalState(std::shared_ptr<restype> res, const std::s
 template<typename GoalType, typename ResType>
 void SchunkGripperNode::exceptionHandling(const std::shared_ptr<rclcpp_action::ServerGoalHandle<GoalType>> goal_handle,const int32_t &i, const std::shared_ptr<ResType> res)
 {
-        handshake = gripperBitInput(COMMAND_RECEIVED_TOGGLE);
 
         if(plc_sync_input[3] != 0)  ;// gripper_updater.force_update();
         //If gripper did not receive command
@@ -488,10 +488,10 @@ try
 {  
     std::unique_lock<std::recursive_mutex> lock(lock_mutex);
         //Run goal
+        handshake = gripperBitInput(COMMAND_RECEIVED_TOGGLE);
         runPost(commands_str.at(actual_command), goal_position, goal_velocity);
         //Look if gripper received command     
         if(handshake == gripperBitInput(COMMAND_RECEIVED_TOGGLE)) throw int32_t(-1);
-        else handshake = gripperBitInput(COMMAND_RECEIVED_TOGGLE);
 
     lock.unlock();
 
@@ -537,10 +537,10 @@ try
 
         std::unique_lock<std::recursive_mutex> lock(lock_mutex);
             //Send command to gripper
+            handshake = gripperBitInput(COMMAND_RECEIVED_TOGGLE);
             runPost(commands_str.at(actual_command), goal_position, goal_velocity);
             //Look if gripper received command
-            if(handshake == gripperBitInput(COMMAND_RECEIVED_TOGGLE)) throw int32_t(-1);
-            else handshake = gripperBitInput(COMMAND_RECEIVED_TOGGLE);         
+            if(handshake == gripperBitInput(COMMAND_RECEIVED_TOGGLE)) throw int32_t(-1);     
 
         lock.unlock();
 
@@ -593,10 +593,10 @@ try
 {       
         std::unique_lock<std::recursive_mutex> lock(lock_mutex);
             //Send command to gripper
+            handshake = gripperBitInput(COMMAND_RECEIVED_TOGGLE);
             runPost(goal_command, 0, goal_velocity, goal_effort);
             //Look if gripper received command
-            if(handshake == gripperBitInput(COMMAND_RECEIVED_TOGGLE)) throw int32_t(-1);
-            handshake = gripperBitInput(COMMAND_RECEIVED_TOGGLE);           
+            if(handshake == gripperBitInput(COMMAND_RECEIVED_TOGGLE)) throw int32_t(-1);        
 
         lock.unlock();
 
@@ -650,10 +650,10 @@ try
 {       
     std::unique_lock<std::recursive_mutex> lock(lock_mutex);
         //Send command to gripper
+        handshake = gripperBitInput(COMMAND_RECEIVED_TOGGLE);
         runPost(goal_command, 0, 0, goal_effort);
         //Look if gripper received command
         if(handshake == gripperBitInput(COMMAND_RECEIVED_TOGGLE)) throw uint32_t(-1);
-        handshake = gripperBitInput(COMMAND_RECEIVED_TOGGLE);
 
         
     lock.unlock();
@@ -710,10 +710,10 @@ try
 {       
         std::unique_lock<std::recursive_mutex> lock(lock_mutex);
             //run Command
+            handshake = gripperBitInput(COMMAND_RECEIVED_TOGGLE);
             runPost(goal_command, goal_position, goal_velocity, goal_effort);
             //Have Gripper received command
             if(handshake == gripperBitInput(COMMAND_RECEIVED_TOGGLE)) throw int32_t(-1);
-            else handshake = gripperBitInput(COMMAND_RECEIVED_TOGGLE);
 
             
         lock.unlock();
@@ -770,10 +770,10 @@ try
 {       
         std::unique_lock<std::recursive_mutex> lock(lock_mutex);
             //Send command
+            handshake = gripperBitInput(COMMAND_RECEIVED_TOGGLE);
             runPost(goal_command, goal_position, 0, goal_effort);
             //Look if gripper received command
             if(handshake == gripperBitInput(COMMAND_RECEIVED_TOGGLE)) throw int32_t(-1);
-            else handshake = gripperBitInput(COMMAND_RECEIVED_TOGGLE);
 
             
         lock.unlock();
@@ -820,12 +820,10 @@ try
 {   
     std::unique_lock<std::recursive_mutex> lock(lock_mutex);
         //Send command
+        handshake = gripperBitInput(COMMAND_RECEIVED_TOGGLE);
         runPost(commands_str.at(actual_command));
         //Have gripper received command
         if(handshake == gripperBitInput(COMMAND_RECEIVED_TOGGLE)) throw int32_t(-1);
-        else handshake = gripperBitInput(COMMAND_RECEIVED_TOGGLE);
-
-        
     
     lock.unlock();
     
@@ -890,11 +888,10 @@ try
 {   
     std::unique_lock<std::recursive_mutex> lock(lock_mutex);
         //run command
+        handshake = gripperBitInput(COMMAND_RECEIVED_TOGGLE);
         runPost(goal_command, goal_position, goal_vel, goal_effort);
         //Gripper received command
         if(handshake == gripperBitInput(COMMAND_RECEIVED_TOGGLE)) throw int32_t(-1);
-        else handshake = gripperBitInput(COMMAND_RECEIVED_TOGGLE);
-
         
     lock.unlock();
 
@@ -966,8 +963,10 @@ void SchunkGripperNode::finishedCommand()
         
         action_active = false;
         param_exe = false;
-        action_move = false;
+        action_move = false;      
+        actual_command = "NO COMMAND";
 
+        if(connection_error != "OK") return;
         //update Parameter
         std::vector<rclcpp::Parameter> params = {rclcpp::Parameter("Control_Parameter.release_workpiece", false),
                                                  rclcpp::Parameter("Control_Parameter.grip", false),
@@ -982,9 +981,6 @@ void SchunkGripperNode::finishedCommand()
         
         if(gripperBitInput(GRIPPED))  
         RCLCPP_WARN(this->get_logger(),"Gripped Workpiece!");
-        //Flags
-        actual_command = "NO COMMAND";
-        msg.doing_command = actual_command;
 }
 //publish with x hz gripper data
 void SchunkGripperNode::publishState()
@@ -1019,7 +1015,7 @@ void SchunkGripperNode::publishState()
         lock.unlock();
     }
     
-    if( ((param_exe == true && !endCondition())) && !gripperBitInput(PRE_HOLDING))                   //If param_exe was active and module is in an end state
+    if( ((param_exe == true && !endCondition()) && connection_error == "OK") && !gripperBitInput(PRE_HOLDING))                   //If param_exe was active and module is in an end state
     finishedCommand();                                                                      //If zero_offset was changed
 
     if(msg.workpiece_lost != gripperBitInput(WORK_PIECE_LOST) && !msg.workpiece_lost)
@@ -1050,7 +1046,16 @@ void SchunkGripperNode::reconnect()
                     comm_version = save_data_char.data();
                     ip_changed_with_all_param = true;
 
+                    if(start_connection == false)
+                    {
+                        getActualParameters();
+                        advertiseConnectionRelevant();
+                        start_connection = true;
+                    }
+
                 }
+
+                if(start_connection == false) return;
 
                 getActualParameters();                 //Get and set the possible new Parameter
 
@@ -1107,7 +1112,6 @@ void SchunkGripperNode::acknowledge_srv(const std::shared_ptr<Acknowledge::Reque
         res->acknowledged = false;
         RCLCPP_WARN(this->get_logger(), "NOT ACKNOWLEDGED!");
     }
-    handshake = gripperBitInput(COMMAND_RECEIVED_TOGGLE);
     last_command = 0;
     gripper_updater->force_update();
     finishedCommand();
@@ -1119,6 +1123,7 @@ void SchunkGripperNode::brake_test_srv(const std::shared_ptr<BrakeTest::Request>
     try
     {
         //send stop
+        handshake = gripperBitInput(COMMAND_RECEIVED_TOGGLE);
         runPost(BRAKE_TEST);
         //if command received, get values
         if(handshake != gripperBitInput(COMMAND_RECEIVED_TOGGLE)) 
@@ -1149,15 +1154,13 @@ void SchunkGripperNode::brake_test_srv(const std::shared_ptr<BrakeTest::Request>
         RCLCPP_ERROR(this->get_logger(), "Failed Connection! %s", connection_error.c_str());
     } 
 
-
-    handshake = gripperBitInput(COMMAND_RECEIVED_TOGGLE);
-
 }
 //Ip change service, if the ip should change during runtime of the program
 void SchunkGripperNode::change_ip_srv(const std::shared_ptr<ChangeIp::Request> req, std::shared_ptr<ChangeIp::Response> res)
 {   
     std::lock_guard<std::recursive_mutex> lock(lock_mutex);
     res->ip_changed = changeIp(req->new_ip);
+
     if(res->ip_changed == false)
     {
         connection_error = "No gripper found. Using old IP";
@@ -1168,6 +1171,18 @@ void SchunkGripperNode::change_ip_srv(const std::shared_ptr<ChangeIp::Request> r
     if(res->ip_changed == true) 
     {
         this->set_parameter(rclcpp::Parameter("IP", req->new_ip));
+    }
+
+    if(start_connection == false && ip_changed_with_all_param == true)
+    {   try
+        {
+            advertiseConnectionRelevant();
+            start_connection = true;
+        }
+        catch(...)
+        {
+            RCLCPP_ERROR(this->get_logger(), "Not connected.");
+        }
     }
 
     if(ip_changed_with_all_param == true)
@@ -1188,6 +1203,7 @@ void SchunkGripperNode::stop_srv(const std::shared_ptr<Stop::Request>, std::shar
     try
     {
         //send stop
+        handshake = gripperBitInput(COMMAND_RECEIVED_TOGGLE);
         runPost(STOP);
         //if command received, get values
         if(handshake != gripperBitInput(COMMAND_RECEIVED_TOGGLE)) 
@@ -1211,8 +1227,6 @@ void SchunkGripperNode::stop_srv(const std::shared_ptr<Stop::Request>, std::shar
         last_command = 0;
     }
 
-    handshake = gripperBitInput(COMMAND_RECEIVED_TOGGLE);
-
 }
 //Fast stop service callback
 void SchunkGripperNode::fast_stop_srv(const std::shared_ptr<FastStop::Request>, std::shared_ptr<FastStop::Response> res)
@@ -1221,6 +1235,8 @@ void SchunkGripperNode::fast_stop_srv(const std::shared_ptr<FastStop::Request>, 
     try
     {
         //send fast stop
+        
+        handshake = gripperBitInput(COMMAND_RECEIVED_TOGGLE);
         runPost(FAST_STOP);
         //if command received, get values
         if(handshake != gripperBitInput(COMMAND_RECEIVED_TOGGLE)) 
@@ -1245,7 +1261,6 @@ void SchunkGripperNode::fast_stop_srv(const std::shared_ptr<FastStop::Request>, 
         res->fast_stopped = 0;
         RCLCPP_WARN(this->get_logger(), "FAST STOP NOT SUCCEEDED");
     }
-    handshake = gripperBitInput(COMMAND_RECEIVED_TOGGLE);
     gripper_updater->force_update();
 }
 //Softreset service callback 
@@ -1255,29 +1270,33 @@ void SchunkGripperNode::softreset_srv(const std::shared_ptr<Softreset::Request>,
     try
     {
         RCLCPP_INFO(this->get_logger(),"SOFTRESET");
+        handshake = gripperBitInput(COMMAND_RECEIVED_TOGGLE);
         runPost(SOFT_RESET);
     }
     catch(const char* res){}
+
     bool connection_once_lost = false;
     
     if(handshake != gripperBitInput(COMMAND_RECEIVED_TOGGLE))
-    for(int i = 0; rclcpp::ok() && i <= 1000; i++)
     {
-        try
+        for(int i = 0; rclcpp::ok() && i <= 1000 && check(); i++)
         {
-            runGets();               //if connection is back, don't catch
-            if(connection_once_lost == true) 
+            try
             {
-                connection_error = "OK";
-                break;
+                runGets();               //if connection is back, don't catch
+                if(connection_once_lost == true) 
+                {
+                    connection_error = "OK";
+                    break;
+                }
             }
-        }
-        catch(const char* res)
-        {
-            connection_error = res;
-            std::chrono::milliseconds sleep_time(10);
-            std::this_thread::sleep_for(sleep_time);
-            connection_once_lost = true;
+            catch(const char* res)
+            {
+                connection_error = res;
+                std::chrono::milliseconds sleep_time(10);
+                std::this_thread::sleep_for(sleep_time);
+                connection_once_lost = true;
+            }
         }
     }
     else RCLCPP_WARN(this->get_logger(), "No Command received");
@@ -1289,7 +1308,6 @@ void SchunkGripperNode::softreset_srv(const std::shared_ptr<Softreset::Request>,
     }
     else res->reset_success = false;
 
-    handshake = gripperBitInput(COMMAND_RECEIVED_TOGGLE);
     lock.unlock();
     gripper_updater->force_update();
 
@@ -1301,6 +1319,7 @@ void SchunkGripperNode::prepare_for_shutdown_srv(const std::shared_ptr<PrepareFo
     try
     {
         //send prepare for shutdown
+        handshake = gripperBitInput(COMMAND_RECEIVED_TOGGLE);
         runPost(PREPARE_FOR_SHUTDOWN);
         //if command received, get values
         if(handshake != gripperBitInput(COMMAND_RECEIVED_TOGGLE))
@@ -1323,8 +1342,7 @@ void SchunkGripperNode::prepare_for_shutdown_srv(const std::shared_ptr<PrepareFo
         RCLCPP_INFO(this->get_logger(),"COMMAND FAILED");
         res->prepared_for_shutdown = false;
     }
-    
-    handshake = gripperBitInput(COMMAND_RECEIVED_TOGGLE);
+
     gripper_updater->force_update();
 }
 //Release for manual movement service callback
@@ -1337,6 +1355,7 @@ void SchunkGripperNode::releaseForManualMov_srv(const std::shared_ptr<ReleaseFor
         if(splitted_Diagnosis[2] == 0) 
         {   
             //Send fast stop
+            handshake = gripperBitInput(COMMAND_RECEIVED_TOGGLE);
             runPost(FAST_STOP); 
             //if command received, get values 
             if(handshake != gripperBitInput(COMMAND_RECEIVED_TOGGLE)) 
@@ -1345,9 +1364,9 @@ void SchunkGripperNode::releaseForManualMov_srv(const std::shared_ptr<ReleaseFor
 
             gripper_updater->force_update();
             RCLCPP_WARN(this->get_logger(),"An error was provoked so that you can take the workpiece: %s\n", getErrorString(splitted_Diagnosis[2]).c_str());
-            handshake = gripperBitInput(COMMAND_RECEIVED_TOGGLE);
         }
         //send Emergency release
+        handshake = gripperBitInput(COMMAND_RECEIVED_TOGGLE);
         runPost(EMERGENCY_RELEASE);
         //if command received, get values
         if(handshake != gripperBitInput(COMMAND_RECEIVED_TOGGLE)) 
@@ -1372,8 +1391,6 @@ void SchunkGripperNode::releaseForManualMov_srv(const std::shared_ptr<ReleaseFor
         RCLCPP_WARN(this->get_logger(),"COMMAND FAILED");
         res->released_for_manual_movement = false;
     }
-    
-    handshake = gripperBitInput(COMMAND_RECEIVED_TOGGLE);
     gripper_updater->force_update();
 }
 //Get infos of the gripper service
@@ -1536,6 +1553,7 @@ void SchunkGripperNode::callback_gripper_parameter(const rclcpp::Parameter &p)
     else if(p.get_name() == "Gripper_Parameter.use_brk" && (gripperBitOutput(USE_GPE)!= p.as_bool()))
     {
         const std::lock_guard<std::recursive_mutex> lock(lock_mutex);
+        handshake = gripperBitInput(COMMAND_RECEIVED_TOGGLE);
         runPost(USE_GPE);
         grp_pos_lock = gripperBitOutput(USE_GPE);
         RCLCPP_INFO(this->get_logger(),"The brake is %s.", grp_pos_lock ? "on" : "off");
@@ -1556,10 +1574,9 @@ try
     {
         const std::lock_guard<std::recursive_mutex> lock(lock_mutex);
             actual_command = "MOVE TO ABSOLUTE POSITION";
+            handshake = gripperBitInput(COMMAND_RECEIVED_TOGGLE);
             runPost(MOVE_TO_ABSOLUTE_POSITION, static_cast<uint32_t>(p.as_double() * 1000) , static_cast<uint32_t>(this->get_parameter("Control_Parameter.move_gripper_velocity").as_double()*1000));
             param_exe = true;
-            
-            handshake = gripperBitInput(COMMAND_RECEIVED_TOGGLE);
     }
     else if(p.get_name() == "Control_Parameter.grip" && p.as_bool() == true && param_exe == false) 
     {
@@ -1571,10 +1588,10 @@ try
             
         actual_command = "GRIP WORKPIECE";
         msg.doing_command = actual_command;
+        handshake = gripperBitInput(COMMAND_RECEIVED_TOGGLE);
         runPost(command, 0, 0, static_cast<uint32_t>(this->get_parameter("Control_Parameter.grip_force").as_double()));
         param_exe = true;
-        
-        handshake = gripperBitInput(COMMAND_RECEIVED_TOGGLE);
+
     }
     else if(p.get_name() == "Control_Parameter.release_workpiece" && p.as_bool() == true && param_exe == false) 
     {
@@ -1583,10 +1600,9 @@ try
             const std::lock_guard<std::recursive_mutex> lock(lock_mutex);
             actual_command = "RELEASE WORKPIECE";
             msg.doing_command = actual_command;
+            handshake = gripperBitInput(COMMAND_RECEIVED_TOGGLE);
             runPost(commands_str.at(actual_command));
             param_exe = true;
-            
-            handshake = gripperBitInput(COMMAND_RECEIVED_TOGGLE);
         }
         else 
         {
@@ -1705,7 +1721,6 @@ SchunkGripperNode::~SchunkGripperNode()
 { 
   std::lock_guard<std::recursive_mutex> lock(lock_mutex);
 
-  handshake = gripperBitInput(COMMAND_RECEIVED_TOGGLE);
   if(action_active == true || param_exe == true)        //If gripper is moving, fast stop
   {
     for(size_t i = 0; i <= 2; i++)                      //Try 3 times fast stop
@@ -1713,12 +1728,12 @@ SchunkGripperNode::~SchunkGripperNode()
         try
         {
         //send fast stop
+        handshake = gripperBitInput(COMMAND_RECEIVED_TOGGLE);
         runPost(FAST_STOP);
         if(gripperBitInput(COMMAND_RECEIVED_TOGGLE) != handshake) break;
         }
         catch(...)
         { 
-            handshake = gripperBitInput(COMMAND_RECEIVED_TOGGLE);
             RCLCPP_ERROR(this->get_logger(),"Could't perform fast stop.");
         }
     }

@@ -42,20 +42,11 @@ Gripper::Gripper(const std::string &ip): AnybusCom(ip)
       comm_version = save_data_char.data();
 
       ip_changed_with_all_param = true;
-   }
-   catch(const char* res)
-   {
-      std::cout << "Failed Connection to gripper: " << res << std::endl;
-      start_connection = false;
-   }
-   catch(const nlohmann::json::parse_error &e)
-   {
-      std::cout << "message: " << e.what()  << "\nexception id: " << e.id << std::endl;
-      start_connection = false;
+      start_connection = true;
    }
    catch(...)
    {
-      std::cout << "Failed Connection to gripper: "  << std::endl;
+      std::cout << "Failed Connection to gripper."  << std::endl;
       start_connection = false;
    }
 }
@@ -99,7 +90,6 @@ void Gripper::getModel()
       if(model.find("EGU") != std::string::npos) getWithInstance<float>(MAX_ALLOW_FORCE_INST,&max_allow_force);
       
       std::cout <<  model << " CONNECTED!" << std::endl;
-      start_connection = true;
 }
 
 bool Gripper::check()
@@ -226,13 +216,17 @@ bool Gripper::changeIp(const std::string &new_ip)
    std::string old_ip = ip;
    ip = new_ip;
    initAddresses();
-   
    //Control if it is the same gripper
    try
    {
       startGripper();
       getActualParameters();
       getModel();
+
+      //get Versions
+      getWithInstance<uint16_t>(SW_VERSION_NUM_INST, &sw_version);
+      getWithInstance<char>(COMM_VERSION_TXT_INST, NULL, 12);
+      comm_version = save_data_char.data();
       
       ip_changed_with_all_param = true;
    
