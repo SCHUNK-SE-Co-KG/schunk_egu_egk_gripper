@@ -45,11 +45,10 @@ SchunkGripperNode::SchunkGripperNode(const rclcpp::NodeOptions &options) :
     else wrong_version = false;
 
     connection_error = "OK";
-
     //Callback groups
     messages_group = this->create_callback_group(rclcpp::CallbackGroupType::MutuallyExclusive);
     services_group = this->create_callback_group(rclcpp::CallbackGroupType::MutuallyExclusive);
-    actions_group  = this->create_callback_group(rclcpp::CallbackGroupType::MutuallyExclusive);
+    actions_group  = this->create_callback_group(rclcpp::CallbackGroupType::Reentrant);
     rest  = this->create_callback_group(rclcpp::CallbackGroupType::MutuallyExclusive);
     rclcpp::PublisherOptions option_messages;
     option_messages.callback_group = messages_group;
@@ -403,7 +402,7 @@ void SchunkGripperNode::runActionMove(std::shared_ptr<feedbacktype> feedback, st
 {   
     rclcpp::Time start_time = this->now();
 
-    while(endCondition() && rclcpp::ok() && (!goal_handle->is_canceling()))
+    while(endCondition() && rclcpp::ok() && (!goal_handle->is_canceling()) && connection_error == "OK")
     {   //Publish as fast as in state
         if(*cycletime <= this->now() - start_time)
         {
@@ -436,7 +435,7 @@ void SchunkGripperNode::runActionGrip(std::shared_ptr<feedbacktype> feedback, st
 {   
     rclcpp::Time start_time = this->now();
 
-    while(endCondition() && rclcpp::ok() && (!goal_handle->is_canceling()))
+    while(endCondition() && rclcpp::ok() && (!goal_handle->is_canceling()) && connection_error == "OK")
     {   //Publish as fast as in state
         if(*cycletime <= this->now() - start_time)
         {
@@ -512,6 +511,9 @@ catch(const char* response)
     connection_error = response;
     RCLCPP_ERROR(this->get_logger(), "Failed Connection! %s", connection_error.c_str());
     finishedCommand();
+    //set result
+    res->current_position = actual_pos;
+    res->reached_position = gripperBitInput(SUCCESS) && gripperBitInput(POSITION_REACHED);
     goal_handle->abort(res);
 }
 
@@ -559,6 +561,9 @@ catch(const char* response)
     connection_error = response;
     RCLCPP_ERROR(this->get_logger(), "Failed Connection! %s", connection_error.c_str());
     finishedCommand();
+        //set result
+    res->current_position = actual_pos;
+    res->reached_position = gripperBitInput(SUCCESS) && gripperBitInput(POSITION_REACHED);
     goal_handle->abort(res);
 }
 }
@@ -613,6 +618,11 @@ catch(const char* response)
     connection_error = response;
     RCLCPP_ERROR(this->get_logger(), "Failed Connection! %s", connection_error.c_str());
     finishedCommand();
+    //Set result
+    res->no_workpiece_detected = gripperBitInput(NO_WORKPIECE_DETECTED);
+    res->workpiece_lost = gripperBitInput(WORK_PIECE_LOST);
+    res->gripped = gripperBitInput(GRIPPED);
+    res->current_position = actual_pos;
     goal_handle->abort(res);
 }
 }
@@ -666,6 +676,11 @@ catch(const char* response)
     connection_error = response;
     RCLCPP_ERROR(this->get_logger(), "Failed Connection! %s", connection_error.c_str());
     finishedCommand();
+    //Set result
+    res->no_workpiece_detected = gripperBitInput(NO_WORKPIECE_DETECTED);
+    res->workpiece_lost = gripperBitInput(WORK_PIECE_LOST);
+    res->gripped = gripperBitInput(GRIPPED);
+    res->current_position = actual_pos;
     goal_handle->abort(res);
 }
 }
@@ -722,6 +737,11 @@ catch(const char* response)
     connection_error = response;
     RCLCPP_ERROR(this->get_logger(), "Failed Connection! %s", connection_error.c_str());
     finishedCommand();
+    //Set result
+    res->no_workpiece_detected = gripperBitInput(NO_WORKPIECE_DETECTED);
+    res->workpiece_lost = gripperBitInput(WORK_PIECE_LOST);
+    res->gripped = gripperBitInput(GRIPPED);
+    res->current_position = actual_pos;
     goal_handle->abort(res);
 }
 }
@@ -777,6 +797,11 @@ catch(const char* response)
     connection_error = response;
     RCLCPP_ERROR(this->get_logger(), "Failed Connection! %s", connection_error.c_str());
     finishedCommand();
+    //Set result
+    res->no_workpiece_detected = gripperBitInput(NO_WORKPIECE_DETECTED);
+    res->workpiece_lost = gripperBitInput(WORK_PIECE_LOST);
+    res->gripped = gripperBitInput(GRIPPED);
+    res->current_position = actual_pos;
     goal_handle->abort(res);
 }
 }
@@ -820,6 +845,8 @@ catch(const char* response)
     connection_error = response;
     RCLCPP_ERROR(this->get_logger(), "Failed Connection! %s", connection_error.c_str());
     finishedCommand();
+    res->current_position = actual_pos;
+    res->released = gripperBitInput(SUCCESS);
     goal_handle->abort(res);
 }
 }
@@ -913,6 +940,18 @@ catch(const char* response)
     connection_error = response;
     RCLCPP_ERROR(this->get_logger(), "Failed Connection! %s", connection_error.c_str());
     finishedCommand();
+    //Set result
+    res->position = actual_pos;
+    if(actual_command == "MOVE TO ABSOLUTE POSITION")
+    {
+        res->reached_goal = gripperBitInput(SUCCESS) && gripperBitInput(POSITION_REACHED);
+        res->stalled = gripperBitInput(SUCCESS);
+    }
+    else
+    {
+        res->reached_goal = gripperBitInput(SUCCESS) && gripperBitInput(GRIPPED);
+        res->stalled = gripperBitInput(SUCCESS);
+    }
     goal_handle->abort(res);
 }
 
