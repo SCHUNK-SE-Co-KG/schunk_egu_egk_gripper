@@ -35,11 +35,14 @@ Gripper::Gripper(const std::string &ip): AnybusCom(ip)
       //Get parameters
       getActualParameters();
       //Model
-      getModel();
       //get Versions
       getWithInstance<uint16_t>(SW_VERSION_NUM_INST, &sw_version);
       getWithInstance<char>(COMM_VERSION_TXT_INST, NULL, 12);
-      comm_version = save_data_char.data();
+      updateSaveData(1, 12, char_vector);
+      
+      getModel();
+
+      comm_version = char_vector.data();
 
       ip_changed_with_all_param = true;
       start_connection = true;
@@ -92,6 +95,56 @@ void Gripper::getModel()
       std::cout <<  model << " CONNECTED!" << std::endl;
 }
 
+void Gripper::getParameter(const std::string& instance, const size_t& elements, const uint8_t& datatype)
+{     
+      if(instance == PLC_SYNC_INPUT_INST || instance == PLC_SYNC_OUTPUT_INST) not_double_word = false;
+      
+      char inst[7];
+      if(instance.size() < 7) 
+      {
+       std::strcpy(inst, instance.c_str());
+      }
+      else throw "String to long";
+
+   switch(datatype)
+   {
+      case 0:
+      getWithInstance<bool>(inst, NULL, elements);
+      updateSaveData<bool>(1, elements, bool_vector);
+      break;
+      
+      case 1 :
+      getWithInstance<uint8_t>(inst, NULL, elements);
+      updateSaveData<uint8_t>(1, elements, uint8_vector);
+      break;
+      
+      case 2:
+      getWithInstance<uint16_t>(inst, NULL, elements);
+      updateSaveData<uint16_t>(1, elements, uint16_vector);
+      break;
+
+      case 3:
+      getWithInstance<uint32_t>(inst, NULL, elements);
+      updateSaveData<uint32_t>(1, elements, uint32_vector);
+      break;
+      
+      case 4:
+      getWithInstance<int32_t>(inst, NULL, elements);
+      updateSaveData<int32_t>(1, elements, int32_vector);
+      break;
+
+      case 5:
+      getWithInstance<float>(inst, NULL, elements);
+      updateSaveData<float>(1, elements, float_vector);
+      break;
+      
+      case 6:
+      getWithInstance<char>(inst, NULL, elements);
+      updateSaveData<char>(1, elements, char_vector);
+      break;
+   }
+}
+ 
 bool Gripper::check()
 {
    if(plc_sync_input[3] == 0) return 1;
@@ -226,7 +279,8 @@ bool Gripper::changeIp(const std::string &new_ip)
       //get Versions
       getWithInstance<uint16_t>(SW_VERSION_NUM_INST, &sw_version);
       getWithInstance<char>(COMM_VERSION_TXT_INST, NULL, 12);
-      comm_version = save_data_char.data();
+      updateSaveData(1, 12, char_vector);
+      comm_version = char_vector.data();
       
       ip_changed_with_all_param = true;
    

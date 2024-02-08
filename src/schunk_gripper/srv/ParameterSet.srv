@@ -1,0 +1,19 @@
+string instance
+
+DataTypesParameter data_types_param
+
+bool[] bool_value
+uint8[] uint8_value
+uint16[] uint16_value
+uint32[] uint32_value
+int32[] int32_value
+float32[] float_value
+string char_value
+---
+bool[] actual_bool_value
+uint8[] actual_uint8_value
+uint16[] actual_uint16_value
+uint32[] actual_uint32_value
+int32[] actual_int32_value
+float32[] actual_float_value
+string actual_char_value

@@ -21,8 +21,9 @@ SchunkGripperNode::SchunkGripperNode(const rclcpp::NodeOptions &options) :
     //Callback groups
     messages_group = this->create_callback_group(rclcpp::CallbackGroupType::MutuallyExclusive);
     services_group = this->create_callback_group(rclcpp::CallbackGroupType::MutuallyExclusive);
-    actions_group  = this->create_callback_group(rclcpp::CallbackGroupType::Reentrant);
-    rest  = this->create_callback_group(rclcpp::CallbackGroupType::MutuallyExclusive);
+ //   actions_group  = this->create_callback_group(rclcpp::CallbackGroupType::Reentrant);
+ //   rest  = this->create_callback_group(rclcpp::CallbackGroupType::MutuallyExclusive);
+    
     rclcpp::PublisherOptions option_messages;
     option_messages.callback_group = messages_group;
     rclcpp::SubscriptionOptions option;
@@ -121,8 +122,10 @@ void SchunkGripperNode::advertiseServices()
     releaseForManualMov_service = this->create_service<ReleaseForManMov>("release_for_manual_movement", std::bind(&SchunkGripperNode::releaseForManualMov_srv,this,std::placeholders::_1,std::placeholders::_2), rmw_qos_profile_services_default, services_group);
     prepare_for_shutdown_service = this->create_service<PrepareForShutdown>("prepare_for_shutdown", std::bind(&SchunkGripperNode::prepare_for_shutdown_srv,this,std::placeholders::_1,std::placeholders::_2), rmw_qos_profile_services_default, services_group);
     fast_stop_service = this->create_service<FastStop>("fast_stop", std::bind(&SchunkGripperNode::fast_stop_srv,this,std::placeholders::_1,std::placeholders::_2), rmw_qos_profile_services_default, services_group);
+    parameter_get_service = this->create_service<ParameterGet>("parameter_get", std::bind(&SchunkGripperNode::parameter_get_srv,this,std::placeholders::_1,std::placeholders::_2), rmw_qos_profile_services_default, services_group);
+    parameter_set_service= this->create_service<ParameterSet>("parameter_set", std::bind(&SchunkGripperNode::parameter_set_srv,this,std::placeholders::_1,std::placeholders::_2), rmw_qos_profile_services_default, services_group);
     info_service = this->create_service<GripperInfo>("gripper_info", std::bind(&SchunkGripperNode::info_srv,this,std::placeholders::_1,std::placeholders::_2), rmw_qos_profile_services_default, rest);
-    change_ip_service = this->create_service<ChangeIp>("reconnect",  std::bind(&SchunkGripperNode::change_ip_srv,this,std::placeholders::_1,std::placeholders::_2), rmw_qos_profile_services_default, rest);
+    change_ip_service = this->create_service<ChangeIp>("reconnect",  std::bind(&SchunkGripperNode::change_ip_srv,this,std::placeholders::_1,std::placeholders::_2), rmw_qos_profile_services_default, services_group);
   
 }
 
@@ -131,19 +134,19 @@ void SchunkGripperNode::advertiseActions()
     //Create Actions  
     move_abs_server = rclcpp_action::create_server<MovAbsPos>(this, "move_absolute", std::bind(&SchunkGripperNode::handle_goal<MovAbsPos::Goal>, this, std::placeholders::_1, std::placeholders::_2),
                                                                                      std::bind(&SchunkGripperNode::handle_cancel<MovAbsPos>, this, std::placeholders::_1),
-                                                                                     std::bind(&SchunkGripperNode::handle_accepted_abs, this, std::placeholders::_1),rcl_action_server_get_default_options(), actions_group);
+                                                                                     std::bind(&SchunkGripperNode::handle_accepted_abs, this, std::placeholders::_1),rcl_action_server_get_default_options(), services_group);
    
     move_rel_server = rclcpp_action::create_server<MovRelPos>(this, "move_relative", std::bind(&SchunkGripperNode::handle_goal<MovRelPos::Goal>, this, std::placeholders::_1, std::placeholders::_2),
                                                                                      std::bind(&SchunkGripperNode::handle_cancel<MovRelPos>, this, std::placeholders::_1),
-                                                                                     std::bind(&SchunkGripperNode::handle_accepted_rel, this, std::placeholders::_1),rcl_action_server_get_default_options(), actions_group);  
+                                                                                     std::bind(&SchunkGripperNode::handle_accepted_rel, this, std::placeholders::_1),rcl_action_server_get_default_options(), services_group);  
     
     release_wp_server = rclcpp_action::create_server<ReleaseWorkpiece>(this, "release_workpiece",   std::bind(&SchunkGripperNode::handle_goal<ReleaseWorkpiece::Goal>, this, std::placeholders::_1, std::placeholders::_2),
                                                                                                     std::bind(&SchunkGripperNode::handle_cancel<ReleaseWorkpiece>, this, std::placeholders::_1),
-                                                                                                    std::bind(&SchunkGripperNode::handle_accepted_release, this, std::placeholders::_1),rcl_action_server_get_default_options(), actions_group);
+                                                                                                    std::bind(&SchunkGripperNode::handle_accepted_release, this, std::placeholders::_1),rcl_action_server_get_default_options(), services_group);
     
     control_server = rclcpp_action::create_server<GripperCommand>(this, "gripper_control",          std::bind(&SchunkGripperNode::handle_goal<GripperCommand::Goal>, this, std::placeholders::_1, std::placeholders::_2),
                                                                                                     std::bind(&SchunkGripperNode::handle_cancel<GripperCommand>, this, std::placeholders::_1),
-                                                                                                    std::bind(&SchunkGripperNode::handle_accepted_control, this, std::placeholders::_1),rcl_action_server_get_default_options(), actions_group);
+                                                                                                    std::bind(&SchunkGripperNode::handle_accepted_control, this, std::placeholders::_1),rcl_action_server_get_default_options(), services_group);
     
 }
 
@@ -179,22 +182,22 @@ void SchunkGripperNode::advertiseConnectionRelevant()
     {
         grip_server = rclcpp_action::create_server<GripWithVel>(this, "grip",   std::bind(&SchunkGripperNode::handle_goal<GripWithVel::Goal>, this, std::placeholders::_1, std::placeholders::_2),
                                                                                 std::bind(&SchunkGripperNode::handle_cancel<GripWithVel>, this, std::placeholders::_1),
-                                                                                std::bind(&SchunkGripperNode::handle_accepted_grip_egk, this, std::placeholders::_1),rcl_action_server_get_default_options(), actions_group);
+                                                                                std::bind(&SchunkGripperNode::handle_accepted_grip_egk, this, std::placeholders::_1),rcl_action_server_get_default_options(), services_group);
         
         grip_w_pos_server = rclcpp_action::create_server<GripWithPosVel>(this, "grip_with_pos",     std::bind(&SchunkGripperNode::handle_goal<GripWithPosVel::Goal>, this, std::placeholders::_1, std::placeholders::_2),
                                                                                                     std::bind(&SchunkGripperNode::handle_cancel<GripWithPosVel>, this, std::placeholders::_1),
-                                                                                                    std::bind(&SchunkGripperNode::handle_accepted_gripPos_egk, this, std::placeholders::_1),rcl_action_server_get_default_options(), actions_group);
+                                                                                                    std::bind(&SchunkGripperNode::handle_accepted_gripPos_egk, this, std::placeholders::_1),rcl_action_server_get_default_options(), services_group);
     
     }
     else if(model.find("EGU") != std::string::npos)
     {
         grip_egu_server = rclcpp_action::create_server<Grip>(this, "grip",  std::bind(&SchunkGripperNode::handle_goal<Grip::Goal>, this, std::placeholders::_1, std::placeholders::_2),
                                                                             std::bind(&SchunkGripperNode::handle_cancel<Grip>, this, std::placeholders::_1),
-                                                                            std::bind(&SchunkGripperNode::handle_accepted_grip_egu, this, std::placeholders::_1),rcl_action_server_get_default_options(), actions_group);
+                                                                            std::bind(&SchunkGripperNode::handle_accepted_grip_egu, this, std::placeholders::_1),rcl_action_server_get_default_options(), services_group);
     
         grip_w_pos_egu_server = rclcpp_action::create_server<GripWithPos>(this, "grip_with_pos_egu",  std::bind(&SchunkGripperNode::handle_goal<GripWithPos::Goal>, this, std::placeholders::_1, std::placeholders::_2),
                                                                                                       std::bind(&SchunkGripperNode::handle_cancel<GripWithPos>, this, std::placeholders::_1),
-                                                                                                      std::bind(&SchunkGripperNode::handle_accepted_gripPos_egu, this, std::placeholders::_1),rcl_action_server_get_default_options(), actions_group);
+                                                                                                      std::bind(&SchunkGripperNode::handle_accepted_gripPos_egu, this, std::placeholders::_1),rcl_action_server_get_default_options(), services_group);
     }
     else
     {
@@ -964,9 +967,12 @@ void SchunkGripperNode::finishedCommand()
         action_active = false;
         param_exe = false;
         action_move = false;      
-        actual_command = "NO COMMAND";
 
-        if(connection_error != "OK") return;
+        if(connection_error != "OK") 
+        {   
+            actual_command = "NO COMMAND";
+            return;
+        }
         //update Parameter
         std::vector<rclcpp::Parameter> params = {rclcpp::Parameter("Control_Parameter.release_workpiece", false),
                                                  rclcpp::Parameter("Control_Parameter.grip", false),
@@ -981,6 +987,8 @@ void SchunkGripperNode::finishedCommand()
         
         if(gripperBitInput(GRIPPED))  
         RCLCPP_WARN(this->get_logger(),"Gripped Workpiece!");
+
+        actual_command = "NO COMMAND";
 }
 //publish with x hz gripper data
 void SchunkGripperNode::publishState()
@@ -1041,9 +1049,11 @@ void SchunkGripperNode::reconnect()
                     getModel();
                     this->set_parameter(rclcpp::Parameter("model", model));
 
+                    //get Versions
                     getWithInstance<uint16_t>(SW_VERSION_NUM_INST, &sw_version);
                     getWithInstance<char>(COMM_VERSION_TXT_INST, NULL, 12);
-                    comm_version = save_data_char.data();
+                    updateSaveData(1, 12, char_vector);
+
                     ip_changed_with_all_param = true;
 
                     if(start_connection == false)
@@ -1410,10 +1420,10 @@ void SchunkGripperNode::info_srv(const std::shared_ptr<GripperInfo::Request>, st
                         << "\nIP: " << ip  << std::endl);
         
         getEnums(FIELDBUS_TYPE_INST,fieldbus_type);
-        getWithInstance<char>(MAC_ADDR_INST, NULL, 6);
+        getParameter(MAC_ADDR_INST, 6, schunk_gripper::msg::DataTypesParameter::CHAR);
         std::array<int16_t,6> mac;
         
-        for(size_t i = 0; i < 6; i++){mac[i] = static_cast<int16_t>(static_cast<unsigned char>(save_data_char.at(i)));}
+        for(size_t i = 0; i < 6; i++){mac[i] = static_cast<int16_t>(static_cast<unsigned char>(char_vector.at(i)));}
             
         RCLCPP_INFO_STREAM(this->get_logger(),
                                "\nFieldbustype:  " << json_data["string"] 
@@ -1422,16 +1432,16 @@ void SchunkGripperNode::info_srv(const std::shared_ptr<GripperInfo::Request>, st
 
                 
         //Get the char-Parameter and save them as strings in char_strings
-        getWithInstance<char>(SERIAL_NO_TXT_INST, NULL, 16);
-        char_strings.push_back(save_data_char.data());
-        getWithInstance<char>(ORDER_NO_TXT_INST, NULL, 16);
-        char_strings.push_back(save_data_char.data());
-        getWithInstance<char>(SW_BUILD_DATE_INST, NULL, 12);
-        char_strings.push_back(save_data_char.data());
-        getWithInstance<char>(SW_BUILD_TIME_INST, NULL, 9);
-        char_strings.push_back(save_data_char.data());
-        getWithInstance<char>(SW_VERSION_TXT_INST, NULL, 22);
-        char_strings.push_back(save_data_char.data());
+        getParameter(SERIAL_NO_TXT_INST, 16, schunk_gripper::msg::DataTypesParameter::CHAR);
+        char_strings.push_back(char_vector.data());
+        getParameter(ORDER_NO_TXT_INST, 16, schunk_gripper::msg::DataTypesParameter::CHAR);
+        char_strings.push_back(char_vector.data());
+        getParameter(SW_BUILD_DATE_INST, 12, schunk_gripper::msg::DataTypesParameter::CHAR);
+        char_strings.push_back(char_vector.data());
+        getParameter(SW_BUILD_TIME_INST, 9, schunk_gripper::msg::DataTypesParameter::CHAR);
+        char_strings.push_back(char_vector.data());
+        getParameter(SW_VERSION_TXT_INST, 22, schunk_gripper::msg::DataTypesParameter::CHAR);
+        char_strings.push_back(char_vector.data());
         
         getWithInstance(SERIAL_NO_NUM_INST, &data);
         getWithInstance<uint16_t>(SW_VERSION_NUM_INST, &data2);
@@ -1451,15 +1461,15 @@ void SchunkGripperNode::info_srv(const std::shared_ptr<GripperInfo::Request>, st
         getWithInstance<float>(DEAD_LOAD_KG_INST, &data3);
         RCLCPP_INFO_STREAM(this->get_logger(),"\nNet mass of the Gripper: " << data3 << " kg" << std::endl);
         
-        getWithInstance<float>(TOOL_CENT_POINT_INST, NULL, 6);
+        getParameter(TOOL_CENT_POINT_INST, 6, schunk_gripper::msg::DataTypesParameter::FLOAT);
         RCLCPP_INFO_STREAM(this->get_logger(),"\nTool center point 6D-Frame: \n" 
-        << save_data_float[0] << " mm  " << save_data_float[1] << " mm  " << save_data_float[2] << " mm\n" 
-        << save_data_float[3] << "  " << save_data_float[4] << "  " << save_data_float[5] << std::endl);
+        << float_vector[0] << " mm  " << float_vector[1] << " mm  " << float_vector[2] << " mm\n" 
+        << float_vector[3] << "  " << float_vector[4] << "  " << float_vector[5] << std::endl);
         
-        getWithInstance<float>(CENT_OF_MASS_INST, NULL, 6);
+        getParameter(CENT_OF_MASS_INST, 6, schunk_gripper::msg::DataTypesParameter::FLOAT);
         RCLCPP_INFO_STREAM(this->get_logger(), "\nCenter of Mass 6D-frame: \n" 
-        << save_data_float[0] << " mm  " << save_data_float[1] << " mm  " << save_data_float[2] << " mm\n"
-        << save_data_float[3] << " kg*m^2  " << save_data_float[4] << " kg*m^2  "<< save_data_float[5] << " kg*m^2"<< std::endl);
+        << float_vector[0] << " mm  " << float_vector[1] << " mm  " << float_vector[2] << " mm\n"
+        << float_vector[3] << " kg*m^2  " << float_vector[4] << " kg*m^2  "<< float_vector[5] << " kg*m^2"<< std::endl);
 
         RCLCPP_INFO_STREAM(this->get_logger(),"\nMin. absolute position: " << min_pos << " mm\n" 
         << "Max. absolute position: " << max_pos << " mm\n"
@@ -1482,26 +1492,26 @@ void SchunkGripperNode::info_srv(const std::shared_ptr<GripperInfo::Request>, st
         getWithInstance<float>(MAX_PHYS_STROKE_INST, &data3);
         RCLCPP_INFO_STREAM(this->get_logger(),"Max. physical stroke: " << data3 << " mm" << std::endl);
         getWithOffset(MIN_ERR_MOT_VOLT_OFFSET, 6, 6);
-        RCLCPP_INFO_STREAM(this->get_logger(),"\nMin. error motor voltage: " << save_data_float[0] << " V\n"
-                    <<    "Max. error motor voltage: " << save_data_float[1] << " V\n"
-                    <<    "Min. error logic voltage: " << save_data_float[2] << " V\n"
-                    <<    "Max. error logic voltage: " << save_data_float[3] << " V\n"
-                    <<    "Min. error logic temperature: " << save_data_float[4] << " C\n"
-                    <<    "Max. error logic temperature: " << save_data_float[5] << " C" << std::endl);
+        RCLCPP_INFO_STREAM(this->get_logger(),"\nMin. error motor voltage: " << float_vector[0] << " V\n"
+                    <<    "Max. error motor voltage: " << float_vector[1] << " V\n"
+                    <<    "Min. error logic voltage: " << float_vector[2] << " V\n"
+                    <<    "Max. error logic voltage: " << float_vector[3] << " V\n"
+                    <<    "Min. error logic temperature: " << float_vector[4] << " C\n"
+                    <<    "Max. error logic temperature: " << float_vector[5] << " C" << std::endl);
         
         getWithInstance<float>(MEAS_LGC_TEMP_INST, &data3);
         RCLCPP_INFO_STREAM(this->get_logger(), "Measured logic temperature: " << data3 << " C" << std::endl);
 
         getWithOffset(MEAS_LGC_VOLT_OFFSET, 8, 8);
         RCLCPP_INFO_STREAM(this->get_logger(),
-                          "\nMeasured logic voltage: " << save_data_float[0] <<  " V\n"
-                    <<    "Measured motor voltage: " << save_data_float[1] <<     " V\n"
-                    <<    "Min. warning motor voltage: " << save_data_float[2] << " V\n"
-                    <<    "Max. warning motor voltage: " << save_data_float[3] << " V\n"
-                    <<    "Min. warning logic voltage: " << save_data_float[4] << " V\n"
-                    <<    "Max. warning logic voltage: " << save_data_float[5] << " V\n"
-                    <<    "Min. warning logic temperature: " << save_data_float[6] << " C\n"
-                    <<    "Max. warning logic temperature: " << save_data_float[7] << " C" << std::endl);
+                          "\nMeasured logic voltage: " << float_vector[0] <<  " V\n"
+                    <<    "Measured motor voltage: " << float_vector[1] <<     " V\n"
+                    <<    "Min. warning motor voltage: " << float_vector[2] << " V\n"
+                    <<    "Max. warning motor voltage: " << float_vector[3] << " V\n"
+                    <<    "Min. warning logic voltage: " << float_vector[4] << " V\n"
+                    <<    "Max. warning logic voltage: " << float_vector[5] << " V\n"
+                    <<    "Min. warning logic temperature: " << float_vector[6] << " C\n"
+                    <<    "Max. warning logic temperature: " << float_vector[7] << " C" << std::endl);
         
     }
     catch(const char* res)
@@ -1513,6 +1523,131 @@ void SchunkGripperNode::info_srv(const std::shared_ptr<GripperInfo::Request>, st
     {
         RCLCPP_ERROR(this->get_logger(), "%s", e.what());
     }
+}
+
+void SchunkGripperNode::parameter_get_srv(const std::shared_ptr<ParameterGet::Request> req, std::shared_ptr<ParameterGet::Response> res)
+{
+    using Datatype = schunk_gripper::msg::DataTypesParameter;
+    try
+    {
+    std::lock_guard<std::recursive_mutex> lock(lock_mutex);
+    getParameter(req->instance, req->data_types_param.elements, req->data_types_param.datatype);
+    }
+    catch(const char *res)
+    {   
+        not_double_word = true;
+        RCLCPP_ERROR_STREAM(this->get_logger(), res);
+        return;
+    }
+    catch(std::exception &e)
+    {   
+        not_double_word = true;
+        RCLCPP_ERROR_STREAM(this->get_logger(), e.what());
+        return;
+    }
+       switch(req->data_types_param.datatype)
+        {
+        case Datatype::NONE: RCLCPP_WARN(this->get_logger(), "Please enter an Datatype");
+                break;
+        case Datatype::BOOL: res->bool_value = bool_vector;
+                break;
+        
+        case Datatype::UINTEGER8: res->uint8_value = uint8_vector;
+                break;
+        
+        case Datatype::UINTEGER16: res->uint16_value = uint16_vector;
+                break;
+
+        case Datatype::UINTEGER32: res->uint32_value = uint32_vector;
+                break;
+        
+        case Datatype::INTEGER32: res->int32_value = int32_vector;
+                break;
+
+        case Datatype::FLOAT: res->float_value = float_vector;
+                break;
+        
+        case Datatype::CHAR: res->char_value = char_vector.data();
+                break;
+        }
+}
+
+void SchunkGripperNode::parameter_set_srv(const std::shared_ptr<ParameterSet::Request> req, std::shared_ptr<ParameterSet::Response> res)
+{
+        using Datatype = schunk_gripper::msg::DataTypesParameter;
+    try
+    {
+      char inst[7];
+      if(req->instance.size() < 7) 
+      {
+       std::strcpy(inst, req->instance.c_str());
+      }
+      else throw "String to long";
+
+        switch(req->data_types_param.datatype)
+        {
+        case Datatype::NONE: RCLCPP_WARN(this->get_logger(), "Please enter an Datatype");
+                break;
+
+        case Datatype::BOOL: 
+                changeVectorParameter(inst, req->bool_value);
+                getParameter(inst, req->bool_value.size(), req->data_types_param.datatype);
+                res->actual_bool_value = bool_vector;
+                break;
+        
+        case Datatype::UINTEGER8: 
+                changeVectorParameter(inst, req->uint8_value);
+                getParameter(inst, req->uint8_value.size(), req->data_types_param.datatype);
+                res->actual_uint8_value = uint8_vector;
+                break;
+        
+        case Datatype::UINTEGER16: 
+                changeVectorParameter(inst, req->uint16_value);
+                getParameter(inst, req->uint16_value.size(), req->data_types_param.datatype);
+                res->actual_uint16_value = uint16_vector;
+                break;
+
+        case Datatype::UINTEGER32: 
+                changeVectorParameter(inst, req->uint32_value);
+                getParameter(inst, req->uint32_value.size(), req->data_types_param.datatype);
+                res->actual_uint32_value = uint32_vector;
+                break;
+        
+        case Datatype::INTEGER32: 
+                changeVectorParameter(inst, req->int32_value);
+                getParameter(inst, req->int32_value.size(), req->data_types_param.datatype);
+                res->actual_int32_value = int32_vector;
+                break;
+
+        case Datatype::FLOAT: 
+                changeVectorParameter(inst, req->float_value);
+                getParameter(inst, req->float_value.size()-1, req->data_types_param.datatype);
+                res->actual_float_value = float_vector;
+                break;
+        
+      //  case Datatype::CHAR: changeParameter(inst, req->char_value, &res->actual_char_value);
+      //          break;
+        }
+    }
+    catch(const char *res)
+    {   
+        not_double_word = true;
+        RCLCPP_ERROR_STREAM(this->get_logger(), res);
+        return;
+    }
+    catch(std::exception &e)
+    {   
+        not_double_word = true;
+        RCLCPP_ERROR_STREAM(this->get_logger(), e.what());
+        return;
+    }
+    catch(nlohmann::json::exception &e)
+    {   
+        not_double_word = true;
+        RCLCPP_ERROR_STREAM(this->get_logger(), e.what());
+        return;
+    }
+
 }
 
 void SchunkGripperNode::callback_gripper_parameter(const rclcpp::Parameter &p)
@@ -1527,7 +1662,7 @@ void SchunkGripperNode::callback_gripper_parameter(const rclcpp::Parameter &p)
     if(p.get_type() == rclcpp::ParameterType::PARAMETER_DOUBLE)
     {
         const std::lock_guard<std::recursive_mutex> lock(lock_mutex);
-        changeParameter(parameter_map.at(p.get_name()), static_cast<float>(p.as_double()));
+        changeOneParameter(parameter_map.at(p.get_name()), static_cast<float>(p.as_double()));
         RCLCPP_INFO_STREAM(this->get_logger(), p.get_name() << " changed to: " << p.as_double());
         if(p.get_name() == "Gripper_Parameter.zero_pos_ofs")
         {   
@@ -1547,7 +1682,7 @@ void SchunkGripperNode::callback_gripper_parameter(const rclcpp::Parameter &p)
     else if(p.get_name() == "Gripper_Parameter.grp_prehold_time")
     {
         const std::lock_guard<std::recursive_mutex> lock(lock_mutex);
-        changeParameter(GRP_PREHOLD_TIME_INST, static_cast<uint16_t>(p.as_int()), &grp_prehold_time);
+        changeOneParameter(GRP_PREHOLD_TIME_INST, static_cast<uint16_t>(p.as_int()), &grp_prehold_time);
         RCLCPP_INFO_STREAM(this->get_logger(), p.get_name() << " changed to: " << grp_prehold_time);
     }
     else if(p.get_name() == "Gripper_Parameter.use_brk" && (gripperBitOutput(USE_GPE)!= p.as_bool()))

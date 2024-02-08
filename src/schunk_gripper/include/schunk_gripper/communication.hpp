@@ -156,9 +156,11 @@ class AnybusCom
 
         void initAddresses();                                                                       
         void getInfo();                                                                                    //Function to get Endian format
-        void getWithOffset(const std::string &offset, int count, int elements, bool is_float = true);      //A Function just for Gripper Feedback
+        void getWithOffset(const std::string &offset, int count, int elements);      //A Function just for Gripper Feedback
 
         uint32_t last_command;                                                                      //Saves last Command
+
+        std::string save_response_string;
 
         uint16_t sw_version;
         std::string comm_version;
@@ -170,12 +172,14 @@ class AnybusCom
         template<typename paramtype>                                                                
         paramtype readParam(std::string);                                                           //Reads a hexadecimal string to value
 
-        void updateSavedata(std::string, const int &counts, const int &elements, bool is_float = true);                   //Updates variable save_data
+        template<typename paramtype>
+        void updateSaveData(const size_t &counts, const size_t &elements, std::vector<paramtype> &vector);   //Updates variable save_data
+
         void updatePlcOutput(uint32_t, uint32_t  = 0, uint32_t = 0, uint32_t = 0);                  //Updates plc_sync_output[4]
         void postCommand();                                                                         //Post plc_sync_output[4]
         void postParameter(std::string, std::string);                                               //Post a Parameter with instance
         template<typename paramtype>    
-        void getWithInstance(const char inst[7], paramtype *param = NULL, int elements = 1);                          //Get a Parameter with Instance
+        void getWithInstance(const char inst[7], paramtype *param = NULL, const size_t &elements = 1);                          //Get a Parameter with Instance
         void getEnums(const char[7],const uint16_t &);                                              //Get to an enum number the string
 
         bool grp_pos_lock;           //GPE
@@ -203,9 +207,14 @@ class AnybusCom
         plc_Array plc_sync_output;  // [0] -> Control double word, [1]  ->set_position,    [2] -> set_velocity, [3] ->set_effort 
 
         nlohmann::json json_data;       //raw Json-Data 
-
-        std::vector<float> save_data_float;   //Can save multiple floats from gets
-        std::vector<char> save_data_char;     //Can save multiple chars from gets
+        
+        std::vector<bool> bool_vector;
+        std::vector<uint8_t> uint8_vector;
+        std::vector<uint16_t> uint16_vector;
+        std::vector<uint32_t> uint32_vector;
+        std::vector<int32_t> int32_vector;
+        std::vector<float> float_vector;
+        std::vector<char> char_vector;
 
         uint16_t grp_prehold_time;   //Grip prehold time
 
@@ -224,7 +233,7 @@ class AnybusCom
     };
 //Get something with Instance
 template<typename paramtype>
-inline void AnybusCom::getWithInstance(const char inst[7], paramtype *param, int elements)
+inline void AnybusCom::getWithInstance(const char inst[7], paramtype *param, const size_t &elements)
 {   
     std::string response;
     CURLcode res;
@@ -252,10 +261,9 @@ inline void AnybusCom::getWithInstance(const char inst[7], paramtype *param, int
         }
         else
         {
-           if (instance == PLC_SYNC_INPUT_INST || instance == PLC_SYNC_OUTPUT_INST) updatePlc(response, instance);  //If double word
-           else if(std::is_same<paramtype, char>::value) updateSavedata(response, 1, elements, false);              //If array of chars
-           else if(std::is_same<paramtype, float>::value && elements > 1) updateSavedata(response, 1, elements);    //If array of floats
-           else   *param = readParam<paramtype>(response);                                                          //If single parameter
+           if ((instance == PLC_SYNC_INPUT_INST || instance == PLC_SYNC_OUTPUT_INST) && elements == 1) updatePlc(response, instance);  //If double word
+           else if(param != NULL && elements == 1) *param = readParam<paramtype>(response); //If single Parameter;    
+           else save_response_string = response;   //If an array just save the response                                                
         }
     curl_easy_reset(curl1);
     }
@@ -264,9 +272,12 @@ inline void AnybusCom::getWithInstance(const char inst[7], paramtype *param, int
 template<typename paramtype>
 inline paramtype AnybusCom::readParam(std::string hex_str)
 { 
-        if(hex_str.find('[') != std::string::npos)
+        if(hex_str.find("[",0) != std::string::npos)
         {
             hex_str.erase(hex_str.begin(), hex_str.begin() + 2);
+        }
+        if(hex_str.find("]",hex_str.size()-4) != std::string::npos)
+        {
             hex_str.erase(hex_str.end()-2, hex_str.end());
         }
 
@@ -284,14 +295,14 @@ inline paramtype AnybusCom::readParam(std::string hex_str)
             
             return floatValue;
         }
-        else if(std::is_same<paramtype, char>::value)
+        else if(std::is_same<paramtype, char>::value || std::is_same<paramtype, uint8_t>::value || std::is_same<paramtype, bool>::value)
         {
-        std::istringstream hexStream(hex_str);
-        uint16_t value;
-        hexStream >> std::hex >> value;
-        return static_cast<char>(value);
+            std::istringstream hexStream(hex_str);
+            uint16_t value;
+            hexStream >> std::hex >> value;
+            return static_cast<paramtype>(value);
         }
-        else        //if an integer 
+        else   //if an integer 
         {
             uint32_t l = std::stoul(hex_str, nullptr, 16);
             return static_cast<paramtype>(l);;
@@ -319,4 +330,37 @@ inline std::string AnybusCom::writeValueToString(paramtype param)
     return value_string;
 }
 
+//Savedata is a vector, which stores floats. save_data_...[] is cache. Used for Parameter Arrays (float, char)
+template<typename paramtype>
+inline void AnybusCom::updateSaveData(const size_t &count, const size_t &elements, std::vector<paramtype> &vector)
+{
+    //If multiple same Parameters from one Request (Floats, doesn't work for chars)
+    if(count != 1)
+    {
+        std::vector<std::string> splitted;
+        splitted = splitResponse(save_response_string, count);
+        float_vector.clear();
+        float_vector.resize(count);
+
+        for(size_t i = 0; i < elements; i++) 
+        {
+            float_vector[i] = readParam<float>(splitted[i]);
+        }
+    }
+    else
+    {
+        std::vector<std::string> save;
+        save.resize(elements);
+
+        vector.clear();
+        vector.resize(elements);
+
+        for(size_t i = 0; i < elements; i++)
+        {
+            save[i] = save_response_string.substr((i * sizeof(paramtype) * 2) + 2 , sizeof(paramtype) * 2);
+            vector[i] = readParam<paramtype>(save[i]); 
+            not_double_word = true;
+        }
+    }
+}
 #endif

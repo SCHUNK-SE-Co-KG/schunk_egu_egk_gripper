@@ -32,7 +32,7 @@ AnybusCom::AnybusCom(const std::string &ip) : ip(ip)
 
 }
 //Receive data with an offset
-void AnybusCom::getWithOffset(const std::string &offset, int count, int elements, bool is_float)
+void AnybusCom::getWithOffset(const std::string &offset, int count, int elements)
 {   
     std::string response;
     CURLcode res;
@@ -60,66 +60,16 @@ void AnybusCom::getWithOffset(const std::string &offset, int count, int elements
             }
 
             else
-            {   
+            {  
                 if(count == 3 && offset == ACTUAL_POS_OFFSET) updateFeedback(response); //If ROS-Feedback
-                else updateSavedata(response, count, elements, is_float);               
+                else 
+                {   
+                    save_response_string = response;
+                    updateSaveData<float>(count, elements, float_vector);               //Used only for
+                }               
             }
          curl_easy_reset(curl3);
         }
-}
-//Savedata is a vector, which stores floats. save_data_...[] is cache. Used for Parameter Arrays (float, char)
-void AnybusCom::updateSavedata(std::string hexStr, const int &count, const int &elements, bool is_float)
-{
-    std::vector<std::string> splitted;
-    //If multiple same Parameters from one Request (Floats, doesn't work for chars)
-    if(count != 1)
-    {
-        splitted = splitResponse(hexStr,count);
-        save_data_float.clear();
-        save_data_float.resize(count);
-
-        for(int i = 0; i < elements; i++) save_data_float[i] = readParam<float>(splitted[i]);
-    }
-    else
-    {
-        if(is_float == true)    //If floats array
-        {
-        save_data_float.clear();
-        save_data_float.resize(elements);
-
-        
-        hexStr.erase(hexStr.begin(), hexStr.begin() + 2);
-        hexStr.erase(hexStr.end()-2, hexStr.end());
-
-        std::vector<std::string> save;
-
-        save.resize(elements);
-            for(int i = 0; i < elements; i++)
-            {
-                save[i] = hexStr.substr((i * sizeof(float) * 2), sizeof(float) * 2);
-
-                save_data_float.at(i) = readParam<float>(save[i]);      
-            }
-        }
-        else               //If char_array
-        {
-            save_data_char.clear();
-            save_data_char.resize(elements);
-            
-            hexStr.erase(hexStr.begin(), hexStr.begin() + 2);
-            hexStr.erase(hexStr.end()-2, hexStr.end());
-
-            std::vector<std::string> save;
-            save.resize(elements);
-
-            for(int i = 0; i < elements; i++)
-            {
-                save[i] = hexStr.substr((i * sizeof(char) * 2), sizeof(char) * 2);
-                save_data_char.at(i) = (readParam<char>(save[i]));
-            }
-        }
-
-    }
 }
 //Split a hexadecimal String, which represents an Array into its parts (HERE THE DATATYPE IS ALWAYS 4 Bytes)
 std::vector<std::string> AnybusCom::splitResponse(const std::string &hex_str, int count)

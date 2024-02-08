@@ -43,10 +43,14 @@ class Gripper : protected AnybusCom
    uint32_t mm2mu(const float &);                  //Convert millimeters to micrometers. All unsigned -> For control double word
 
    template <typename parametertype>
-   void changeParameter(const char[7] , parametertype, parametertype *param = NULL);                  //Post a parameter
-   void runGets();                                                                                    //Get actual data
+   void changeOneParameter(const char[7] , parametertype, parametertype *param = NULL);                  //Post a parameter
+
+   template <typename parametertype>
+   void changeVectorParameter(const char[7] , std::vector<parametertype>);      //Post a parameter
+   void runGets();                                                                                          //Get actual data
    void runPost(uint32_t command, uint32_t position = 0, uint32_t velocity = 0, uint32_t effort = 0); //Post control d
    bool check();                                                                                      //Check for errors
+   void getParameter(const std::string& instance, const size_t&, const uint8_t&);
    bool endCondition();                                                                               //Is the gripper in an endCondition? -> example Successbit is set
 
    std::string getErrorString(const uint8_t &);                                         //Get for the error code the error string
@@ -61,14 +65,25 @@ class Gripper : protected AnybusCom
 
 //Post a value to an Parameter
 template <typename parametertype>
-inline void Gripper::changeParameter(const char inst[7], parametertype new_value, parametertype *store)
+inline void Gripper::changeOneParameter(const char inst[7], parametertype new_value, parametertype *store)
 {
    std::string value = writeValueToString<parametertype>(new_value);   //Hexstring Value
    postParameter(inst, value);                                         //Post
    std::string instance = inst;                                       
-   //GET and store parameter
-   if(std::is_same<parametertype, float>::value) getWithInstance<float>(inst, instFloats.at(instance));
-   else getWithInstance<parametertype>(inst, store);
+
+   getWithInstance<parametertype>(inst, store);
 }
 
+template <typename parametertype>
+inline void Gripper::changeVectorParameter(const char inst[7], std::vector<parametertype> new_value)
+{
+   std::string value = "";
+   for(auto elements : new_value)
+   {
+      std::cout << elements << std::endl;
+      value.append(writeValueToString<parametertype>(elements));          //Hexstring Value
+   }
+      std::cout << value << std::endl;
+   postParameter(inst, value);                                         //Post
+}
 #endif

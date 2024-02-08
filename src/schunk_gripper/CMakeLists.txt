@@ -12,7 +12,8 @@ if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
 endif()
 
 # Find required packages
-
+find_package(PythonInterp 3.10 REQUIRED)
+find_package(Python3 3.10 REQUIRED)
 find_package(ament_cmake REQUIRED)
 find_package(ament_index_cpp REQUIRED)
 find_package(rclcpp REQUIRED)
@@ -34,7 +35,10 @@ include_directories(
 )
 
 # Generate ROS interfaces
-set(msg_files "msg/State.msg")
+set(msg_files 
+"msg/State.msg"
+"msg/DataTypesParameter.msg"
+)
 
 set(srv_files
   "srv/BrakeTest.srv"
@@ -44,6 +48,8 @@ set(srv_files
   "srv/FastStop.srv"
   "srv/GripperInfo.srv"
   "srv/Softreset.srv"
+  "srv/ParameterGet.srv"
+  "srv/ParameterSet.srv"
   "srv/PrepareForShutdown.srv"
   "srv/ReleaseForManMov.srv"
 )

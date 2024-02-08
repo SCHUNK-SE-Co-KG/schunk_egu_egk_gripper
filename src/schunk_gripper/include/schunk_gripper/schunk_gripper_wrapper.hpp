@@ -28,6 +28,9 @@
 #include "control_msgs/action/gripper_command.hpp"
 #include "schunk_gripper/action/grip.hpp"
 #include "schunk_gripper/action/grip_with_pos.hpp"
+#include "schunk_gripper/srv/parameter_get.hpp"
+#include "schunk_gripper/srv/parameter_set.hpp"
+#include "schunk_gripper/msg/data_types_parameter.hpp"
 
 extern std::recursive_mutex lock_mutex;  //Locks if something is receiving or posting data
 extern  std::map<std::string, const char*> parameter_map;
@@ -45,6 +48,8 @@ class SchunkGripperNode :  public rclcpp::Node, public Gripper
     using PrepareForShutdown = schunk_gripper::srv::PrepareForShutdown;
     using GripperInfo= schunk_gripper::srv::GripperInfo;
     using ChangeIp = schunk_gripper::srv::ChangeIp;
+    using ParameterGet = schunk_gripper::srv::ParameterGet;
+    using ParameterSet = schunk_gripper::srv::ParameterSet;
 
     using MovAbsPos = schunk_gripper::action::MovAbsPos;
     using MovRelPos = schunk_gripper::action::MovRelPos;
@@ -114,11 +119,13 @@ class SchunkGripperNode :  public rclcpp::Node, public Gripper
     void brake_test_srv(const std::shared_ptr<BrakeTest::Request>, std::shared_ptr<BrakeTest::Response> );
     void stop_srv(const std::shared_ptr<Stop::Request>, std::shared_ptr<Stop::Response> );
     void fast_stop_srv(const std::shared_ptr<FastStop::Request>, std::shared_ptr<FastStop::Response>);
+    void parameter_get_srv(const std::shared_ptr<ParameterGet::Request>, std::shared_ptr<ParameterGet::Response>);
+    void parameter_set_srv(const std::shared_ptr<ParameterSet::Request>, std::shared_ptr<ParameterSet::Response>);
+    void change_ip_srv(const std::shared_ptr<ChangeIp::Request>, std::shared_ptr<ChangeIp::Response>);
     void releaseForManualMov_srv(const std::shared_ptr<ReleaseForManMov::Request>, std::shared_ptr<ReleaseForManMov::Response>);
     void softreset_srv(const std::shared_ptr<Softreset::Request>, std::shared_ptr<Softreset::Response>);
     void prepare_for_shutdown_srv(const std::shared_ptr<PrepareForShutdown::Request>, std::shared_ptr<PrepareForShutdown::Response>);
     void info_srv(const std::shared_ptr<GripperInfo::Request>, std::shared_ptr<GripperInfo::Response>);
-    void change_ip_srv(const std::shared_ptr<ChangeIp::Request>, std::shared_ptr<ChangeIp::Response>);
 
     //Action-basic-functions
     template<typename GoalType, typename ResType>
@@ -183,7 +190,8 @@ class SchunkGripperNode :  public rclcpp::Node, public Gripper
     rclcpp_action::Server<ReleaseWorkpiece>::SharedPtr       release_wp_server;
     rclcpp_action::Server<GripperCommand>::SharedPtr         control_server;
 
-
+    rclcpp::Service<ParameterGet>::SharedPtr           parameter_get_service;
+    rclcpp::Service<ParameterSet>::SharedPtr           parameter_set_service;
     rclcpp::Service<Acknowledge>::SharedPtr            acknowledge_service;
     rclcpp::Service<BrakeTest>::SharedPtr              brake_test_service;
     rclcpp::Service<Stop>::SharedPtr                   stop_service;
