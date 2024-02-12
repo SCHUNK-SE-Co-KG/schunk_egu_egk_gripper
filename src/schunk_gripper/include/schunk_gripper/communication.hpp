@@ -96,6 +96,15 @@
 #define SW_BUILD_DATE_INST "0x1100"
 #define SW_BUILD_TIME_INST "0x1108"
 #define SW_VERSION_TXT_INST "0x1118"
+//Datatypes in JSON
+#define BOOL_DATA 0
+#define INT32_DATA 3
+#define UINT8_DATA 4
+#define UINT16_DATA 5
+#define UINT32_DATA 6
+#define CHAR_DATA 7
+#define ENUM_DATA 8
+#define FLOAT_DATA 18
 
 //Offset (Mostly used for gripper_info)
 /*
@@ -113,6 +122,7 @@ size_t writeCallback(void*, size_t, size_t, void*);
 
 typedef std::array<uint32_t, 4> plc_Array;
 
+
 class AnybusCom
 {
 
@@ -124,11 +134,13 @@ class AnybusCom
         CURL *curl4;
         CURL *curl5;
         CURL *curl6;
+        CURL *curl7;
 
-        std::string send_data_address;
-        std::string get_address;
+        std::string update_address;
+        std::string data_address;
         std::string enum_address;
         std::string info_address;
+        std::string metadata_address;
 
         uint32_t command;
 
@@ -154,7 +166,8 @@ class AnybusCom
 
         const uint32_t mask = FAST_STOP | USE_GPE | GRIP_DIRECTION | REPEAT_COMMAND_TOGGLE;         //Mask for setting Command bits to zero 
 
-        void initAddresses();                                                                       
+        void initAddresses();          
+        void getMetadata(const std::string &);       
         void getInfo();                                                                                    //Function to get Endian format
         void getWithOffset(const std::string &offset, int count, int elements);      //A Function just for Gripper Feedback
 
@@ -203,6 +216,10 @@ class AnybusCom
 
     public:
         
+        std::chrono::high_resolution_clock::time_point start;
+std::chrono::high_resolution_clock::time_point end;
+std::chrono::milliseconds duration;
+
         plc_Array plc_sync_input;   // [0] -> Status double word,  [1]  ->actual Position, [2] ->reserved,      [3] ->diagnose 
         plc_Array plc_sync_output;  // [0] -> Control double word, [1]  ->set_position,    [2] -> set_velocity, [3] ->set_effort 
 
@@ -218,16 +235,6 @@ class AnybusCom
 
         uint16_t grp_prehold_time;   //Grip prehold time
 
-         std::map<std::string, float*> instFloats       
-        {   
-            {WP_LOST_DISTANCE_INST, &wp_lost_dst},
-            {WP_RELEASE_DELTA_INST, &wp_release_delta},
-            {GRP_POS_MARGIN_INST, &grp_pos_margin},
-            {GRP_PREPOS_DELTA_INST, &grp_prepos_delta},
-            {ZERO_POS_OFS_INST, &zero_pos_ofs},
-            {WP_RELEASE_DELTA_INST, &wp_release_delta}
-        };
-
         AnybusCom(const std::string &ip);
         ~AnybusCom();
     };
@@ -240,7 +247,7 @@ inline void AnybusCom::getWithInstance(const char inst[7], paramtype *param, con
 
     std::string instance = inst;
     //Set instance
-    std::string address = get_address;
+    std::string address = data_address;
     address.append("inst=" + instance + "&count=1");
 
     if(curl1) 

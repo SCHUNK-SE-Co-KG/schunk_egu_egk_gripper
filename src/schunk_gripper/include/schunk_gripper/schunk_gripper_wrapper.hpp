@@ -30,10 +30,10 @@
 #include "schunk_gripper/action/grip_with_pos.hpp"
 #include "schunk_gripper/srv/parameter_get.hpp"
 #include "schunk_gripper/srv/parameter_set.hpp"
-#include "schunk_gripper/msg/data_types_parameter.hpp"
 
 extern std::recursive_mutex lock_mutex;  //Locks if something is receiving or posting data
-extern  std::map<std::string, const char*> parameter_map;
+extern  std::map<std::string, const char*> param_inst;
+extern std::map<std::string, std::string> inst_param;
 
 class SchunkGripperNode :  public rclcpp::Node, public Gripper
 {    
@@ -87,6 +87,7 @@ class SchunkGripperNode :  public rclcpp::Node, public Gripper
     std::array<uint8_t, 3> splitted_Diagnosis;
     std::string connection_error;
     std::vector<rclcpp::Parameter> failed_param;
+    rclcpp::Time start_time;
 
     void gripperDiagnostics(diagnostic_updater::DiagnosticStatusWrapper&);
 
@@ -202,63 +203,5 @@ class SchunkGripperNode :  public rclcpp::Node, public Gripper
     rclcpp::Service<GripperInfo>::SharedPtr            info_service;
     rclcpp::Service<ChangeIp>::SharedPtr               change_ip_service;
 };
-
-template<typename GoalType>
-inline rclcpp_action::CancelResponse SchunkGripperNode::handle_cancel(const std::shared_ptr<rclcpp_action::ServerGoalHandle<GoalType>> goal_handle)
-{
-        (void)goal_handle;
-
-        RCLCPP_INFO(this->get_logger(), "Received request to cancel goal");
-        return rclcpp_action::CancelResponse::ACCEPT;
-}
-
-inline void SchunkGripperNode::handle_accepted_rel(const std::shared_ptr<rclcpp_action::ServerGoalHandle<MovRelPos>> goal_handle)
-{
-      using namespace std::placeholders;
-      std::thread{&SchunkGripperNode::moveRelExecute, this, goal_handle}.detach();
-    // this needs to return quickly to avoid blocking the executor, so spin up a new thread
-}
-inline void SchunkGripperNode::handle_accepted_abs(const std::shared_ptr<rclcpp_action::ServerGoalHandle<MovAbsPos>> goal_handle)
-{
-      using namespace std::placeholders;
-      std::thread{&SchunkGripperNode::moveAbsExecute, this, goal_handle}.detach();
-    // this needs to return quickly to avoid blocking the executor, so spin up a new thread
-}
-inline void SchunkGripperNode::handle_accepted_grip_egk(const std::shared_ptr<rclcpp_action::ServerGoalHandle<GripWithVel>> goal_handle)
-{
-      using namespace std::placeholders;
-      std::thread{&SchunkGripperNode::gripExecute, this, goal_handle}.detach();
-    // this needs to return quickly to avoid blocking the executor, so spin up a new thread
-}
-inline void SchunkGripperNode::handle_accepted_grip_egu(const std::shared_ptr<rclcpp_action::ServerGoalHandle<Grip>> goal_handle)
-{
-      using namespace std::placeholders;
-      std::thread{&SchunkGripperNode::grip_eguExecute, this, goal_handle}.detach();
-    // this needs to return quickly to avoid blocking the executor, so spin up a new thread
-}
-inline void SchunkGripperNode::handle_accepted_gripPos_egk(const std::shared_ptr<rclcpp_action::ServerGoalHandle<GripWithPosVel>> goal_handle)
-{
-      using namespace std::placeholders;
-      std::thread{&SchunkGripperNode::gripWithPositionExecute, this, goal_handle}.detach();
-    // this needs to return quickly to avoid blocking the executor, so spin up a new thread
-}
-inline void SchunkGripperNode::handle_accepted_gripPos_egu(const std::shared_ptr<rclcpp_action::ServerGoalHandle<GripWithPos>> goal_handle)
-{
-      using namespace std::placeholders;
-      std::thread{&SchunkGripperNode::gripWithPosition_eguExecute, this, goal_handle}.detach();
-    // this needs to return quickly to avoid blocking the executor, so spin up a new thread
-}
-inline void SchunkGripperNode::handle_accepted_release(const std::shared_ptr<rclcpp_action::ServerGoalHandle<ReleaseWorkpiece>> goal_handle)
-{
-      using namespace std::placeholders;
-      std::thread{&SchunkGripperNode::releaseExecute, this, goal_handle}.detach();
-    // this needs to return quickly to avoid blocking the executor, so spin up a new thread
-}
-inline void SchunkGripperNode::handle_accepted_control(const std::shared_ptr<rclcpp_action::ServerGoalHandle<GripperCommand>> goal_handle)
-{
-      using namespace std::placeholders;
-      std::thread{&SchunkGripperNode::controlExecute, this, goal_handle}.detach();
-    // this needs to return quickly to avoid blocking the executor, so spin up a new thread
-}
 
 #endif

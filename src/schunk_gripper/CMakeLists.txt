@@ -37,7 +37,6 @@ include_directories(
 # Generate ROS interfaces
 set(msg_files 
 "msg/State.msg"
-"msg/DataTypesParameter.msg"
 )
 
 set(srv_files

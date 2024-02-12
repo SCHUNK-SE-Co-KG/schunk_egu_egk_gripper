@@ -1,6 +1,5 @@
 string instance
 
-DataTypesParameter data_types_param
 ---
 bool[] bool_value
 uint8[] uint8_value
@@ -8,4 +7,6 @@ uint16[] uint16_value
 uint32[] uint32_value
 int32[] int32_value
 float32[] float_value
+uint8[] enum_value
+string[] enum_string
 string char_value

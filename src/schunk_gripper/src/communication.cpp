@@ -29,6 +29,7 @@ AnybusCom::AnybusCom(const std::string &ip) : ip(ip)
         curl4 = curl_easy_init();
         curl5 = curl_easy_init();
         curl6 = curl_easy_init();
+        curl7 = curl_easy_init();
 
 }
 //Receive data with an offset
@@ -37,7 +38,7 @@ void AnybusCom::getWithOffset(const std::string &offset, int count, int elements
     std::string response;
     CURLcode res;
 
-    std::string address = get_address;
+    std::string address = data_address;
     
     if(offset.length() <= 5) address.append("offset=" + offset + "&count=" + std::to_string(count));
     else throw "Offset to many symbols";
@@ -111,7 +112,7 @@ void AnybusCom::postCommand()
     if (curl4) 
     {
         //POST
-        curl_easy_setopt(curl4, CURLOPT_URL, send_data_address.c_str());
+        curl_easy_setopt(curl4, CURLOPT_URL, update_address.c_str());
         curl_easy_setopt(curl4, CURLOPT_POSTFIELDS, post.c_str());
         curl_easy_setopt(curl4, CURLOPT_POST, 1);
         curl_easy_setopt(curl4,CURLOPT_WRITEFUNCTION, writeCallback);
@@ -130,7 +131,13 @@ void AnybusCom::postCommand()
         {
             json_data.clear();
             json_data = nlohmann::json::parse(response);    //Parse server response
-            if(json_data["result"] != 0)  std::cout << "Server response: " << json_data["result"] << std::endl;
+            if(json_data["result"] != 0)  
+            {
+                std::string sever_res = "Server response: ";
+                sever_res.append(to_string(json_data["result"]));
+                std::cout << sever_res << std::endl;
+                throw  sever_res.c_str();
+            }
         }
     curl_easy_reset(curl4);
     }
@@ -150,7 +157,7 @@ void AnybusCom::postParameter(std::string inst, std::string value)
 
     if (curl5) 
     {
-        curl_easy_setopt(curl5, CURLOPT_URL, send_data_address.c_str());
+        curl_easy_setopt(curl5, CURLOPT_URL, update_address.c_str());
         curl_easy_setopt(curl5, CURLOPT_POSTFIELDS, post.c_str());
         curl_easy_setopt(curl5,CURLOPT_WRITEFUNCTION, writeCallback);
         curl_easy_setopt(curl5, CURLOPT_WRITEDATA, &response);
@@ -168,26 +175,33 @@ void AnybusCom::postParameter(std::string inst, std::string value)
         {
             json_data.clear();
             json_data = nlohmann::json::parse(response);    //Parse server response
-            if(json_data["result"] != 0)  std::cout << "Server response: " << json_data["result"] << std::endl;
+            if(json_data["result"] != 0)  
+            {
+                std::string sever_res = "Server response: ";
+                sever_res.append(to_string(json_data["result"]));
+                std::cout << sever_res << std::endl;
+                throw sever_res.c_str();
+            }
         }
     }
      curl_easy_reset(curl5);
-
 }
 //Inits used Addresses with the ip
 void AnybusCom::initAddresses()
 {   
-    get_address = "http:///adi/data.json?";
-    send_data_address = "http:///adi/update.json";
+    data_address = "http:///adi/data.json?";
+    update_address = "http:///adi/update.json";
     enum_address = "http:///adi/enum.json?";
     info_address = "http:///adi/info.json";
+    metadata_address = "http:///adi/metadata.json?";
 
     if(ip.size() >= 100) ip = "0.0.0.0";
     
-    get_address.insert(7, ip);
-    send_data_address.insert(7, ip);
+    data_address.insert(7, ip);
+    update_address.insert(7, ip);
     enum_address.insert(7,ip);
     info_address.insert(7,ip);
+    metadata_address.insert(7,ip);
 
 }
 //Translates the received string of double_word to an integer[4] an saves it in plc_sync_input
@@ -271,7 +285,7 @@ void AnybusCom::getEnums(const char inst[7], const uint16_t &enumNum)
         curl_easy_setopt(curl2, CURLOPT_HTTPGET, 1);
         curl_easy_setopt(curl2, CURLOPT_WRITEDATA, &response);
         curl_easy_setopt(curl2, CURLOPT_TIMEOUT, 1L);
-
+        
         res = curl_easy_perform(curl2);
 
         if (res != CURLE_OK)
@@ -326,6 +340,44 @@ void AnybusCom::getInfo()
     }
 }
 
+void AnybusCom::getMetadata(const std::string &instance)
+{
+    std::string response;
+    CURLcode res;
+
+    std::string address = metadata_address;
+    address.append("inst=" + instance);
+    address.append("&count=1");    //Metadata
+
+    if(curl7) 
+    {
+        //GET
+        curl_easy_setopt(curl7, CURLOPT_URL, address.c_str());
+        curl_easy_setopt(curl7,CURLOPT_WRITEFUNCTION, writeCallback);
+        curl_easy_setopt(curl7, CURLOPT_HTTPGET, 1);
+        curl_easy_setopt(curl7, CURLOPT_WRITEDATA, &response);
+        curl_easy_setopt(curl7, CURLOPT_TIMEOUT, 1L);
+
+        res = curl_easy_perform(curl7);
+
+        if (res != CURLE_OK)
+        {
+            fprintf(stderr, "curl_easy_perform_failed: %s\n", curl_easy_strerror(res));
+            curl_easy_reset(curl7);
+            throw curl_easy_strerror(res);
+        }
+
+        else
+        {
+            response.erase(0, 1);
+            response.erase(response.size()-1, 1);
+            json_data =  nlohmann::json::parse(response);
+        }
+
+        curl_easy_reset(curl6);
+    }   
+}
+
 AnybusCom::~AnybusCom()
 {
    curl_easy_cleanup(curl1);
@@ -333,4 +385,6 @@ AnybusCom::~AnybusCom()
    curl_easy_cleanup(curl3);
    curl_easy_cleanup(curl4);
    curl_easy_cleanup(curl5);
+   curl_easy_cleanup(curl6);
+   curl_easy_cleanup(curl7);
 }

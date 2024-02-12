@@ -80,10 +80,10 @@ inline void Gripper::changeVectorParameter(const char inst[7], std::vector<param
    std::string value = "";
    for(auto elements : new_value)
    {
-      std::cout << elements << std::endl;
       value.append(writeValueToString<parametertype>(elements));          //Hexstring Value
    }
-      std::cout << value << std::endl;
-   postParameter(inst, value);                                         //Post
+      value.shrink_to_fit();
+      std::string instance = inst;
+      postParameter(instance, value);                                         //Post
 }
 #endif

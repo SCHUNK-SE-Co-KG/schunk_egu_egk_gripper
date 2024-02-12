@@ -108,39 +108,44 @@ void Gripper::getParameter(const std::string& instance, const size_t& elements, 
 
    switch(datatype)
    {
-      case 0:
+      case BOOL_DATA:
       getWithInstance<bool>(inst, NULL, elements);
       updateSaveData<bool>(1, elements, bool_vector);
       break;
       
-      case 1 :
+      case UINT8_DATA :
       getWithInstance<uint8_t>(inst, NULL, elements);
       updateSaveData<uint8_t>(1, elements, uint8_vector);
       break;
       
-      case 2:
+      case UINT16_DATA:
       getWithInstance<uint16_t>(inst, NULL, elements);
       updateSaveData<uint16_t>(1, elements, uint16_vector);
       break;
 
-      case 3:
+      case UINT32_DATA:
       getWithInstance<uint32_t>(inst, NULL, elements);
       updateSaveData<uint32_t>(1, elements, uint32_vector);
       break;
       
-      case 4:
+      case INT32_DATA:
       getWithInstance<int32_t>(inst, NULL, elements);
       updateSaveData<int32_t>(1, elements, int32_vector);
       break;
 
-      case 5:
+      case FLOAT_DATA:
       getWithInstance<float>(inst, NULL, elements);
       updateSaveData<float>(1, elements, float_vector);
       break;
       
-      case 6:
+      case CHAR_DATA:
       getWithInstance<char>(inst, NULL, elements);
       updateSaveData<char>(1, elements, char_vector);
+      break;
+
+      case ENUM_DATA:
+      getWithInstance<uint8_t>(inst, NULL, elements);
+      updateSaveData<uint8_t>(1, elements, uint8_vector);
       break;
    }
 }
