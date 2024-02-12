@@ -22,7 +22,7 @@ std::map<std::string, std::string> inst_param =
     {WP_LOST_DISTANCE_INST,  "Gripper_Parameter.wp_lost_distance"}
 };
 
-//Initialize the ROS Driver
+//Initialize the ROS Driverntr
 SchunkGripperNode::SchunkGripperNode(const rclcpp::NodeOptions &options) : 
     rclcpp::Node("schunk_gripper_driver", options),
     Gripper(this->declare_parameter("IP", "0.0.0.0", parameter_descriptor("IP-Address of the gripper"))),
@@ -36,6 +36,7 @@ SchunkGripperNode::SchunkGripperNode(const rclcpp::NodeOptions &options) :
     
     rclcpp::PublisherOptions option_messages;
     option_messages.callback_group = messages_group;
+
     rclcpp::SubscriptionOptions option;
     option.callback_group = rest;
     //ParameterDescription read_only

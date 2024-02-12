@@ -86,6 +86,7 @@ void gripFeedback(rclcpp_action::ClientGoalHandle<Grip>::SharedPtr, const std::s
     if(feedback->pre_grip == true) 
     RCLCPP_INFO_ONCE(rclcpp::get_logger("schunk_gripper_example"), "Pre_grip started"); 
 }
+
 void gripVelFeedback(rclcpp_action::ClientGoalHandle<GripWithVel>::SharedPtr, const std::shared_ptr<const GripWithVel::Feedback> feedback)
 {    
     if(feedback->pre_grip == true) 
@@ -104,11 +105,7 @@ void moveAbsoluteAndWaitForResult(rclcpp_action::Client<MovAbsPos>::SharedPtr mo
 
     auto send_goal_options = rclcpp_action::Client<MovAbsPos>::SendGoalOptions();
     send_goal_options.feedback_callback = std::bind(feedbackCB, std::placeholders::_1, std::placeholders::_2);
-      auto start = std::chrono::high_resolution_clock::now();
     auto result = move_abs_client->async_send_goal(goal_abs, send_goal_options);
-       auto end = std::chrono::high_resolution_clock::now();
-       auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end - start).count();
-            std::cout << "Laufzeit: " << duration << " Mikrosekunden" << std::endl;
     RCLCPP_WARN(rclcpp::get_logger("schunk_gripper_example"), "%s: %f mm", state_msg.doing_command.c_str(), goal_abs.abs_position);
     
     if(move_abs_client->async_get_result(result.get()).get().code == rclcpp_action::ResultCode::SUCCEEDED)
