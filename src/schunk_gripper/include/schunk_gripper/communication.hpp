@@ -61,6 +61,7 @@
 //Instance
 #define PLC_SYNC_INPUT_INST "0x0040"
 #define PLC_SYNC_OUTPUT_INST "0x0048"
+#define COMMANDO_CODE_INST "0x0100"
 #define GRP_PREHOLD_TIME_INST "0x0380"
 #define MODULE_TYPE_INST "0x0500"
 #define FIELDBUS_TYPE_INST "0x1130"
@@ -87,7 +88,6 @@
 #define CENT_OF_MASS_INST "0x03B8"
 #define USED_CUR_LIMIT_INST "0x0210"
 #define MAX_PHYS_STROKE_INST "0x0588"
-
 #define SERIAL_NO_NUM_INST "0x1020"
 #define SW_VERSION_NUM_INST "0x1110"
 #define COMM_VERSION_TXT_INST "0x1120"
@@ -105,18 +105,14 @@
 #define CHAR_DATA 7
 #define ENUM_DATA 8
 #define FLOAT_DATA 18
+//Supported Firmware handling in schunk_gripper_lib.hpp void getVersions() && checkVersions() in schunk_gripper_wrapper
+#define SUPPORTED_FIRMWARE_VERSION 502
+#define SUPPORTED_COMMUNICATION_VERSION 1.55
 
-//Offset (Mostly used for gripper_info)
-/*
-//New comm_version 2.1 & sw_version 5.3.0
-#define ACTUAL_POS_OFFSET "15" //Used for Feedbacks!
-#define MIN_ERR_MOT_VOLT_OFFSET "94"
-#define MEAS_LGC_VOLT_OFFSET "108"
-*/
 //Old comm_version 1.55.1 & sw_version 5.2.0.81896
 #define ACTUAL_POS_OFFSET "15" //Used for Feedbacks!
-#define MIN_ERR_MOT_VOLT_OFFSET "96"
-#define MEAS_LGC_VOLT_OFFSET "110"
+#define MIN_ERR_MOT_VOLT_OFFSET "96" //Used in Gripperinfo
+#define MEAS_LGC_VOLT_OFFSET "110"   //Used in Gripperinfo
 
 size_t writeCallback(void*, size_t, size_t, void*);
 
@@ -177,6 +173,7 @@ class AnybusCom
 
         uint16_t sw_version;
         std::string comm_version;
+        double comm_version_double;
         uint16_t module_type;                                                                       //module type enum number
         uint16_t fieldbus_type;                                                                     //fieldbus_type enum number
                                                                                                             
@@ -215,10 +212,6 @@ class AnybusCom
         float actual_pos, actual_vel, actual_cur;       //actual values (feedback) 
 
     public:
-        
-        std::chrono::high_resolution_clock::time_point start;
-std::chrono::high_resolution_clock::time_point end;
-std::chrono::milliseconds duration;
 
         plc_Array plc_sync_input;   // [0] -> Status double word,  [1]  ->actual Position, [2] ->reserved,      [3] ->diagnose 
         plc_Array plc_sync_output;  // [0] -> Control double word, [1]  ->set_position,    [2] -> set_velocity, [3] ->set_effort 

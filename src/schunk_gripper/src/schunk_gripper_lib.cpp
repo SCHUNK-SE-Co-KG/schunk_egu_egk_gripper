@@ -32,17 +32,6 @@ Gripper::Gripper(const std::string &ip): AnybusCom(ip)
    try
    {  
       startGripper();
-      //Get parameters
-      getActualParameters();
-      //Model
-      //get Versions
-      getWithInstance<uint16_t>(SW_VERSION_NUM_INST, &sw_version);
-      getWithInstance<char>(COMM_VERSION_TXT_INST, NULL, 12);
-      updateSaveData(1, 12, char_vector);
-      
-      getModel();
-
-      comm_version = char_vector.data();
 
       ip_changed_with_all_param = true;
       start_connection = true;
@@ -52,6 +41,15 @@ Gripper::Gripper(const std::string &ip): AnybusCom(ip)
       std::cout << "Failed Connection to gripper."  << std::endl;
       start_connection = false;
    }
+}
+
+void Gripper::getVersions()
+{
+      //get Versions
+      getWithInstance<uint16_t>(SW_VERSION_NUM_INST, &sw_version);
+      getWithInstance<char>(COMM_VERSION_TXT_INST, NULL, 12);
+      updateSaveData(1, 12, char_vector);
+      comm_version = char_vector.data();
 }
 
 void Gripper::getActualParameters()
@@ -76,6 +74,9 @@ void Gripper::getActualParameters()
 //Check if Errors occurred by the gripper
 void Gripper::getModel()
 {
+      getWithInstance<uint16_t>(MODULE_TYPE_INST, &module_type);
+      getWithInstance<uint16_t>(FIELDBUS_TYPE_INST, &fieldbus_type);
+
       //Model
       getEnums(MODULE_TYPE_INST, module_type);
       model = json_data["string"];
@@ -195,9 +196,6 @@ void Gripper::startGripper()
         //Get actual values
         getWithOffset(ACTUAL_POS_OFFSET, 3, 3);
 
-        getWithInstance<uint16_t>(MODULE_TYPE_INST, &module_type);
-        getWithInstance<uint16_t>(FIELDBUS_TYPE_INST, &fieldbus_type);
-
         last_command = 0;
 
 
@@ -214,10 +212,17 @@ void Gripper::startGripper()
             std::cout << ("SOFTRESET FINISHED") << std::endl;
 
         }
-        
-        acknowledge();
-        std::cout << ("ACKNOWLEDGED!") << std::endl;
-        runGets();
+      
+         //Get parameters
+         getActualParameters();
+         //Model
+         getModel();
+         //Versioncheck
+         getVersions();
+
+         acknowledge();
+         std::cout << "ACKNOWLEDGED!" << std::endl;
+         runGets();  //Get data after acknowledge
 }
 //mu to mm conversion from float to uint32_t
 uint32_t Gripper::mm2mu(const float &convert_float)
@@ -278,14 +283,6 @@ bool Gripper::changeIp(const std::string &new_ip)
    try
    {
       startGripper();
-      getActualParameters();
-      getModel();
-
-      //get Versions
-      getWithInstance<uint16_t>(SW_VERSION_NUM_INST, &sw_version);
-      getWithInstance<char>(COMM_VERSION_TXT_INST, NULL, 12);
-      updateSaveData(1, 12, char_vector);
-      comm_version = char_vector.data();
       
       ip_changed_with_all_param = true;
    

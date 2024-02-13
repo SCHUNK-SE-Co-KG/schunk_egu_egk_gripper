@@ -27,6 +27,7 @@ class Gripper : protected AnybusCom
    void startGripper();                            //get all necessary
    void getActualParameters();                     //Get all necessary parameters
    void getModel();                                //Get the string of the model and set flags
+   void getVersions();
    
    bool start_connection;
    bool model_M;

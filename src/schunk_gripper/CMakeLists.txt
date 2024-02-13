@@ -12,7 +12,7 @@ if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
 endif()
 
 # Find required packages
-#find_package(PythonInterp 3.10 REQUIRED)
+#ind_package(PythonInterp 3.10 REQUIRED)
 #find_package(Python3 3.10 REQUIRED)
 find_package(ament_cmake REQUIRED)
 find_package(ament_index_cpp REQUIRED)

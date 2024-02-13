@@ -36,7 +36,6 @@ def generate_launch_description():
                             {'Gripper_Parameter.wp_release_delta': 5.0},
                             {'Gripper_Parameter.wp_lost_distance': 1.0}
                             ],
-                    extra_arguments=[{'use_intra_process_comms': True}]
                     )
             ],
     )

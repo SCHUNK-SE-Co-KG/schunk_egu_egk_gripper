@@ -185,7 +185,8 @@ void SchunkGripperNode::advertiseTopics()
 
 void SchunkGripperNode::advertiseConnectionRelevant()
 {   
-    //Need Firmware
+    checkVersions();
+    //Needed Firmware
     if(sw_version >= 502) brake_test_service = this->create_service<BrakeTest>("brake_test", std::bind(&SchunkGripperNode::brake_test_srv, this,std::placeholders::_1,std::placeholders::_2), rmw_qos_profile_services_default, services_group);
     //Grip-action need the Gripper model
     if(model.find("EGK") != std::string::npos)
@@ -233,6 +234,20 @@ void SchunkGripperNode::advertiseConnectionRelevant()
     cb_handle[7] =  parameter_event_handler->add_parameter_callback("Control_Parameter.grip", callback_move_param);
     cb_handle[8] =  parameter_event_handler->add_parameter_callback("Control_Parameter.release_workpiece", callback_move_param);
     cb_handle[9] =  parameter_event_handler->add_parameter_callback("Control_Parameter.move_gripper", callback_move_param);
+}
+
+void SchunkGripperNode::checkVersions()
+{
+    comm_version_double = std::stod(comm_version.substr(0, sizeof(SUPPORTED_COMMUNICATION_VERSION) - 1));   //minus termination null
+    if(  SUPPORTED_COMMUNICATION_VERSION > comm_version_double 
+      && SUPPORTED_COMMUNICATION_VERSION < comm_version_double 
+      && SUPPORTED_FIRMWARE_VERSION > sw_version 
+      && SUPPORTED_FIRMWARE_VERSION < sw_version)    //Depends on 
+    {
+        RCLCPP_WARN_STREAM(this->get_logger(), "Gripper Versions not supported.\n" << "Used communictation software version: " << comm_version_double
+                        << "\nNeeded: " << SUPPORTED_COMMUNICATION_VERSION << "\nUsed software version: " << sw_version << "\nNeeded: " << SUPPORTED_FIRMWARE_VERSION
+                        << std::endl);
+    }
 }
 
 void SchunkGripperNode::declareParameter()
@@ -580,7 +595,6 @@ catch(const char* response)
     goal_handle->abort(res);
 }
 }
-
 //Grip workpiece (EGK) action callback
 void SchunkGripperNode::gripExecute(const std::shared_ptr<rclcpp_action::ServerGoalHandle<GripWithVel>> goal_handle)
 {
@@ -639,7 +653,6 @@ catch(const char* response)
     goal_handle->abort(res);
 }
 }
-
 //Grip workpiece (EGU) action callback
 void SchunkGripperNode::grip_eguExecute(const std::shared_ptr<rclcpp_action::ServerGoalHandle<Grip>> goal_handle)
 {
@@ -697,7 +710,6 @@ catch(const char* response)
     goal_handle->abort(res);
 }
 }
-
 //Grip workpiece with position (EGK) action callback
 void SchunkGripperNode::gripWithPositionExecute(const std::shared_ptr<rclcpp_action::ServerGoalHandle<GripWithPosVel>> goal_handle)
 {   
@@ -758,7 +770,6 @@ catch(const char* response)
     goal_handle->abort(res);
 }
 }
-
 //Grip with position (EGU) action callback
 void SchunkGripperNode::gripWithPosition_eguExecute(const std::shared_ptr<rclcpp_action::ServerGoalHandle<GripWithPos>> goal_handle)
 {   
@@ -818,13 +829,11 @@ catch(const char* response)
     goal_handle->abort(res);
 }
 }
-
 //release workpiece action callback
 void SchunkGripperNode::releaseExecute(const std::shared_ptr<rclcpp_action::ServerGoalHandle<ReleaseWorkpiece>> goal_handle)
 {  
    action_active = true;
    actual_command = "RELEASE WORKPIECE";
-
 
    auto feedback = std::make_shared<ReleaseWorkpiece::Feedback>();
    auto res = std::make_shared<ReleaseWorkpiece::Result>();
@@ -968,7 +977,6 @@ catch(const char* response)
 action_move = false;
 
 }
-
 //Updates final successful state and zero position offset
 void SchunkGripperNode::finishedCommand()
 {   
@@ -1014,7 +1022,7 @@ void SchunkGripperNode::publishState()
         {
             runGets();
             
-            if(!(connection_error == "OK")) 
+            if(!(connection_error == "OK")) //If after loss of connection reconnected
             {
                 reconnect();
             }
@@ -1053,33 +1061,32 @@ void SchunkGripperNode::publishState()
 void SchunkGripperNode::reconnect()
 {
  
-                if(ip_changed_with_all_param == false)  //If Connection was found after the IP-changed
+                if(ip_changed_with_all_param == false)  //If connection was found after the IP-changed or a connection was never established
                 {
                     startGripper();
-                    getModel();
-
-                    //get Versions
-                    getWithInstance<uint16_t>(SW_VERSION_NUM_INST, &sw_version);
-                    getWithInstance<char>(COMM_VERSION_TXT_INST, NULL, 12);
-                    updateSaveData(1, 12, char_vector);
 
                     ip_changed_with_all_param = true;
 
-                    if(start_connection == false)
+                    if(start_connection == false) //If the node had never a connection to gripper
                     {
-                        getActualParameters();
-                        advertiseConnectionRelevant();
+                        advertiseConnectionRelevant(); //declares the parameters
                         start_connection = true;
+                        return;
                     }
-
-                    this->set_parameter(rclcpp::Parameter("model", model));
-
+                    else
+                    {
+                        checkVersions();
+                        this->set_parameter(rclcpp::Parameter("model", model));
+                    }
                 }
+                else if(ip_changed_with_all_param == true && start_connection == true ) //If the node had connection and nothing was changed through IP-changed
+                {
+                    getWithInstance<uint32_t>(PLC_SYNC_OUTPUT_INST);
+                    getActualParameters();   
+                }
+                else if(start_connection == false) return;
 
-                if(start_connection == false) return;
-
-                getActualParameters();                 //Get and set the possible new Parameter
-
+                //Get and set the possible new Parameter
                 this->set_parameter(rclcpp::Parameter("Gripper_Parameter.use_brk", grp_pos_lock));
                 this->set_parameter(rclcpp::Parameter("Gripper_Parameter.grp_pos_margin", grp_pos_margin));
                 this->set_parameter(rclcpp::Parameter("Gripper_Parameter.grp_prepos_delta", grp_prepos_delta));
@@ -1179,6 +1186,8 @@ void SchunkGripperNode::brake_test_srv(const std::shared_ptr<BrakeTest::Request>
 //Ip change service, if the ip should change during runtime of the program
 void SchunkGripperNode::change_ip_srv(const std::shared_ptr<ChangeIp::Request> req, std::shared_ptr<ChangeIp::Response> res)
 {   
+    try
+    {
     std::lock_guard<std::recursive_mutex> lock(lock_mutex);
     res->ip_changed = changeIp(req->new_ip);
 
@@ -1195,15 +1204,9 @@ void SchunkGripperNode::change_ip_srv(const std::shared_ptr<ChangeIp::Request> r
     }
 
     if(start_connection == false && ip_changed_with_all_param == true)
-    {   try
-        {
-            advertiseConnectionRelevant();
-            start_connection = true;
-        }
-        catch(...)
-        {
-            RCLCPP_ERROR(this->get_logger(), "Not connected.");
-        }
+    {   
+        advertiseConnectionRelevant();
+        start_connection = true;
     }
 
     if(ip_changed_with_all_param == true)
@@ -1214,6 +1217,11 @@ void SchunkGripperNode::change_ip_srv(const std::shared_ptr<ChangeIp::Request> r
         {
             reconnect();
         }
+    }
+    }
+    catch(...)
+    {
+        RCLCPP_ERROR(this->get_logger(), "Not connected.");
     }
 
 }
@@ -1628,6 +1636,12 @@ void SchunkGripperNode::parameter_set_srv(const std::shared_ptr<ParameterSet::Re
       }
       else throw "Instance to long";
 
+      if(req->instance == PLC_SYNC_INPUT_INST || req->instance == PLC_SYNC_OUTPUT_INST || req->instance ==  COMMANDO_CODE_INST)
+      {
+        RCLCPP_WARN(this->get_logger(), "Not allowed Instances: %s, %s, %s", PLC_SYNC_INPUT_INST, PLC_SYNC_OUTPUT_INST, COMMANDO_CODE_INST);
+        return;
+      }
+
       getMetadata(req->instance);
 
       std::string data = json_data["name"];
@@ -1916,7 +1930,6 @@ catch(const char* res)  //Lost Connection catch
     status.add("Ready for shutdown", gripperBitInput(READY_FOR_SHUTDOWN));
 
 }
-
 template<typename GoalType>
 rclcpp_action::CancelResponse SchunkGripperNode::handle_cancel(const std::shared_ptr<rclcpp_action::ServerGoalHandle<GoalType>> goal_handle)
 {

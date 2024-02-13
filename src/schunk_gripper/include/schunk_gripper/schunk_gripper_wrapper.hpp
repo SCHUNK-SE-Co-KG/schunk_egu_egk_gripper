@@ -108,6 +108,7 @@ class SchunkGripperNode :  public rclcpp::Node, public Gripper
     void advertiseActions();
     void advertiseTopics();
     void advertiseConnectionRelevant();
+    void checkVersions();
     //Describing Parameters
     rcl_interfaces::msg::ParameterDescriptor parameter_descriptor(const std::string&, const rcl_interfaces::msg::FloatingPointRange&);
     rcl_interfaces::msg::ParameterDescriptor parameter_descriptor(const std::string&, const rcl_interfaces::msg::IntegerRange&);
