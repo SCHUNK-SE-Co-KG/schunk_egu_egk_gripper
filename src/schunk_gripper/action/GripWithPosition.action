@@ -1,3 +1,4 @@
+float32 absolute_position
 float32 gripping_force
 bool grip_direction
 ---
@@ -5,6 +6,7 @@ float32 absolute_position
 bool workpiece_gripped
 bool no_workpiece_detected
 bool workpiece_lost
+bool wrong_workpiece_detected
 ---
 float32 absolute_position
 float32 velocity_of_movement

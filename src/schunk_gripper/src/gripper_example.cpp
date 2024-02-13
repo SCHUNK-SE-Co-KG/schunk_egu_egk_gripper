@@ -9,10 +9,12 @@
 #include "sensor_msgs/msg/joint_state.hpp"
 #include <diagnostic_updater/diagnostic_updater.hpp>
 
-#include "schunk_gripper/action/grip_with_vel.hpp"
-#include "schunk_gripper/action/grip_with_pos_vel.hpp"
-#include "schunk_gripper/action/mov_abs_pos.hpp"
-#include "schunk_gripper/action/mov_rel_pos.hpp"
+#include "schunk_gripper/schunk_gripper_wrapper.hpp"
+
+#include "schunk_gripper/action/grip_with_velocity.hpp"
+#include "schunk_gripper/action/grip_with_position_and_velocity.hpp"
+#include "schunk_gripper/action/move_to_absolute_position.hpp"
+#include "schunk_gripper/action/move_to_relative_position.hpp"
 #include "schunk_gripper/msg/state.hpp"
 #include "schunk_gripper/srv/acknowledge.hpp"
 #include "schunk_gripper/srv/stop.hpp"
@@ -20,11 +22,11 @@
 #include "schunk_gripper/srv/prepare_for_shutdown.hpp"
 #include "schunk_gripper/srv/softreset.hpp"
 #include "schunk_gripper/action/release_workpiece.hpp"
-#include "schunk_gripper/srv/release_for_man_mov.hpp"
+#include "schunk_gripper/srv/release_for_manual_movement.hpp"
 #include "schunk_gripper/srv/gripper_info.hpp"
 #include "control_msgs/action/gripper_command.hpp"
 #include "schunk_gripper/action/grip.hpp"
-#include "schunk_gripper/action/grip_with_pos.hpp"
+#include "schunk_gripper/action/grip_with_position.hpp"
 
 schunk_gripper::msg::State state_msg;
 sensor_msgs::msg::JointState joint_state_msg;
@@ -33,19 +35,23 @@ bool handshake;
 std::string name_space;
 
     using Acknowledge = schunk_gripper::srv::Acknowledge;
+    using BrakeTest = schunk_gripper::srv::BrakeTest;
     using Stop = schunk_gripper::srv::Stop;
     using FastStop =  schunk_gripper::srv::FastStop;
-    using ReleaseForManMov = schunk_gripper::srv::ReleaseForManMov;
+    using ReleaseForManualMovement = schunk_gripper::srv::ReleaseForManualMovement;
     using Softreset = schunk_gripper::srv::Softreset;
     using PrepareForShutdown = schunk_gripper::srv::PrepareForShutdown;
     using GripperInfo= schunk_gripper::srv::GripperInfo;
+    using ChangeIp = schunk_gripper::srv::ChangeIp;
+    using ParameterGet = schunk_gripper::srv::ParameterGet;
+    using ParameterSet = schunk_gripper::srv::ParameterSet;
 
-    using MovAbsPos = schunk_gripper::action::MovAbsPos;
-    using MovRelPos = schunk_gripper::action::MovRelPos;
-    using GripWithVel = schunk_gripper::action::GripWithVel;
+    using MoveToAbsolutePosition = schunk_gripper::action::MoveToAbsolutePosition;
+    using MoveToRelativePosition = schunk_gripper::action::MoveToRelativePosition;
+    using GripWithVelocity = schunk_gripper::action::GripWithVelocity;
     using Grip = schunk_gripper::action::Grip;
-    using GripWithPosVel = schunk_gripper::action::GripWithPosVel;
-    using GripWithPos = schunk_gripper::action::GripWithPos;
+    using GripWithPositionAndVelocity = schunk_gripper::action::GripWithPositionAndVelocity;
+    using GripWithPosition = schunk_gripper::action::GripWithPosition;
     using ReleaseWorkpiece = schunk_gripper::action::ReleaseWorkpiece;
     using GripperCommand = control_msgs::action::GripperCommand;
 
@@ -66,65 +72,68 @@ void diagnosticsCallback(const diagnostic_msgs::msg::DiagnosticArray::SharedPtr 
     diagnostic_msg = *msg;
 }
 
-void feedbackCB(rclcpp_action::ClientGoalHandle<MovAbsPos>::SharedPtr, const std::shared_ptr<const MovAbsPos::Feedback> feedback)
+void feedbackCB(rclcpp_action::ClientGoalHandle<MoveToAbsolutePosition>::SharedPtr, const std::shared_ptr<const MoveToAbsolutePosition::Feedback> feedback)
 {
-    RCLCPP_INFO(rclcpp::get_logger("schunk_gripper_example"), "Gripper is at: %f mm",feedback->current_position);
+    RCLCPP_INFO(rclcpp::get_logger("schunk_gripper_example"), "Gripper is at: %f mm",feedback->absolute_position);
 }
 
 void doneEguCb(const rclcpp_action::ClientGoalHandle<Grip>::WrappedResult & result)
 {   
-    RCLCPP_INFO(rclcpp::get_logger("schunk_gripper_example"), "%s", result.result->gripped ? "gripped" : "Not gripped");
+    RCLCPP_INFO(rclcpp::get_logger("schunk_gripper_example"), "%s", result.result->workpiece_gripped ? "workpiece_gripped" : "Not workpiece_gripped");
 }
 
-void doneEgkCb(const rclcpp_action::ClientGoalHandle<GripWithVel>::WrappedResult & result)
+void doneEgkCb(const rclcpp_action::ClientGoalHandle<GripWithVelocity>::WrappedResult & result)
 {
-    RCLCPP_INFO(rclcpp::get_logger("schunk_gripper_example"), "%s", result.result->gripped ? "gripped" : "Not gripped");
+    RCLCPP_INFO(rclcpp::get_logger("schunk_gripper_example"), "%s", result.result->workpiece_gripped ? "workpiece_gripped" : "Not workpiece_gripped");
 }
 
 void gripFeedback(rclcpp_action::ClientGoalHandle<Grip>::SharedPtr, const std::shared_ptr<const Grip::Feedback> feedback)
 {    
-    if(feedback->pre_grip == true) 
+    if(feedback->workpiece_pre_grip_started == true) 
     RCLCPP_INFO_ONCE(rclcpp::get_logger("schunk_gripper_example"), "Pre_grip started"); 
 }
 
-void gripVelFeedback(rclcpp_action::ClientGoalHandle<GripWithVel>::SharedPtr, const std::shared_ptr<const GripWithVel::Feedback> feedback)
+void gripVelFeedback(rclcpp_action::ClientGoalHandle<GripWithVelocity>::SharedPtr, const std::shared_ptr<const GripWithVelocity::Feedback> feedback)
 {    
-    if(feedback->pre_grip == true) 
+    if(feedback->workpiece_pre_grip_started == true) 
     RCLCPP_INFO_ONCE(rclcpp::get_logger("schunk_gripper_example"), "Pre_grip started");
 }
 
 
 //Control Functions
 
-void moveAbsoluteAndWaitForResult(rclcpp_action::Client<MovAbsPos>::SharedPtr move_abs_client)
+void moveAbsoluteAndWaitForResult(rclcpp_action::Client<MoveToAbsolutePosition>::SharedPtr move_abs_client)
 {
     //Move to 0 mm with 100 mm/s
-    MovAbsPos::Goal goal_abs;
-    goal_abs.abs_position = 90.0;
-    goal_abs.velocity = 10.0;
+    MoveToAbsolutePosition::Goal goal_abs;
+    goal_abs.absolute_position = 90.0;
+    goal_abs.velocity_of_movement = 10.0;
 
-    auto send_goal_options = rclcpp_action::Client<MovAbsPos>::SendGoalOptions();
+    auto send_goal_options = rclcpp_action::Client<MoveToAbsolutePosition>::SendGoalOptions();
     send_goal_options.feedback_callback = std::bind(feedbackCB, std::placeholders::_1, std::placeholders::_2);
+
     auto result = move_abs_client->async_send_goal(goal_abs, send_goal_options);
-    RCLCPP_WARN(rclcpp::get_logger("schunk_gripper_example"), "%s: %f mm", state_msg.doing_command.c_str(), goal_abs.abs_position);
-    
+    result.get();
+    RCLCPP_WARN(rclcpp::get_logger("schunk_gripper_example"), "%s: %f mm", state_msg.doing_command.c_str(), goal_abs.absolute_position);
+
     if(move_abs_client->async_get_result(result.get()).get().code == rclcpp_action::ResultCode::SUCCEEDED)
     RCLCPP_INFO(rclcpp::get_logger("schunk_gripper_example"), "On the right position");
         
 }
 
-void moveRelativeAndStop(rclcpp_action::Client<MovRelPos>::SharedPtr move_rel_client, rclcpp::Client<Stop>::SharedPtr stop_client)
+void moveRelativeAndStop(rclcpp_action::Client<MoveToRelativePosition>::SharedPtr move_rel_client, rclcpp::Client<Stop>::SharedPtr stop_client)
 {
-    MovRelPos::Goal goal_rel;
+    MoveToRelativePosition::Goal goal_rel;
 
-    goal_rel.distance = -50.0;
-    goal_rel.velocity = 7.0;
+    goal_rel.signed_relative_position = -50.0;
+    goal_rel.velocity_of_movement = 7.0;
     auto goal_handle = move_rel_client->async_send_goal(goal_rel);
     goal_handle.get();
-    std::this_thread::sleep_for(std::chrono::seconds(5));
 
-    RCLCPP_WARN(rclcpp::get_logger("schunk_gripper_example"), "%s: %f mm", state_msg.doing_command.c_str(), goal_rel.distance);
-    
+    RCLCPP_WARN(rclcpp::get_logger("schunk_gripper_example"), "%s: %f mm", state_msg.doing_command.c_str(), goal_rel.signed_relative_position);
+
+    std::this_thread::sleep_for(std::chrono::seconds(3));
+
     auto stop_req = std::make_shared<Stop::Request>();
     auto resp = stop_client->async_send_request(stop_req);
     bool stopped = resp.get()->stopped;
@@ -133,29 +142,28 @@ void moveRelativeAndStop(rclcpp_action::Client<MovRelPos>::SharedPtr move_rel_cl
     auto res = move_rel_client->async_get_result(goal_handle.get());
     auto final_res = res.get();
     
-    RCLCPP_INFO_STREAM(rclcpp::get_logger("schunk_gripper_example"), "Current Position: " << final_res.result->current_position);
+    RCLCPP_INFO_STREAM(rclcpp::get_logger("schunk_gripper_example"), "Current Position: " << final_res.result->absolute_position);
     RCLCPP_INFO(rclcpp::get_logger("schunk_gripper_example"), "ResultCode: %i", static_cast<int>(final_res.code));
 }
 
-void MoveRelativeAndCancel(rclcpp_action::Client<MovRelPos>::SharedPtr move_rel_client)
+void MoveRelativeAndCancel(rclcpp_action::Client<MoveToRelativePosition>::SharedPtr move_rel_client)
 {
-    MovRelPos::Goal goal_rel;
+    MoveToRelativePosition::Goal goal_rel;
 
-    goal_rel.distance = -50.0;
-    goal_rel.velocity = 7.0;
+    goal_rel.signed_relative_position = -50.0;
+    goal_rel.velocity_of_movement = 7.0;
     auto goal_handle = move_rel_client->async_send_goal(goal_rel);
-    
-    std::this_thread::sleep_for(std::chrono::seconds(5));
-    
+    std::this_thread::sleep_for(std::chrono::seconds(3));
     auto goal_handle_cancel = move_rel_client->async_cancel_goal(goal_handle.get());         //This performs a fast stop
 
+    move_rel_client->async_get_result(goal_handle.get()).get();
     RCLCPP_WARN(rclcpp::get_logger("schunk_gripper_example"), "%s", state_msg.doing_command.c_str());
 }
 
 void acknowledge(rclcpp::Client<Acknowledge>::SharedPtr acknowledge_client)
 {
     Acknowledge::Request::SharedPtr acknowledge_srv = std::make_shared<Acknowledge::Request>();
-    
+
     RCLCPP_INFO(rclcpp::get_logger("schunk_gripper_example"), "Call acknowledge-server.");
     //To end the error: acknowledge
     bool acknowledged = acknowledge_client->async_send_request(acknowledge_srv).get()->acknowledged;
@@ -191,8 +199,8 @@ void changeConfiguration(std::shared_ptr<rclcpp::AsyncParametersClient> param_cl
 void gripEgu(rclcpp_action::Client<Grip>::SharedPtr grip_client)
 {
     Grip::Goal goal_grip;
-    goal_grip.effort  = 50;                     //Percent
-    goal_grip.grp_dir = 0;                      //grip direction
+    goal_grip.gripping_force  = 50;                     //Percent
+    goal_grip.grip_direction = 0;                      //grip direction
     rclcpp_action::Client<Grip>::SendGoalOptions goal_opt;
     goal_opt.result_callback = std::bind(&doneEguCb, std::placeholders::_1);
     goal_opt.feedback_callback = std::bind(&gripFeedback, std::placeholders::_1, std::placeholders::_2);
@@ -201,17 +209,17 @@ void gripEgu(rclcpp_action::Client<Grip>::SharedPtr grip_client)
     if(goal_handle.get()->is_result_aware())
     {   
         RCLCPP_WARN(rclcpp::get_logger("schunk_gripper_example"), "%s", state_msg.doing_command.c_str());
-        grip_client->async_get_result(goal_handle.get());
+        grip_client->async_get_result(goal_handle.get()).get();
     }
 } 
 
-void gripEgk(rclcpp_action::Client<GripWithVel>::SharedPtr grip_client)
+void gripEgk(rclcpp_action::Client<GripWithVelocity>::SharedPtr grip_client)
 {
-    GripWithVel::Goal goal_grip;
-    goal_grip.effort  = 50.0;                       //Percent
-    goal_grip.grp_dir = false;                      //grip direction
-    goal_grip.max_velocity = 0.0;
-    rclcpp_action::Client<GripWithVel>::SendGoalOptions goal_opt;
+    GripWithVelocity::Goal goal_grip;
+    goal_grip.gripping_force  = 50.0;                       //Percent
+    goal_grip.grip_direction = false;                      //grip direction
+    goal_grip.velocity_of_movement = 0.0;
+    rclcpp_action::Client<GripWithVelocity>::SendGoalOptions goal_opt;
     goal_opt.result_callback = std::bind(&doneEgkCb, std::placeholders::_1);
     goal_opt.feedback_callback = std::bind(&gripVelFeedback, std::placeholders::_1, std::placeholders::_2);
     handshake = state_msg.command_received_toggle;
@@ -219,11 +227,11 @@ void gripEgk(rclcpp_action::Client<GripWithVel>::SharedPtr grip_client)
     
     if(goal_handle.get()->is_result_aware())
     {
-        while(handshake == state_msg.command_received_toggle) std::chrono::milliseconds(15);
+        while(handshake == state_msg.command_received_toggle) std::this_thread::sleep_for(std::chrono::milliseconds(15));
 
 
         RCLCPP_WARN(rclcpp::get_logger("schunk_gripper_example"), "%s", state_msg.doing_command.c_str());
-        grip_client->async_get_result(goal_handle.get());
+        grip_client->async_get_result(goal_handle.get()).get();
     }
 }
 
@@ -236,8 +244,8 @@ void releaseWorkpiece(rclcpp_action::Client<ReleaseWorkpiece>::SharedPtr release
         while(handshake == state_msg.command_received_toggle) std::chrono::milliseconds(15);
 
         RCLCPP_WARN(rclcpp::get_logger("schunk_gripper_example"), "%s", state_msg.doing_command.c_str());
-        auto result = (release_client->async_get_result(goal_handle.get())).get().result->released;
-        RCLCPP_WARN(rclcpp::get_logger("schunk_gripper_example"), "%s" , result ? "released" : "not released");
+        auto result = (release_client->async_get_result(goal_handle.get())).get().result->released_workpiece;
+        RCLCPP_WARN(rclcpp::get_logger("schunk_gripper_example"), "%s" , result ? "released_workpiece" : "not released_workpiece");
         
 }
 
@@ -245,7 +253,7 @@ void moveAbsWithConfig(std::shared_ptr<rclcpp::AsyncParametersClient> param_clie
 {
     std::vector<std::string> parameter_names;
     parameter_names.push_back("Control_Parameter.move_gripper");
-    parameter_names.push_back("Control_Parameter.move_gripper_velocity");
+    parameter_names.push_back("Control_Parameter.move_gripper_velocity_of_movement");
     auto parameter_fut = param_client->get_parameters(parameter_names);
     auto parameter = parameter_fut.get();
     RCLCPP_INFO(rclcpp::get_logger("schunk_gripper_example") ,"Parameter before:");
@@ -275,8 +283,11 @@ void moveAbsWithConfig(std::shared_ptr<rclcpp::AsyncParametersClient> param_clie
 void spinFunction(std::shared_ptr<rclcpp::Node> node)
 {
     rclcpp::executors::MultiThreadedExecutor executor;
+    
     executor.add_node(node);
+    
     executor.spin();
+    
     rclcpp::shutdown();
 }
 
@@ -290,40 +301,48 @@ int main(int argc, char** argv)
     std::thread spin_thread(&spinFunction, node);
     
     //IS SCHUNK GRIPPER ACTIVE
-    name_space = "EGK_50_M_B/";
+
+    name_space = "/EGK_50_M_B/";
+
+    std::vector<rclcpp::Parameter> model_param;
 
     auto param_client = std::make_shared<rclcpp::AsyncParametersClient>(node, name_space+"schunk_gripper_driver");
-    param_client->wait_for_service();
-    auto model_param = param_client->get_parameters({"model"}).get();
-
+    if(param_client->wait_for_service(std::chrono::seconds(5)))
+    {
+        model_param = param_client->get_parameters({"model"}).get();
+    }
+    else
+    {
+        RCLCPP_ERROR_STREAM(node->get_logger(), "Node " << name_space << "schunk_gripper_driver not found");
+    }
     //ALL SERVICES
     auto acknowledge_client = node->create_client<Acknowledge> (name_space+"acknowledge");
     auto stop_client = node->create_client<Stop>(name_space+"stop");
 //    auto softreset_client = node->create_client<Softreset>("softreset");
-//    auto release_for_manual_mov_client = node->create_client<ReleaseForManMov>("release_for_manual_movement");
+//    auto release_for_manual_mov_client = node->create_client<ReleaseForManualMovement>("release_for_manual_movement");
 //    auto prepare_for_shutdown_client = node->create_client<PrepareForShutdown>("prepare_for_shutdown");
 //    auto fast_stop_client = node->create_client<FastStop>("fast_stop");
 //    auto info_client = node->create_client<GripperInfo>("gripper_info");
     //ALL ACTIONS
 
-    auto move_abs_client = rclcpp_action::create_client<MovAbsPos>(node, name_space+"move_absolute");
-    auto move_rel_client = rclcpp_action::create_client<MovRelPos>(node, name_space+"move_relative");
+    auto move_abs_client = rclcpp_action::create_client<MoveToAbsolutePosition>(node, name_space+"move_absolute");
+    auto move_rel_client = rclcpp_action::create_client<MoveToRelativePosition>(node, name_space+"move_relative");
     
     rclcpp_action::Client<Grip>::SharedPtr grip_egu_client;
-    rclcpp_action::Client<GripWithPos>::SharedPtr grp_w_pos_egu_client;
+    rclcpp_action::Client<GripWithPosition>::SharedPtr grp_w_pos_egu_client;
 
-    rclcpp_action::Client<GripWithVel>::SharedPtr grip_egk_client;
-    rclcpp_action::Client<GripWithPosVel>::SharedPtr grp_w_pos_egk_client;
+    rclcpp_action::Client<GripWithVelocity>::SharedPtr grip_egk_client;
+    rclcpp_action::Client<GripWithPositionAndVelocity>::SharedPtr grp_w_pos_egk_client;
 
     if(model_param[0].as_string().find("EGU") != std::string::npos)
     {
         grip_egu_client = rclcpp_action::create_client<Grip>(node, name_space+"grip");
-        grp_w_pos_egu_client = rclcpp_action::create_client<GripWithPos>(node, name_space+"grip_with_pos");
+        grp_w_pos_egu_client = rclcpp_action::create_client<GripWithPosition>(node, name_space+"grip_with_pos");
     }
     else if(model_param[0].as_string().find("EGK") != std::string::npos)
     {
-        grip_egk_client = rclcpp_action::create_client<GripWithVel>(node, name_space+"grip");
-        grp_w_pos_egk_client = rclcpp_action::create_client<GripWithPosVel>(node, name_space+"grip_with_pos");
+        grip_egk_client = rclcpp_action::create_client<GripWithVelocity>(node, name_space+"grip");
+        grp_w_pos_egk_client = rclcpp_action::create_client<GripWithPositionAndVelocity>(node, name_space+"grip_with_pos");
     }
     auto release_client = rclcpp_action::create_client<ReleaseWorkpiece>(node, name_space+"release_workpiece");
     
@@ -334,8 +353,8 @@ int main(int argc, char** argv)
     auto joint_state_sub = node->create_subscription<sensor_msgs::msg::JointState>(name_space+"joint_states", 1, jointStateCallback);
     auto diagnostics_sub = node->create_subscription<diagnostic_msgs::msg::DiagnosticArray>("diagnostics", 1, diagnosticsCallback);
 
-    std::this_thread::sleep_for(std::chrono::seconds(1));
     //acknowledge if the gripper has an error
+    rclcpp::wait_for_message(diagnostic_msg, node, "diagnostics", std::chrono::seconds(3));
     Acknowledge::Request::SharedPtr acknowledge_req;
     if(diagnostic_msg.status[0].level == diagnostic_msgs::msg::DiagnosticStatus::ERROR) 
     {
@@ -352,23 +371,14 @@ int main(int argc, char** argv)
 
     //Move relative
     moveRelativeAndStop(move_rel_client, stop_client);
-
-    //Let it move 5s seconds
-    std::this_thread::sleep_for(std::chrono::seconds(5));
     
     //Cancel the goal
     MoveRelativeAndCancel(move_rel_client);
-
-    std::this_thread::sleep_for(std::chrono::seconds(3));
     
     acknowledge(acknowledge_client);
 
-    std::this_thread::sleep_for(std::chrono::seconds(3));
-
     //Change grip prehold time and workpiece release delta
     changeConfiguration(param_client);
-
-    std::this_thread::sleep_for(std::chrono::seconds(3));
     
     //Grip
     if(model_param[0].as_string().find("EGU") != std::string::npos) gripEgu(grip_egu_client);
@@ -378,14 +388,13 @@ int main(int argc, char** argv)
     
     //Release Workpiece
     if(state_msg.workpiece_gripped == true) releaseWorkpiece(release_client);
-    else RCLCPP_INFO(node->get_logger(), "No Workpiece gripped!");
-
-    std::this_thread::sleep_for(std::chrono::seconds(3));
+    else RCLCPP_INFO(node->get_logger(), "No Workpiece workpiece_gripped!");
 
     RCLCPP_INFO(node->get_logger(), "Set configuration!");
     //Optionally you can control some basic Commands with dynamic reconfigure parameters (Not recommended)
     moveAbsWithConfig(param_client);
 
+    rclcpp::shutdown();
     spin_thread.join();
 
     return 0;

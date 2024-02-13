@@ -1,3 +1,4 @@
+float32 velocity_of_movement
 float32 gripping_force
 bool grip_direction
 ---

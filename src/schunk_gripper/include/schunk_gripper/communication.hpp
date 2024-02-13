@@ -209,7 +209,7 @@ class AnybusCom
         float max_allow_force;       //strong grip
         float max_grp_vel;           //max. grip velocity
 
-        float actual_pos, actual_vel, actual_cur;       //actual values (feedback) 
+        float actual_position, actual_velocity, actual_motor_current;       //actual values (feedback) 
 
     public:
 

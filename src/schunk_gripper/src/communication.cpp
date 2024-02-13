@@ -230,9 +230,9 @@ void AnybusCom::updateFeedback(const std::string &hex_str)
     std::vector<std::string> splitted;
     splitted = splitResponse(hex_str, 3);
 
-    actual_pos = readParam<float>(splitted[0]);
-    actual_vel = readParam<float>(splitted[1]);
-    actual_cur=  readParam<float>(splitted[2]);
+    actual_position = readParam<float>(splitted[0]);
+    actual_velocity = readParam<float>(splitted[1]);
+    actual_motor_current=  readParam<float>(splitted[2]);
 }
 //Update the plcOutput if a Command is send
 void AnybusCom::updatePlcOutput(uint32_t command, uint32_t position, uint32_t velocity, uint32_t effort)

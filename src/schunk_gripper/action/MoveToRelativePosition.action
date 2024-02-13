@@ -1,0 +1,9 @@
+float32 signed_relative_position
+float32 velocity_of_movement
+---
+float32 absolute_position
+bool position_reached
+---
+float32 absolute_position
+float32 velocity_of_movement
+float32 motor_current

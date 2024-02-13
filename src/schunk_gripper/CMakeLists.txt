@@ -12,8 +12,8 @@ if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
 endif()
 
 # Find required packages
-#ind_package(PythonInterp 3.10 REQUIRED)
-#find_package(Python3 3.10 REQUIRED)
+find_package(PythonInterp 3.10 REQUIRED)
+find_package(Python3 3.10 REQUIRED)
 find_package(ament_cmake REQUIRED)
 find_package(ament_index_cpp REQUIRED)
 find_package(rclcpp REQUIRED)
@@ -50,15 +50,15 @@ set(srv_files
   "srv/ParameterGet.srv"
   "srv/ParameterSet.srv"
   "srv/PrepareForShutdown.srv"
-  "srv/ReleaseForManMov.srv"
+  "srv/ReleaseForManualMovement.srv"
 )
 set(action_files
-  "action/GripWithPosVel.action"
-  "action/GripWithPos.action"
-  "action/GripWithVel.action"
+  "action/GripWithPositionAndVelocity.action"
+  "action/GripWithPosition.action"
+  "action/GripWithVelocity.action"
   "action/Grip.action"
-  "action/MovAbsPos.action"
-  "action/MovRelPos.action" 
+  "action/MoveToAbsolutePosition.action"
+  "action/MoveToRelativePosition.action" 
   "action/ReleaseWorkpiece.action" 
 )
 
@@ -110,10 +110,10 @@ target_link_libraries(schunk_gripper_driver
 # Install schunk_gripper_example executable
 add_executable(schunk_gripper_example src/gripper_example.cpp)
 ament_target_dependencies(schunk_gripper_example
-"rclcpp" "sensor_msgs" "control_msgs" "rclcpp_action" "rclcpp_components" "diagnostic_updater" "diagnostic_msgs" 
+"rclcpp" "sensor_msgs" "control_msgs" "rclcpp_action" "rclcpp_components" "diagnostic_updater" "diagnostic_msgs"  
 )
 
-target_link_libraries(schunk_gripper_example "${cpp_typesupport_target}")
+target_link_libraries(schunk_gripper_example "${cpp_typesupport_target}" schunk_gripper_driver)
 
 # Install targets
 install(TARGETS

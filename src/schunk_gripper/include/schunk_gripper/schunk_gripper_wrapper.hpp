@@ -10,10 +10,11 @@
 #include "sensor_msgs/msg/joint_state.hpp"
 #include <diagnostic_updater/diagnostic_updater.hpp>
 
-#include "schunk_gripper/action/grip_with_vel.hpp"
-#include "schunk_gripper/action/grip_with_pos_vel.hpp"
-#include "schunk_gripper/action/mov_abs_pos.hpp"
-#include "schunk_gripper/action/mov_rel_pos.hpp"
+#include "schunk_gripper/action/grip_with_position.hpp"
+#include "schunk_gripper/action/grip_with_velocity.hpp"
+#include "schunk_gripper/action/grip_with_position_and_velocity.hpp"
+#include "schunk_gripper/action/move_to_absolute_position.hpp"
+#include "schunk_gripper/action/move_to_relative_position.hpp"
 #include "schunk_gripper/msg/state.hpp"
 #include "schunk_gripper/srv/acknowledge.hpp"
 #include "schunk_gripper/srv/brake_test.hpp"
@@ -22,12 +23,11 @@
 #include "schunk_gripper/srv/prepare_for_shutdown.hpp"
 #include "schunk_gripper/srv/softreset.hpp"
 #include "schunk_gripper/action/release_workpiece.hpp"
-#include "schunk_gripper/srv/release_for_man_mov.hpp"
+#include "schunk_gripper/srv/release_for_manual_movement.hpp"
 #include "schunk_gripper/srv/gripper_info.hpp"
 #include "schunk_gripper/srv/change_ip.hpp"
 #include "control_msgs/action/gripper_command.hpp"
 #include "schunk_gripper/action/grip.hpp"
-#include "schunk_gripper/action/grip_with_pos.hpp"
 #include "schunk_gripper/srv/parameter_get.hpp"
 #include "schunk_gripper/srv/parameter_set.hpp"
 
@@ -43,7 +43,7 @@ class SchunkGripperNode :  public rclcpp::Node, public Gripper
     using BrakeTest = schunk_gripper::srv::BrakeTest;
     using Stop = schunk_gripper::srv::Stop;
     using FastStop =  schunk_gripper::srv::FastStop;
-    using ReleaseForManMov = schunk_gripper::srv::ReleaseForManMov;
+    using ReleaseForManualMovement = schunk_gripper::srv::ReleaseForManualMovement;
     using Softreset = schunk_gripper::srv::Softreset;
     using PrepareForShutdown = schunk_gripper::srv::PrepareForShutdown;
     using GripperInfo= schunk_gripper::srv::GripperInfo;
@@ -51,14 +51,15 @@ class SchunkGripperNode :  public rclcpp::Node, public Gripper
     using ParameterGet = schunk_gripper::srv::ParameterGet;
     using ParameterSet = schunk_gripper::srv::ParameterSet;
 
-    using MovAbsPos = schunk_gripper::action::MovAbsPos;
-    using MovRelPos = schunk_gripper::action::MovRelPos;
-    using GripWithVel = schunk_gripper::action::GripWithVel;
+    using MoveToAbsolutePosition = schunk_gripper::action::MoveToAbsolutePosition;
+    using MoveToRelativePosition = schunk_gripper::action::MoveToRelativePosition;
+    using GripWithVelocity = schunk_gripper::action::GripWithVelocity;
     using Grip = schunk_gripper::action::Grip;
-    using GripWithPosVel = schunk_gripper::action::GripWithPosVel;
-    using GripWithPos = schunk_gripper::action::GripWithPos;
+    using GripWithPositionAndVelocity = schunk_gripper::action::GripWithPositionAndVelocity;
+    using GripWithPosition = schunk_gripper::action::GripWithPosition;
     using ReleaseWorkpiece = schunk_gripper::action::ReleaseWorkpiece;
     using GripperCommand = control_msgs::action::GripperCommand;
+
     //Flags
     bool param_exe;
     bool action_active;
@@ -124,7 +125,7 @@ class SchunkGripperNode :  public rclcpp::Node, public Gripper
     void parameter_get_srv(const std::shared_ptr<ParameterGet::Request>, std::shared_ptr<ParameterGet::Response>);
     void parameter_set_srv(const std::shared_ptr<ParameterSet::Request>, std::shared_ptr<ParameterSet::Response>);
     void change_ip_srv(const std::shared_ptr<ChangeIp::Request>, std::shared_ptr<ChangeIp::Response>);
-    void releaseForManualMov_srv(const std::shared_ptr<ReleaseForManMov::Request>, std::shared_ptr<ReleaseForManMov::Response>);
+    void releaseForManualMov_srv(const std::shared_ptr<ReleaseForManualMovement::Request>, std::shared_ptr<ReleaseForManualMovement::Response>);
     void softreset_srv(const std::shared_ptr<Softreset::Request>, std::shared_ptr<Softreset::Response>);
     void prepare_for_shutdown_srv(const std::shared_ptr<PrepareForShutdown::Request>, std::shared_ptr<PrepareForShutdown::Response>);
     void info_srv(const std::shared_ptr<GripperInfo::Request>, std::shared_ptr<GripperInfo::Response>);
@@ -141,21 +142,21 @@ class SchunkGripperNode :  public rclcpp::Node, public Gripper
 
     void reconnect();
     //Actions
-    void handle_accepted_abs(const std::shared_ptr<rclcpp_action::ServerGoalHandle<MovAbsPos>>);
-    void handle_accepted_rel(const std::shared_ptr<rclcpp_action::ServerGoalHandle<MovRelPos>>);
-    void handle_accepted_grip_egk(const std::shared_ptr<rclcpp_action::ServerGoalHandle<GripWithVel>>);
+    void handle_accepted_abs(const std::shared_ptr<rclcpp_action::ServerGoalHandle<MoveToAbsolutePosition>>);
+    void handle_accepted_rel(const std::shared_ptr<rclcpp_action::ServerGoalHandle<MoveToRelativePosition>>);
+    void handle_accepted_grip_egk(const std::shared_ptr<rclcpp_action::ServerGoalHandle<GripWithVelocity>>);
     void handle_accepted_grip_egu(const std::shared_ptr<rclcpp_action::ServerGoalHandle<Grip>>);
-    void handle_accepted_gripPos_egk(const std::shared_ptr<rclcpp_action::ServerGoalHandle<GripWithPosVel>>);
-    void handle_accepted_gripPos_egu(const std::shared_ptr<rclcpp_action::ServerGoalHandle<GripWithPos>>);
+    void handle_accepted_gripPos_egk(const std::shared_ptr<rclcpp_action::ServerGoalHandle<GripWithPositionAndVelocity>>);
+    void handle_accepted_gripPos_egu(const std::shared_ptr<rclcpp_action::ServerGoalHandle<GripWithPosition>>);
     void handle_accepted_release(const std::shared_ptr<rclcpp_action::ServerGoalHandle<ReleaseWorkpiece>>);
     void handle_accepted_control(const std::shared_ptr<rclcpp_action::ServerGoalHandle<GripperCommand>>);
 
-    void moveAbsExecute(const std::shared_ptr<rclcpp_action::ServerGoalHandle<MovAbsPos>>);
-    void moveRelExecute(const std::shared_ptr<rclcpp_action::ServerGoalHandle<MovRelPos>>);
-    void gripExecute(const std::shared_ptr<rclcpp_action::ServerGoalHandle<GripWithVel>>);
+    void moveAbsExecute(const std::shared_ptr<rclcpp_action::ServerGoalHandle<MoveToAbsolutePosition>>);
+    void moveRelExecute(const std::shared_ptr<rclcpp_action::ServerGoalHandle<MoveToRelativePosition>>);
+    void gripExecute(const std::shared_ptr<rclcpp_action::ServerGoalHandle<GripWithVelocity>>);
     void grip_eguExecute(const std::shared_ptr<rclcpp_action::ServerGoalHandle<Grip>>);
-    void gripWithPositionExecute(const std::shared_ptr<rclcpp_action::ServerGoalHandle<GripWithPosVel>>);
-    void gripWithPosition_eguExecute(const std::shared_ptr<rclcpp_action::ServerGoalHandle<GripWithPos>>);
+    void gripWithPositionExecute(const std::shared_ptr<rclcpp_action::ServerGoalHandle<GripWithPositionAndVelocity>>);
+    void gripWithPosition_eguExecute(const std::shared_ptr<rclcpp_action::ServerGoalHandle<GripWithPosition>>);
     void releaseExecute(const std::shared_ptr<rclcpp_action::ServerGoalHandle<ReleaseWorkpiece>>);
     void controlExecute(const std::shared_ptr<rclcpp_action::ServerGoalHandle<GripperCommand>>);
 
@@ -183,11 +184,11 @@ class SchunkGripperNode :  public rclcpp::Node, public Gripper
     SchunkGripperNode(const rclcpp::NodeOptions&);
     ~SchunkGripperNode();
 
-    rclcpp_action::Server<MovAbsPos>::SharedPtr              move_abs_server;
-    rclcpp_action::Server<MovRelPos>::SharedPtr              move_rel_server;
-    rclcpp_action::Server<GripWithPosVel>::SharedPtr         grip_w_pos_server;
-    rclcpp_action::Server<GripWithPos>::SharedPtr            grip_w_pos_egu_server;
-    rclcpp_action::Server<GripWithVel>::SharedPtr            grip_server;
+    rclcpp_action::Server<MoveToAbsolutePosition>::SharedPtr              move_abs_server;
+    rclcpp_action::Server<MoveToRelativePosition>::SharedPtr              move_rel_server;
+    rclcpp_action::Server<GripWithPositionAndVelocity>::SharedPtr         grip_w_pos_server;
+    rclcpp_action::Server<GripWithPosition>::SharedPtr            grip_w_pos_egu_server;
+    rclcpp_action::Server<GripWithVelocity>::SharedPtr            grip_server;
     rclcpp_action::Server<Grip>::SharedPtr                   grip_egu_server;
     rclcpp_action::Server<ReleaseWorkpiece>::SharedPtr       release_wp_server;
     rclcpp_action::Server<GripperCommand>::SharedPtr         control_server;
@@ -198,7 +199,7 @@ class SchunkGripperNode :  public rclcpp::Node, public Gripper
     rclcpp::Service<BrakeTest>::SharedPtr              brake_test_service;
     rclcpp::Service<Stop>::SharedPtr                   stop_service;
     rclcpp::Service<FastStop>::SharedPtr               fast_stop_service;
-    rclcpp::Service<ReleaseForManMov>::SharedPtr       releaseForManualMov_service;
+    rclcpp::Service<ReleaseForManualMovement>::SharedPtr       releaseForManualMov_service;
     rclcpp::Service<Softreset>::SharedPtr              softreset_service;
     rclcpp::Service<PrepareForShutdown>::SharedPtr     prepare_for_shutdown_service;
     rclcpp::Service<GripperInfo>::SharedPtr            info_service;
