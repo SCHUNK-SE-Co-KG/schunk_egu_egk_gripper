@@ -45,16 +45,16 @@ class Gripper : protected AnybusCom
 
    template <typename parametertype>
    void changeOneParameter(const char[7] , parametertype, parametertype *param = NULL);                  //Post a parameter
-
    template <typename parametertype>
    void changeVectorParameter(const char[7] , std::vector<parametertype>);      //Post a parameter
    void runGets();                                                                                          //Get actual data
    void runPost(uint32_t command, uint32_t position = 0, uint32_t velocity = 0, uint32_t effort = 0); //Post control d
-   bool check();                                                                                      //Check for errors
    void getParameter(const std::string& instance, const size_t&, const uint8_t&);
+   std::string getErrorString(const uint8_t &);                                         //Get for the error code the error string
+
+   bool check();                                                                                      //Check for errors
    bool endCondition();                                                                               //Is the gripper in an endCondition? -> example Successbit is set
 
-   std::string getErrorString(const uint8_t &);                                         //Get for the error code the error string
    std::array<uint8_t, 3> splitDiagnosis();                                             //Split the diagnosis to get error, warning and not-feasible     
 
    public:

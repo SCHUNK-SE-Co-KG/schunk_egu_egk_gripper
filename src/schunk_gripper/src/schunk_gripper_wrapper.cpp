@@ -1512,7 +1512,7 @@ void SchunkGripperNode::info_srv(const std::shared_ptr<GripperInfo::Request>, st
         RCLCPP_INFO_STREAM(this->get_logger(),"\nUsed current limit: " << data3 << " A" << std::endl);
         getWithInstance<float>(MAX_PHYS_STROKE_INST, &data3);
         RCLCPP_INFO_STREAM(this->get_logger(),"Max. physical stroke: " << data3 << " mm" << std::endl);
-        getWithOffset(MIN_ERR_MOT_VOLT_OFFSET, 6, 6);
+        getWithOffset(MIN_ERR_MOT_VOLT_OFFSET, 6, float_vector);
         RCLCPP_INFO_STREAM(this->get_logger(),"\nMin. error motor voltage: " << float_vector[0] << " V\n"
                     <<    "Max. error motor voltage: " << float_vector[1] << " V\n"
                     <<    "Min. error logic voltage: " << float_vector[2] << " V\n"
@@ -1523,7 +1523,7 @@ void SchunkGripperNode::info_srv(const std::shared_ptr<GripperInfo::Request>, st
         getWithInstance<float>(MEAS_LGC_TEMP_INST, &data3);
         RCLCPP_INFO_STREAM(this->get_logger(), "Measured logic temperature: " << data3 << " C" << std::endl);
 
-        getWithOffset(MEAS_LGC_VOLT_OFFSET, 8, 8);
+        getWithOffset(MEAS_LGC_VOLT_OFFSET, 8, float_vector);
         RCLCPP_INFO_STREAM(this->get_logger(),
                           "\nMeasured logic voltage: " << float_vector[0] <<  " V\n"
                     <<    "Measured motor voltage: " << float_vector[1] <<     " V\n"
@@ -1652,7 +1652,12 @@ void SchunkGripperNode::parameter_set_srv(const std::shared_ptr<ParameterSet::Re
 
       RCLCPP_INFO(this->get_logger(), "Changing: %s\n", data.c_str());
     
-     auto search = inst_param.find(req->instance);
+     std::string instance_upper = "0x"; 
+     for(const auto character: req->instance.substr(2))
+     {
+        instance_upper.append(1, std::toupper(character));
+     }
+     auto search = inst_param.find(instance_upper);
 
         switch(datatype)
         {
@@ -1786,7 +1791,7 @@ void SchunkGripperNode::callback_move_parameter(const rclcpp::Parameter &p)
 {
 try
 { 
-    if(p.get_name() == "Control_Parameter.move_gripper" && param_exe == false && p.as_double() != abs_pos_param) 
+    if(p.get_name() == "Control_Parameter.move_gripper" && param_exe == false && p.as_double() != abs_pos_param && action_active == false) 
     {
         const std::lock_guard<std::recursive_mutex> lock(lock_mutex);
             actual_command = "MOVE TO ABSOLUTE POSITION";
@@ -1794,7 +1799,7 @@ try
             runPost(MOVE_TO_ABSOLUTE_POSITION, static_cast<uint32_t>(p.as_double() * 1000) , static_cast<uint32_t>(this->get_parameter("Control_Parameter.move_gripper_velocity_of_movement").as_double()*1000));
             param_exe = true;
     }
-    else if(p.get_name() == "Control_Parameter.grip" && p.as_bool() == true && param_exe == false) 
+    else if(p.get_name() == "Control_Parameter.grip" && p.as_bool() == true && param_exe == false && action_active == false) 
     {
         const std::lock_guard<std::recursive_mutex> lock(lock_mutex);
         uint32_t command = GRIP_WORK_PIECE;
@@ -1809,7 +1814,7 @@ try
         param_exe = true;
 
     }
-    else if(p.get_name() == "Control_Parameter.release_workpiece" && p.as_bool() == true && param_exe == false) 
+    else if(p.get_name() == "Control_Parameter.release_workpiece" && p.as_bool() == true && param_exe == false && action_active == false) 
     {
         if (gripperBitInput(GRIPPED))
         {

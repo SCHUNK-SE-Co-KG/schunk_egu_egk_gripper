@@ -124,13 +124,7 @@ class AnybusCom
 
     private:
 
-        CURL *curl1;
-        CURL *curl2;
-        CURL *curl3;
-        CURL *curl4;
-        CURL *curl5;
-        CURL *curl6;
-        CURL *curl7;
+        CURL *curl;
 
         std::string update_address;
         std::string data_address;
@@ -151,46 +145,46 @@ class AnybusCom
 
         std::string changeEndianFormat(const std::string &);
 
-        std::vector<std::string> splitResponse(const std::string &, int);
+        std::vector<std::string> splitResponse(const std::string &, const size_t &, const size_t & elemenets = 1);
 
     protected:
+
+        void initAddresses();
 
         std::string ip;                                                                             //IP to the connected gripper
 
         uint8_t endian_format;                                                                      //Flag for big/little Endian
         bool not_double_word;                                                                       //Flag if double word is requested (double words are always big Endian)
 
-        const uint32_t mask = FAST_STOP | USE_GPE | GRIP_DIRECTION | REPEAT_COMMAND_TOGGLE;         //Mask for setting Command bits to zero 
-
-        void initAddresses();          
-        void getMetadata(const std::string &);       
-        void getInfo();                                                                                    //Function to get Endian format
-        void getWithOffset(const std::string &offset, int count, int elements);      //A Function just for Gripper Feedback
+        const uint32_t mask = FAST_STOP | USE_GPE | GRIP_DIRECTION | REPEAT_COMMAND_TOGGLE;         //Mask for setting Command bits to zero           
 
         uint32_t last_command;                                                                      //Saves last Command
-
-        std::string save_response_string;
-
+        //Software
         uint16_t sw_version;
         std::string comm_version;
         double comm_version_double;
         uint16_t module_type;                                                                       //module type enum number
         uint16_t fieldbus_type;                                                                     //fieldbus_type enum number
-                                                                                                            
+        //Data handling
+        std::string save_response_string;
+
         template<typename paramtype>
         std::string writeValueToString(paramtype);                                                  //Writes a given value to a hexadecimals string
         template<typename paramtype>                                                                
         paramtype readParam(std::string);                                                           //Reads a hexadecimal string to value
-
         template<typename paramtype>
-        void updateSaveData(const size_t &counts, const size_t &elements, std::vector<paramtype> &vector);   //Updates variable save_data
-
+        void updateSaveData(std::vector<paramtype> &vector, const size_t &elements = 1, const size_t &counts = 1);   //Updates variable save_data
         void updatePlcOutput(uint32_t, uint32_t  = 0, uint32_t = 0, uint32_t = 0);                  //Updates plc_sync_output[4]
+        //Curl Requests
         void postCommand();                                                                         //Post plc_sync_output[4]
         void postParameter(std::string, std::string);                                               //Post a Parameter with instance
+        void getEnums(const char[7],const uint16_t &);                                                      //Get to an enum number the string
+        void getMetadata(const std::string &);       
+        void getInfo();
         template<typename paramtype>    
-        void getWithInstance(const char inst[7], paramtype *param = NULL, const size_t &elements = 1);                          //Get a Parameter with Instance
-        void getEnums(const char[7],const uint16_t &);                                              //Get to an enum number the string
+        void getWithInstance(const char inst[7], paramtype *param = NULL, const size_t &elements = 1);      //Get a Parameter with Instance
+        template<typename paramtype>                                                                                                          //Function to get Endian format
+        void getWithOffset(const std::string &offset, const size_t & count, std::vector<paramtype> &vector, const size_t & elements = 1);      //A Function just for Gripper Feedback
 
         bool grp_pos_lock;           //GPE
 
@@ -243,20 +237,20 @@ inline void AnybusCom::getWithInstance(const char inst[7], paramtype *param, con
     std::string address = data_address;
     address.append("inst=" + instance + "&count=1");
 
-    if(curl1) 
+    if(curl) 
     {
         //GET CURL
-        curl_easy_setopt(curl1, CURLOPT_URL, address.c_str());
-        curl_easy_setopt(curl1,CURLOPT_WRITEFUNCTION, writeCallback);
-        curl_easy_setopt(curl1, CURLOPT_HTTPGET, 1);
-        curl_easy_setopt(curl1, CURLOPT_WRITEDATA, &response);
-        curl_easy_setopt(curl1, CURLOPT_TIMEOUT, 1L);
-        res = curl_easy_perform(curl1);
+        curl_easy_setopt(curl, CURLOPT_URL, address.c_str());
+        curl_easy_setopt(curl,CURLOPT_WRITEFUNCTION, writeCallback);
+        curl_easy_setopt(curl, CURLOPT_HTTPGET, 1);
+        curl_easy_setopt(curl, CURLOPT_WRITEDATA, &response);
+        curl_easy_setopt(curl, CURLOPT_TIMEOUT, 1L);
+        res = curl_easy_perform(curl);
         
         if (res != CURLE_OK)
         {
             fprintf(stderr, "curl_easy_perform_failed: %s\n", curl_easy_strerror(res));
-            curl_easy_reset(curl1);
+            curl_easy_reset(curl);
             throw curl_easy_strerror(res);
         }
         else
@@ -265,8 +259,49 @@ inline void AnybusCom::getWithInstance(const char inst[7], paramtype *param, con
            else if(param != NULL && elements == 1) *param = readParam<paramtype>(response); //If single Parameter;    
            else save_response_string = response;   //If an array just save the response                                                
         }
-    curl_easy_reset(curl1);
+    curl_easy_reset(curl);
     }
+}
+//Receive data with an offset
+template<typename paramtype>
+inline void AnybusCom::getWithOffset(const std::string &offset, const size_t & count, std::vector<paramtype> &vector,const size_t & elements)
+{   
+    std::string response;
+    CURLcode res;
+
+    std::string address = data_address;
+    
+    if(offset.length() <= 5) address.append("offset=" + offset + "&count=" + std::to_string(count));
+    else throw "Offset to many symbols";
+
+        if(curl) 
+        {   //GET
+            curl_easy_setopt(curl, CURLOPT_URL, address.c_str());
+            curl_easy_setopt(curl, CURLOPT_HTTPGET, 1);
+            curl_easy_setopt(curl,CURLOPT_WRITEFUNCTION, writeCallback);
+            curl_easy_setopt(curl, CURLOPT_WRITEDATA, &response);
+            curl_easy_setopt(curl, CURLOPT_TIMEOUT, 1);
+
+            res = curl_easy_perform(curl); 
+            
+            if (res != CURLE_OK)
+            {
+            fprintf(stderr, "curl_easy_perform_failed: %s\n", curl_easy_strerror(res));
+            curl_easy_reset(curl);
+            throw curl_easy_strerror(res);
+            }
+
+            else
+            {  
+                if(count == 3 && offset == ACTUAL_POS_OFFSET) updateFeedback(response); //If ROS-Feedback
+                else 
+                {   
+                    save_response_string = response;
+                    updateSaveData<paramtype>(vector, elements, count);              
+                }               
+            }
+         curl_easy_reset(curl);
+        }
 }
 //Interprets the received bytestring into an variable of float or int(all except int8_t)
 template<typename paramtype>
@@ -330,35 +365,34 @@ inline std::string AnybusCom::writeValueToString(paramtype param)
     return value_string;
 }
 
-//Savedata is a vector, which stores floats. save_data_...[] is cache. Used for Parameter Arrays (float, char)
 template<typename paramtype>
-inline void AnybusCom::updateSaveData(const size_t &count, const size_t &elements, std::vector<paramtype> &vector)
+inline void AnybusCom::updateSaveData(std::vector<paramtype> &vector, const size_t &elements, const size_t &count)
 {
-    //If multiple same Parameters from one Request (Floats, doesn't work for chars)
-    if(count != 1)
+    //If multiple parameter of the same size at once (saves all in a vector-> No matrix!) 
+    if(count >= 2)
     {
         std::vector<std::string> splitted;
-        splitted = splitResponse(save_response_string, count);
-        float_vector.clear();
-        float_vector.resize(count);
+        splitted = splitResponse(save_response_string, count, sizeof(paramtype)*elements);
+        
+        vector.clear();
+        vector.resize(count*elements);
 
-        for(size_t i = 0; i < elements; i++) 
+        for(size_t i = 0; i < count; i++) //which Parameter
         {
-            float_vector[i] = readParam<float>(splitted[i]);
+            for(size_t k = 0; k < elements; k++)    //If parameter array
+            {
+                vector[i*elements + k] = readParam<paramtype>(splitted[i].substr((k * sizeof(paramtype) * 2), sizeof(paramtype) * 2));
+            }
         }
     }
-    else
+    else    //Else less complex 
     {
-        std::vector<std::string> save;
-        save.resize(elements);
-
         vector.clear();
         vector.resize(elements);
 
         for(size_t i = 0; i < elements; i++)
         {
-            save[i] = save_response_string.substr((i * sizeof(paramtype) * 2) + 2 , sizeof(paramtype) * 2);
-            vector[i] = readParam<paramtype>(save[i]); 
+            vector[i] = readParam<paramtype>(save_response_string.substr((i * sizeof(paramtype) * 2) + 2 , sizeof(paramtype) * 2)); 
             not_double_word = true;
         }
     }

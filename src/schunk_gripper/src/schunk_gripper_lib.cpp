@@ -48,7 +48,7 @@ void Gripper::getVersions()
       //get Versions
       getWithInstance<uint16_t>(SW_VERSION_NUM_INST, &sw_version);
       getWithInstance<char>(COMM_VERSION_TXT_INST, NULL, 12);
-      updateSaveData(1, 12, char_vector);
+      updateSaveData(char_vector, 12);
       comm_version = char_vector.data();
 }
 
@@ -76,7 +76,6 @@ void Gripper::getModel()
 {
       getWithInstance<uint16_t>(MODULE_TYPE_INST, &module_type);
       getWithInstance<uint16_t>(FIELDBUS_TYPE_INST, &fieldbus_type);
-
       //Model
       getEnums(MODULE_TYPE_INST, module_type);
       model = json_data["string"];
@@ -111,42 +110,42 @@ void Gripper::getParameter(const std::string& instance, const size_t& elements, 
    {
       case BOOL_DATA:
       getWithInstance<bool>(inst, NULL, elements);
-      updateSaveData<bool>(1, elements, bool_vector);
+      updateSaveData<bool>(bool_vector, elements);
       break;
       
       case UINT8_DATA :
       getWithInstance<uint8_t>(inst, NULL, elements);
-      updateSaveData<uint8_t>(1, elements, uint8_vector);
+      updateSaveData<uint8_t>( uint8_vector, elements);
       break;
       
       case UINT16_DATA:
       getWithInstance<uint16_t>(inst, NULL, elements);
-      updateSaveData<uint16_t>(1, elements, uint16_vector);
+      updateSaveData<uint16_t>(uint16_vector, elements);
       break;
 
       case UINT32_DATA:
       getWithInstance<uint32_t>(inst, NULL, elements);
-      updateSaveData<uint32_t>(1, elements, uint32_vector);
+      updateSaveData<uint32_t>(uint32_vector, elements);
       break;
       
       case INT32_DATA:
       getWithInstance<int32_t>(inst, NULL, elements);
-      updateSaveData<int32_t>(1, elements, int32_vector);
+      updateSaveData<int32_t>(int32_vector, elements);
       break;
 
       case FLOAT_DATA:
       getWithInstance<float>(inst, NULL, elements);
-      updateSaveData<float>(1, elements, float_vector);
+      updateSaveData<float>(float_vector, elements);
       break;
       
       case CHAR_DATA:
       getWithInstance<char>(inst, NULL, elements);
-      updateSaveData<char>(1, elements, char_vector);
+      updateSaveData<char>(char_vector, elements);
       break;
 
       case ENUM_DATA:
       getWithInstance<uint8_t>(inst, NULL, elements);
-      updateSaveData<uint8_t>(1, elements, uint8_vector);
+      updateSaveData<uint8_t>(uint8_vector, elements);
       break;
    }
 }
@@ -182,7 +181,7 @@ void Gripper::runPost(uint32_t command, uint32_t position, uint32_t velocity, ui
 //Receive Gripper response and actual Data
 void Gripper::runGets()
 {   
-    getWithOffset(ACTUAL_POS_OFFSET, 3, 3);
+    getWithOffset<float>(ACTUAL_POS_OFFSET, 3, float_vector);
     getWithInstance<uint32_t>(PLC_SYNC_INPUT_INST);
 }
 //If the gripper is ready for shutdown, so do softreset. DO: Acknowledge and get receive
@@ -194,7 +193,7 @@ void Gripper::startGripper()
         getWithInstance<uint32_t>(PLC_SYNC_INPUT_INST);
         getWithInstance<uint32_t>(PLC_SYNC_OUTPUT_INST);
         //Get actual values
-        getWithOffset(ACTUAL_POS_OFFSET, 3, 3);
+        getWithOffset<float>(ACTUAL_POS_OFFSET, 3, float_vector);
 
         last_command = 0;
 
@@ -250,9 +249,9 @@ std::string Gripper::getErrorString(const uint8_t &error)
 {
    try
    {
-   json_data.clear();
-   getEnums(ERROR_CODE_INST, error);   //saves it in raw json_data
-   return json_data["string"];
+      json_data.clear();
+      getEnums(ERROR_CODE_INST, error);   //saves it in raw json_data
+      return json_data["string"];
    }
    catch(const nlohmann::json::parse_error &e)
    {
