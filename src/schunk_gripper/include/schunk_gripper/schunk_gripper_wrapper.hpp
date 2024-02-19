@@ -31,13 +31,14 @@
 #include "schunk_gripper/srv/parameter_get.hpp"
 #include "schunk_gripper/srv/parameter_set.hpp"
 
-extern std::recursive_mutex lock_mutex;  //Locks if something is receiving or posting data
 extern  std::map<std::string, const char*> param_inst;
 extern std::map<std::string, std::string> inst_param;
 
 class SchunkGripperNode :  public rclcpp::Node, public Gripper
 {    
     private:
+
+    std::mutex lock_service_post;
 
     using Acknowledge = schunk_gripper::srv::Acknowledge;
     using BrakeTest = schunk_gripper::srv::BrakeTest;
@@ -61,11 +62,9 @@ class SchunkGripperNode :  public rclcpp::Node, public Gripper
     using GripperCommand = control_msgs::action::GripperCommand;
 
     //Flags
-    bool param_exe;
+    bool doing_something;
     bool action_active;
-    bool action_move;
-    bool wrong_version;
-    bool handshake;                                 //handshake
+    bool wrong_version;     
     //Topic publishing
     void publishJointState();
     void publishState();

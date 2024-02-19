@@ -15,8 +15,9 @@
 #include "schunk_gripper/communication.hpp"
 #include <chrono>
 #include <thread>
+#include <mutex>
 
-
+extern std::recursive_mutex lock_mutex;  //Locks if something is receiving or posting data
 extern std::map<std::string, uint32_t> commands_str;
 
 class Gripper : protected AnybusCom
@@ -31,6 +32,7 @@ class Gripper : protected AnybusCom
    
    bool start_connection;
    bool model_M;
+   bool handshake;   
    std::string model;                              
 
    bool gripperBitInput(const uint32_t&) const;    //retrieve individual bits from the status double word
@@ -51,17 +53,25 @@ class Gripper : protected AnybusCom
    void runPost(uint32_t command, uint32_t position = 0, uint32_t velocity = 0, uint32_t effort = 0); //Post control d
    void getParameter(const std::string& instance, const size_t&, const uint8_t&);
    std::string getErrorString(const uint8_t &);                                         //Get for the error code the error string
+   
+   void sendAction();
+   void sendService(std::unique_lock<std::recursive_mutex> &);
 
    bool check();                                                                                      //Check for errors
    bool endCondition();                                                                               //Is the gripper in an endCondition? -> example Successbit is set
 
    std::array<uint8_t, 3> splitDiagnosis();                                             //Split the diagnosis to get error, warning and not-feasible     
 
+   bool post_requested;
+   uint32_t set_position;
+   uint32_t set_speed;
+   uint32_t set_gripping_force;
+   uint32_t set_command;
+
    public:
 
    Gripper(const std::string &ip);                                                        //Gripper initialisation
    ~Gripper();
-
 };
 
 //Post a value to an Parameter

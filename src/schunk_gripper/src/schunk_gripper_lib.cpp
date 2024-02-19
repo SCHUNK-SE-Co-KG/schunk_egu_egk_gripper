@@ -11,13 +11,13 @@
 
 #include "schunk_gripper/schunk_gripper_lib.hpp"
 
+std::recursive_mutex lock_mutex;  //Locks if something is receiving or posting data
 //Commands for using in ROS
 std::map<std::string, uint32_t> commands_str
 {
     {"NO COMMAND", 0},
     {"MOVE TO ABSOLUTE POSITION", MOVE_TO_ABSOLUTE_POSITION},
     {"MOVE TO RELATIVE POSITION", MOVE_TO_RELATIVE_POSITION},
-    {"REPEAT COMMAND TOGGLE", REPEAT_COMMAND_TOGGLE},
     {"STOP", STOP},
     {"FAST STOP", FAST_STOP},
     {"GRIP WORKPIECE", GRIP_WORK_PIECE},
@@ -27,12 +27,17 @@ std::map<std::string, uint32_t> commands_str
     {"SOFT RESET", SOFT_RESET}
 };
 //Start th gripper, so it is ready to operate
-Gripper::Gripper(const std::string &ip): AnybusCom(ip)
+Gripper::Gripper(const std::string &ip): 
+AnybusCom(ip), 
+post_requested(false)
 {  
    try
    {  
       startGripper();
-
+      set_command = 0;
+      set_position = actual_position;
+      set_speed = 0;
+      set_gripping_force = 0;
       ip_changed_with_all_param = true;
       start_connection = true;
    }
@@ -110,7 +115,8 @@ void Gripper::getParameter(const std::string& instance, const size_t& elements, 
    {
       case BOOL_DATA:
       getWithInstance<bool>(inst, NULL, elements);
-      updateSaveData<bool>(bool_vector, elements);
+      updateSaveData<uint8_t>(uint8_vector, elements);   //ROS 1
+      updateSaveData<bool>(bool_vector, elements);       // ROS2
       break;
       
       case UINT8_DATA :
@@ -164,10 +170,10 @@ std::array<uint8_t, 3> Gripper::splitDiagnosis()
    error_codes[2] =  plc_sync_input[3] & 0xFF;   
    return error_codes;
 }
-//Return false when the Gripper is in end condition
+//Return true when the Gripper is in end condition
 bool Gripper::endCondition()  
 {
-   return !(gripperBitInput(SUCCESS) || gripperBitInput(POSITION_REACHED) || gripperBitInput(NO_WORKPIECE_DETECTED) 
+   return (gripperBitInput(SUCCESS) || gripperBitInput(POSITION_REACHED) || gripperBitInput(NO_WORKPIECE_DETECTED) 
    || gripperBitInput(GRIPPED) || gripperBitInput(GRIPPER_ERROR) || gripperBitInput(WARNING) 
    || gripperBitInput(WORK_PIECE_LOST) || gripperBitInput(WRONG_WORKPIECE_DETECTED));
 }
@@ -176,13 +182,39 @@ void Gripper::runPost(uint32_t command, uint32_t position, uint32_t velocity, ui
 {  
     updatePlcOutput(command, position, velocity, effort);
     postCommand();
-    getWithInstance<uint32_t>(PLC_SYNC_INPUT_INST);
 }
 //Receive Gripper response and actual Data
 void Gripper::runGets()
 {   
+    if(post_requested) 
+    {
+      handshake = gripperBitInput(COMMAND_RECEIVED_TOGGLE);
+      runPost(set_command, set_position, set_speed, set_gripping_force);
+      getWithInstance<uint32_t>(PLC_SYNC_INPUT_INST);
+      post_requested = false;
+      return;
+    }
+
     getWithOffset<float>(ACTUAL_POS_OFFSET, 3, float_vector);
+    
+    if(post_requested) 
+    {
+      handshake = gripperBitInput(COMMAND_RECEIVED_TOGGLE);
+      runPost(set_command, set_position, set_speed, set_gripping_force);
+      getWithInstance<uint32_t>(PLC_SYNC_INPUT_INST);
+      post_requested = false;
+      return;
+    }
+    
     getWithInstance<uint32_t>(PLC_SYNC_INPUT_INST);
+
+   if(post_requested) 
+   {
+      handshake = gripperBitInput(COMMAND_RECEIVED_TOGGLE);
+      runPost(set_command, set_position, set_speed, set_gripping_force);
+      getWithInstance<uint32_t>(PLC_SYNC_INPUT_INST);
+      post_requested = false;
+   }
 }
 //If the gripper is ready for shutdown, so do softreset. DO: Acknowledge and get receive
 void Gripper::startGripper()
@@ -277,6 +309,7 @@ bool Gripper::changeIp(const std::string &new_ip)
    
    std::string old_ip = ip;
    ip = new_ip;
+   std::string old_model = model;
    initAddresses();
    //Control if it is the same gripper
    try
@@ -313,7 +346,65 @@ bool Gripper::changeIp(const std::string &new_ip)
    }
   
 }
-//
+//send action directly after current (cyclic-) http or immediately
+void Gripper::sendAction()
+{
+         std::unique_lock<std::recursive_mutex> lock(lock_mutex, std::defer_lock);
+
+         if(lock.try_lock())
+        {
+            handshake = gripperBitInput(COMMAND_RECEIVED_TOGGLE);
+            runPost(set_command, set_position, set_speed, set_gripping_force);
+            getWithInstance<uint32_t>(PLC_SYNC_INPUT_INST);
+            post_requested = false;
+            //Look if gripper received command     
+            if(handshake == gripperBitInput(COMMAND_RECEIVED_TOGGLE)) throw int32_t(-1);
+            lock.unlock();
+        }
+        else
+        {
+               lock.lock();
+
+               if(post_requested == true) 
+               {
+                  handshake = gripperBitInput(COMMAND_RECEIVED_TOGGLE);
+         
+                  runPost(set_command, set_position, set_speed, set_gripping_force);
+                  getWithInstance<uint32_t>(PLC_SYNC_INPUT_INST);
+                  post_requested = false;
+               }
+
+            if(handshake == gripperBitInput(COMMAND_RECEIVED_TOGGLE)) throw int32_t(-1);    
+            
+            lock.unlock();
+        }
+}
+//send service directly after current (cyclic-) http or immediately
+void Gripper::sendService(std::unique_lock<std::recursive_mutex> &lock)
+{   
+      
+      if(lock.try_lock())
+      {
+         handshake = gripperBitInput(COMMAND_RECEIVED_TOGGLE);
+         runPost(set_command);
+         getWithInstance<uint32_t>(PLC_SYNC_INPUT_INST);
+         post_requested = false;
+      }
+
+      else
+      {
+         lock.lock();
+
+         if(post_requested == true) 
+         {
+            handshake = gripperBitInput(COMMAND_RECEIVED_TOGGLE);
+            runPost(set_command, set_position, set_speed, set_gripping_force);
+            getWithInstance<uint32_t>(PLC_SYNC_INPUT_INST);
+            post_requested = false;
+         }
+      }
+}
+
 Gripper::~Gripper()
 {
 

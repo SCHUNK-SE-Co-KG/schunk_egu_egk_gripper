@@ -253,7 +253,7 @@ void moveAbsWithConfig(std::shared_ptr<rclcpp::AsyncParametersClient> param_clie
 {
     std::vector<std::string> parameter_names;
     parameter_names.push_back("Control_Parameter.move_gripper");
-    parameter_names.push_back("Control_Parameter.move_gripper_velocity_of_movement");
+    parameter_names.push_back("Control_Parameter.move_gripper_velocity");
     auto parameter_fut = param_client->get_parameters(parameter_names);
     auto parameter = parameter_fut.get();
     RCLCPP_INFO(rclcpp::get_logger("schunk_gripper_example") ,"Parameter before:");

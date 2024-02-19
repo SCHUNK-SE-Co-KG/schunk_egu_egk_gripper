@@ -145,7 +145,7 @@ class AnybusCom
 
         std::string changeEndianFormat(const std::string &);
 
-        std::vector<std::string> splitResponse(const std::string &, const size_t &, const size_t & elemenets = 1);
+        std::vector<std::string> splitResponse(const std::string &, const size_t &, const size_t & data_type_site = 4);
 
     protected:
 
@@ -373,14 +373,13 @@ inline void AnybusCom::updateSaveData(std::vector<paramtype> &vector, const size
     {
         std::vector<std::string> splitted;
         splitted = splitResponse(save_response_string, count, sizeof(paramtype)*elements);
-        
         vector.clear();
         vector.resize(count*elements);
 
         for(size_t i = 0; i < count; i++) //which Parameter
         {
             for(size_t k = 0; k < elements; k++)    //If parameter array
-            {
+            {   
                 vector[i*elements + k] = readParam<paramtype>(splitted[i].substr((k * sizeof(paramtype) * 2), sizeof(paramtype) * 2));
             }
         }
