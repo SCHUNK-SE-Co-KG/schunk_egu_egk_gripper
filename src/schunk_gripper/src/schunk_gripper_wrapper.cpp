@@ -122,7 +122,7 @@ void SchunkGripperNode::updateStateMsg()
     msg.workpiece_pre_grip_started = gripperBitInput(PRE_HOLDING);
     msg.grip_force_and_position_maintenance_activated = gripperBitInput(BRAKE_ACTIVE);
 }
-//parameter limits
+//Advertise Services
 void SchunkGripperNode::advertiseServices()
 {
     //Create Services
@@ -138,7 +138,7 @@ void SchunkGripperNode::advertiseServices()
     change_ip_service = this->create_service<ChangeIp>("reconnect",  std::bind(&SchunkGripperNode::change_ip_srv,this,std::placeholders::_1,std::placeholders::_2), rmw_qos_profile_services_default, services_group);
   
 }
-
+//Advertise Actions
 void SchunkGripperNode::advertiseActions()
 {
     //Create Actions  
@@ -159,7 +159,7 @@ void SchunkGripperNode::advertiseActions()
                                                                                                     std::bind(&SchunkGripperNode::handle_accepted_control, this, std::placeholders::_1),rcl_action_server_get_default_options(), services_group);
     
 }
-
+//Advertise topics
 void SchunkGripperNode::advertiseTopics()
 {
     //Advertise state
@@ -182,7 +182,7 @@ void SchunkGripperNode::advertiseTopics()
     jointStatePublisher = this->create_publisher<sensor_msgs::msg::JointState>("joint_states", 10);
     publish_joint_timer = this->create_wall_timer(std::chrono::duration<double>(1 / j_state_frq), std::bind(&SchunkGripperNode::publishJointState, this));
 }
-
+//Advertise all that needs to be read out the gripper
 void SchunkGripperNode::advertiseConnectionRelevant()
 {   
     checkVersions();
@@ -235,7 +235,7 @@ void SchunkGripperNode::advertiseConnectionRelevant()
     cb_handle[8] =  parameter_event_handler->add_parameter_callback("Control_Parameter.release_workpiece", callback_move_param);
     cb_handle[9] =  parameter_event_handler->add_parameter_callback("Control_Parameter.move_gripper", callback_move_param);
 }
-
+//Checks if the software and communication right Versions
 void SchunkGripperNode::checkVersions()
 {
     comm_version_double = std::stod(comm_version.substr(0, sizeof(SUPPORTED_COMMUNICATION_VERSION) - 1));   //minus termination null
@@ -249,7 +249,7 @@ void SchunkGripperNode::checkVersions()
                         << std::endl);
     }
 }
-
+//Declares Parameter
 void SchunkGripperNode::declareParameter()
 {   
     // Gripper Parameter
@@ -1652,12 +1652,6 @@ void SchunkGripperNode::parameter_set_srv(const std::shared_ptr<ParameterSet::Re
       }
       else throw "Instance to long";
 
-      if(req->instance == PLC_SYNC_INPUT_INST || req->instance == PLC_SYNC_OUTPUT_INST || req->instance ==  COMMANDO_CODE_INST)
-      {
-        RCLCPP_WARN(this->get_logger(), "Not allowed Instances: %s, %s, %s", PLC_SYNC_INPUT_INST, PLC_SYNC_OUTPUT_INST, COMMANDO_CODE_INST);
-        return;
-      }
-
       getMetadata(req->instance);
       std::string data = json_data["name"];
       int datatype = json_data["datatype"];
@@ -1693,9 +1687,11 @@ void SchunkGripperNode::parameter_set_srv(const std::shared_ptr<ParameterSet::Re
                 break;
         
         case UINT16_DATA:
-                
+
+                handshake = gripperBitInput(COMMAND_RECEIVED_TOGGLE);
                 changeVectorParameter(inst, req->uint16_value);
                 getParameter(req->instance, elements, datatype);
+                getWithInstance<uint32_t>(PLC_SYNC_INPUT_INST);
                
                 if(search != inst_param.end()){ 
                     this->set_parameter(rclcpp::Parameter(search->second,   rclcpp::ParameterValue(uint16_vector.at(0)))); }
@@ -1703,9 +1699,11 @@ void SchunkGripperNode::parameter_set_srv(const std::shared_ptr<ParameterSet::Re
                 break;
 
         case UINT32_DATA:
-                
+
+                handshake = gripperBitInput(COMMAND_RECEIVED_TOGGLE);
                 changeVectorParameter(inst, req->uint32_value);
                 getParameter(req->instance, elements, datatype);
+                getWithInstance<uint32_t>(PLC_SYNC_INPUT_INST);
                
                 if(search != inst_param.end()){ this->set_parameter(rclcpp::Parameter(search->second,   rclcpp::ParameterValue(static_cast<int64_t>(uint32_vector.at(0))))); }
                 res->actual_uint32_value = uint32_vector;
@@ -1730,7 +1728,26 @@ void SchunkGripperNode::parameter_set_srv(const std::shared_ptr<ParameterSet::Re
                 break;
         
         default: RCLCPP_ERROR(this->get_logger(), "Datatype not compatible") ;
-        }      
+    }      
+
+    if(handshake != gripperBitInput(COMMAND_RECEIVED_TOGGLE))
+    {
+        getWithInstance<uint32_t>(PLC_SYNC_OUTPUT_INST);
+        doing_something = true;
+        if((FAST_STOP & plc_sync_output[0]) == 0)
+        {
+            doing_something = false;
+            return;
+        }
+        for(auto element : commands_str)
+        {
+            if(element.second & plc_sync_output[0])
+            {
+                actual_command = element.first;
+            }
+        }
+        
+    }
 
     }
     catch(const char *res)

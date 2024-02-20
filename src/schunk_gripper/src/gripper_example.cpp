@@ -113,12 +113,12 @@ void moveAbsoluteAndWaitForResult(rclcpp_action::Client<MoveToAbsolutePosition>:
     send_goal_options.feedback_callback = std::bind(feedbackCB, std::placeholders::_1, std::placeholders::_2);
 
     auto result = move_abs_client->async_send_goal(goal_abs, send_goal_options);
+        
     result.get();
     RCLCPP_WARN(rclcpp::get_logger("schunk_gripper_example"), "%s: %f mm", state_msg.doing_command.c_str(), goal_abs.absolute_position);
 
     if(move_abs_client->async_get_result(result.get()).get().code == rclcpp_action::ResultCode::SUCCEEDED)
-    RCLCPP_INFO(rclcpp::get_logger("schunk_gripper_example"), "On the right position");
-        
+    RCLCPP_INFO(rclcpp::get_logger("schunk_gripper_example"), "On the right position");     
 }
 
 void moveRelativeAndStop(rclcpp_action::Client<MoveToRelativePosition>::SharedPtr move_rel_client, rclcpp::Client<Stop>::SharedPtr stop_client)
