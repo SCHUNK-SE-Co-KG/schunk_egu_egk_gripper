@@ -995,8 +995,9 @@ catch(const char* response)
 //Updates final successful state and zero position offset
 void SchunkGripperNode::finishedCommand()
 {      
+
         if(connection_error != "OK") 
-        {   
+        {           
             doing_something = false;
             action_active = false;   
             actual_command = "NO COMMAND";
@@ -1011,19 +1012,12 @@ void SchunkGripperNode::finishedCommand()
 
         this->set_parameters(params);
         //Was Command successfully processed?
-        if(gripperBitInput(NO_WORKPIECE_DETECTED) )
-        {
-            RCLCPP_WARN(this->get_logger(),"No workpiece detected!");
-        }
-        if(gripperBitInput(WRONG_WORKPIECE_DETECTED)) 
-        {
-            RCLCPP_WARN(this->get_logger(),"Wrong workpiece detected!");
-        }
-        //Was Command successfully processed?
         if(gripperBitInput(SUCCESS) && gripperBitInput(POSITION_REACHED) && doing_something == true) 
-        {
-            RCLCPP_INFO(this->get_logger(),"%s SUCCEEDED", actual_command.c_str());
-        }
+        RCLCPP_INFO(this->get_logger(),"%s SUCCEEDED", actual_command.c_str());
+
+        doing_something = false;
+        action_active = false;   
+        
         if(gripperBitInput(GRIPPED))  
         {
             RCLCPP_WARN(this->get_logger(),"Gripped Workpiece!");
@@ -1041,10 +1035,9 @@ void SchunkGripperNode::publishState()
     *cycletime = now - last_time;
     last_time = now;
 
-    std::unique_lock<std::recursive_mutex> lock(lock_mutex, std::defer_lock);
+    std::unique_lock<std::recursive_mutex> lock(lock_mutex);
 
-    if(lock.try_lock())
-    {   try
+       try
         {
             runGets();
             
@@ -1066,7 +1059,6 @@ void SchunkGripperNode::publishState()
                 std::this_thread::sleep_for(sleep.to_chrono<std::chrono::milliseconds>());
             }
         }
-    }
     
     if( ((doing_something == true && endCondition() && action_active == false) //If doing_something was active, it was not an action and the modul is in Endcondition
     && connection_error == "OK")                                               //If there are no problems with the Connection
