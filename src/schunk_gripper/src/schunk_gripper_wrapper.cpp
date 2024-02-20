@@ -7,7 +7,7 @@
     { "Gripper_Parameter.zero_pos_ofs", ZERO_POS_OFS_INST },
     { "Gripper_Parameter.grp_prehold_time", GRP_PREHOLD_TIME_INST },
     { "Gripper_Parameter.wp_release_delta", WP_RELEASE_DELTA_INST },
-    { "Gripper_Parameter.wp_lost_signed_relative_position", WP_LOST_DISTANCE_INST },
+    { "Gripper_Parameter.wp_lost_dst", WP_LOST_DISTANCE_INST },
 };
 
 std::map<std::string, std::string> inst_param = 
@@ -17,7 +17,7 @@ std::map<std::string, std::string> inst_param =
     {ZERO_POS_OFS_INST,  "Gripper_Parameter.zero_pos_ofs"},
     {GRP_PREHOLD_TIME_INST,  "Gripper_Parameter.grp_prehold_time"},
     {WP_RELEASE_DELTA_INST,  "Gripper_Parameter.wp_release_delta"},
-    {WP_LOST_DISTANCE_INST,  "Gripper_Parameter.wp_lost_signed_relative_position"}
+    {WP_LOST_DISTANCE_INST,  "Gripper_Parameter.wp_lost_dst"}
 };
 
 //Initialize the ROS Driverntr
@@ -142,11 +142,11 @@ void SchunkGripperNode::advertiseServices()
 void SchunkGripperNode::advertiseActions()
 {
     //Create Actions  
-    move_abs_server = rclcpp_action::create_server<MoveToAbsolutePosition>(this, "move_absolute", std::bind(&SchunkGripperNode::handle_goal<MoveToAbsolutePosition::Goal>, this, std::placeholders::_1, std::placeholders::_2),
+    move_abs_server = rclcpp_action::create_server<MoveToAbsolutePosition>(this, "move_to_absolute_position", std::bind(&SchunkGripperNode::handle_goal<MoveToAbsolutePosition::Goal>, this, std::placeholders::_1, std::placeholders::_2),
                                                                                      std::bind(&SchunkGripperNode::handle_cancel<MoveToAbsolutePosition>, this, std::placeholders::_1),
                                                                                      std::bind(&SchunkGripperNode::handle_accepted_abs, this, std::placeholders::_1),rcl_action_server_get_default_options(), services_group);
    
-    move_rel_server = rclcpp_action::create_server<MoveToRelativePosition>(this, "move_relative", std::bind(&SchunkGripperNode::handle_goal<MoveToRelativePosition::Goal>, this, std::placeholders::_1, std::placeholders::_2),
+    move_rel_server = rclcpp_action::create_server<MoveToRelativePosition>(this, "move_to_relative_position", std::bind(&SchunkGripperNode::handle_goal<MoveToRelativePosition::Goal>, this, std::placeholders::_1, std::placeholders::_2),
                                                                                      std::bind(&SchunkGripperNode::handle_cancel<MoveToRelativePosition>, this, std::placeholders::_1),
                                                                                      std::bind(&SchunkGripperNode::handle_accepted_rel, this, std::placeholders::_1),rcl_action_server_get_default_options(), services_group);  
     
@@ -195,7 +195,7 @@ void SchunkGripperNode::advertiseConnectionRelevant()
                                                                                 std::bind(&SchunkGripperNode::handle_cancel<GripWithVelocity>, this, std::placeholders::_1),
                                                                                 std::bind(&SchunkGripperNode::handle_accepted_grip_egk, this, std::placeholders::_1),rcl_action_server_get_default_options(), services_group);
         
-        grip_w_pos_server = rclcpp_action::create_server<GripWithPositionAndVelocity>(this, "grip_with_pos",     std::bind(&SchunkGripperNode::handle_goal<GripWithPositionAndVelocity::Goal>, this, std::placeholders::_1, std::placeholders::_2),
+        grip_w_pos_server = rclcpp_action::create_server<GripWithPositionAndVelocity>(this, "grip_with_position",     std::bind(&SchunkGripperNode::handle_goal<GripWithPositionAndVelocity::Goal>, this, std::placeholders::_1, std::placeholders::_2),
                                                                                                     std::bind(&SchunkGripperNode::handle_cancel<GripWithPositionAndVelocity>, this, std::placeholders::_1),
                                                                                                     std::bind(&SchunkGripperNode::handle_accepted_gripPos_egk, this, std::placeholders::_1),rcl_action_server_get_default_options(), services_group);
     
@@ -206,7 +206,7 @@ void SchunkGripperNode::advertiseConnectionRelevant()
                                                                             std::bind(&SchunkGripperNode::handle_cancel<Grip>, this, std::placeholders::_1),
                                                                             std::bind(&SchunkGripperNode::handle_accepted_grip_egu, this, std::placeholders::_1),rcl_action_server_get_default_options(), services_group);
     
-        grip_w_pos_egu_server = rclcpp_action::create_server<GripWithPosition>(this, "grip_with_pos_egu",  std::bind(&SchunkGripperNode::handle_goal<GripWithPosition::Goal>, this, std::placeholders::_1, std::placeholders::_2),
+        grip_w_pos_egu_server = rclcpp_action::create_server<GripWithPosition>(this, "grip_with_position",  std::bind(&SchunkGripperNode::handle_goal<GripWithPosition::Goal>, this, std::placeholders::_1, std::placeholders::_2),
                                                                                                       std::bind(&SchunkGripperNode::handle_cancel<GripWithPosition>, this, std::placeholders::_1),
                                                                                                       std::bind(&SchunkGripperNode::handle_accepted_gripPos_egu, this, std::placeholders::_1),rcl_action_server_get_default_options(), services_group);
     }
@@ -216,7 +216,7 @@ void SchunkGripperNode::advertiseConnectionRelevant()
     }
 
     //Set model (not read only)
-    this->declare_parameter("model", model, parameter_descriptor("Gripper-model"), true);
+    this->declare_parameter("Gripper-model", model, parameter_descriptor("Gripper-model"), true);
     //declare Moving Parameter
     this->declare_parameter("Control_Parameter.move_gripper_velocity", static_cast<double>(min_vel), parameter_descriptor("Changing the velocity_of_movement for move_Gripper in mm/s", FloatingPointRange(min_vel, max_vel)));
     this->declare_parameter("Control_Parameter.move_gripper", actualPosInterval(), parameter_descriptor("Moving the gripper with parameter in mm", FloatingPointRange(min_pos, max_pos)));
@@ -229,7 +229,7 @@ void SchunkGripperNode::advertiseConnectionRelevant()
     cb_handle[3] =  parameter_event_handler->add_parameter_callback("Gripper_Parameter.zero_pos_ofs", callback_gripper_param);
     cb_handle[4] =  parameter_event_handler->add_parameter_callback("Gripper_Parameter.grp_prehold_time", callback_gripper_param);
     cb_handle[5] =  parameter_event_handler->add_parameter_callback("Gripper_Parameter.wp_release_delta", callback_gripper_param);
-    cb_handle[6] =  parameter_event_handler->add_parameter_callback("Gripper_Parameter.wp_lost_signed_relative_position", callback_gripper_param);
+    cb_handle[6] =  parameter_event_handler->add_parameter_callback("Gripper_Parameter.wp_lost_dst", callback_gripper_param);
 
     cb_handle[7] =  parameter_event_handler->add_parameter_callback("Control_Parameter.grip", callback_move_param);
     cb_handle[8] =  parameter_event_handler->add_parameter_callback("Control_Parameter.release_workpiece", callback_move_param);
@@ -259,7 +259,7 @@ void SchunkGripperNode::declareParameter()
     this->declare_parameter("Gripper_Parameter.zero_pos_ofs", 0.0, parameter_descriptor("Zero position offset in mm", FloatingPointRange(-10000.0, 10000.0, 0.01)));
     this->declare_parameter("Gripper_Parameter.grp_prehold_time", 0, parameter_descriptor("Grip prehold time in ms", IntegerRange(0, 60000, 1)));
     this->declare_parameter("Gripper_Parameter.wp_release_delta", 5.0, parameter_descriptor("Workpiece release delta in mm", FloatingPointRange(1.0, 50.0, 0.01)));
-    this->declare_parameter("Gripper_Parameter.wp_lost_signed_relative_position", 1.0, parameter_descriptor("Max. signed_relative_position after workpiece lost in mm", FloatingPointRange(0.1, 50.0, 0.01)));
+    this->declare_parameter("Gripper_Parameter.wp_lost_dst", 1.0, parameter_descriptor("Max. signed_relative_position after workpiece lost in mm", FloatingPointRange(0.1, 50.0, 0.01)));
     // Control Parameter
     this->declare_parameter("Control_Parameter.grip_direction", false, parameter_descriptor("Grip direction for parameter gripping"));
     this->declare_parameter("Control_Parameter.grip", false, parameter_descriptor("Grip with parameter"));
@@ -1073,7 +1073,7 @@ void SchunkGripperNode::reconnect()
                 this->set_parameter(rclcpp::Parameter("Gripper_Parameter.zero_pos_ofs", zero_pos_ofs));
                 this->set_parameter(rclcpp::Parameter("Gripper_Parameter.grp_prehold_time", grp_prehold_time));
                 this->set_parameter(rclcpp::Parameter("Gripper_Parameter.wp_release_delta", wp_release_delta));
-                this->set_parameter(rclcpp::Parameter("Gripper_Parameter.wp_lost_signed_relative_position", wp_lost_dst));
+                this->set_parameter(rclcpp::Parameter("Gripper_Parameter.wp_lost_dst", wp_lost_dst));
                 this->set_parameter(rclcpp::Parameter("Control_Parameter.move_gripper", actualPosInterval()));
                 abs_pos_param = actualPosInterval();    
 

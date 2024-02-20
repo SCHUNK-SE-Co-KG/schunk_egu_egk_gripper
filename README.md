@@ -7,11 +7,12 @@ ROS2 driver for controlling Schunk EGU/EGK grippers. It is compatible with gripp
 
 ### Background
 
-The driver communicates with the AnybusCom 40 interface, enabling its use with PROFINET, Ethernet/IP, and EtherCAT grippers. The ROS wrapper exposes the gripper's functionalities through ROS.
+The driver communicates with the AnybusCom 40 interface, enabling its use with PROFINET, Ethernet/IP, and EtherCAT grippers over HTTP. The ROS wrapper exposes the gripper's functionalities through ROS.
 
 ## Requirements
 
-The used distributution is humble.
+The provided distribution is "humble." To install ROS2 and verify compatibility with your operating system, please refer to the following link: 
+[ROS2 Installation Guide](https://docs.ros.org/en/humble/Installation.html)
 
 Following C++ libraries are required: 
 - [libcurl](https://curl.se/libcurl/)
@@ -43,6 +44,12 @@ To set up the environment for an EGU/EGK gripper, you'll need its IP address. On
 ```
 Replace **"10.49.60.74"** with your own IP address.
 
+Build the workspace using the following command:
+
+```
+colcon build
+```
+
 After that, you should be able to start the launch file and interact with the gripper.
 
 In the launch file, you can also adjust the frequencies of the 'joint_states', 'state', and 'diagnostics' topics.
@@ -57,16 +64,25 @@ In the launch file, you can also adjust the frequencies of the 'joint_states', '
 
 **Note:** There is also a namespace. It is recommended to set the model name as the namespace when using a single gripper. If you use multiple grippers of the same model, you can also utilize different namespaces.
 
+### Alternative Start
+The provided driver functions as a component. This implies that you can initiate the Node in the following ways:
+
+a) Using a component manager – this process is also outlined in the launch file.
+
+b) Within your custom executable, coupled with a (multithreaded-)executor.
+
+If you prefer starting the node in your main function, ensure that you include "schunk_gripper_driver" in the cmake target_link_libraries. Additionally, always specify the IP address, setting the parameter overrides for "IP" to your designated IP. Alternatively, create the "SchunkGripperNode"-Component and utilize the "reconnect" service, specifying your IP.
+
 # ROS-Node
 This section demonstrates the capabilities of the driver and provides instructions on how to utilize it. The node is a ROS2 component.
 
 ## Actions
 All functionalities of the gripper, including movement, are treated as actions. This implies that when gripping, moving, or releasing a workpiece, you need to send a goal and can receive a result or feedback. Releasing a workpiece is the only action where you send an empty goal:
 
-- `move_absolute`
-- `move_relative`
+- `move_to_absolute_position`
+- `move_to_relative_position`
 - `grip`
-- `grip_with_pos`
+- `grip_with_position`
 - `release_workpiece`
 - `gripper_control`
 
@@ -82,6 +98,8 @@ Services are functionalities that do not involve movement or occur so rapidly th
 - `stop`
 - `fast_stop`
 - `softreset`
+- `parameter_get`
+- `parameter_set`
 - `reconnect`
 - `release_for_manual_movement`
 - `prepare_for_shutdown`
@@ -97,7 +115,9 @@ All other services can be used whenever you like. (**Note:** Fast stop is an abo
 
 `gripper_info` publishes some information about the gripper on the terminal screen.
 
-`change_ip` is the only method for altering the IP address during runtime. If nothing is connected to the IP address or a gripper is connected, it undergoes a change. If something else is linked to this IP, errors will occur, and the old address will be retained in such cases. Exercise caution when using this service!
+`reconnect` is the only method for altering the IP address during runtime. If nothing is connected to the IP address or a gripper is connected, it undergoes a change. If something else is linked to this IP, errors will occur, and the old address will be retained in such cases. Exercise caution when using this service!
+
+With `parameter_get` and `parameter_set` you can read and set all allowed Parameter of the gripper. For getting and setting you need always the parameter instance. After that 
 
 ## Parameter
 
@@ -109,7 +129,7 @@ You can change parameter of the Gripper using dynamic reconfigure. Following par
 - `zero_pos_ofs`
 - `grp_prehold_time`
 - `wp_release_delta`
-- `wp_lost_distance`
+- `wp_lost_dst`
 
 For this type of parameter, you have to include the namespace: "GripperParameter."
 Example: `GripperParameter.use_brk`
@@ -133,11 +153,8 @@ rqt
 
 Open:
 - Plugins/Configuration/Parameter Reconfigure: For changing parameters.
-- Plugins/Robot Tools/Runtime Monitor:  For viewing diagnostics.
 - Plugins/Services/Service Caller: For calling services.
-- Plugins/Topic/Message Publisher: For publishing messages.
 - Plugins/Topic/Topic Monitor: For viewing all messages.
-
 
 Additionally, you can refer to 'example.cpp' for guidance on using this driver in your code. To run the example, start 'schunk_launch.py' (or 'schunk_rqt_launch.py') and then execute the example:
 ```
