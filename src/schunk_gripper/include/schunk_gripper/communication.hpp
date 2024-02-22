@@ -106,8 +106,10 @@
 #define ENUM_DATA 8
 #define FLOAT_DATA 18
 //Supported Firmware handling in schunk_gripper_lib.hpp void getVersions() && checkVersions() in schunk_gripper_wrapper
-#define SUPPORTED_FIRMWARE_VERSION 502
-#define SUPPORTED_COMMUNICATION_VERSION 1.55
+#define MIN_SUPPORTED_FIRMWARE_VERSION 501
+#define MIN_SUPPORTED_COMMUNICATION_VERSION 1.55
+#define MAX_SUPPORTED_FIRMWARE_VERSION 502
+#define MAX_SUPPORTED_COMMUNICATION_VERSION 1.55
 
 //Old comm_version 1.55.1 & sw_version 5.2.0.81896
 #define ACTUAL_POS_OFFSET "15" //Used for Feedbacks!

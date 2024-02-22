@@ -272,15 +272,22 @@ void SchunkGripperNode::advertiseConnectionRelevant()
 //Checks if the software and communication right Versions
 void SchunkGripperNode::checkVersions()
 {
-    comm_version_double = std::stod(comm_version.substr(0, sizeof(SUPPORTED_COMMUNICATION_VERSION) - 1));   //minus termination null
-    if(  SUPPORTED_COMMUNICATION_VERSION > comm_version_double 
-      && SUPPORTED_COMMUNICATION_VERSION < comm_version_double 
-      && SUPPORTED_FIRMWARE_VERSION > sw_version 
-      && SUPPORTED_FIRMWARE_VERSION < sw_version)    //Depends on 
+    comm_version_double = std::stod(comm_version.substr(0, sizeof(MIN_SUPPORTED_COMMUNICATION_VERSION) - 1));   //minus termination null
+    if(  MIN_SUPPORTED_COMMUNICATION_VERSION > comm_version_double 
+      || MAX_SUPPORTED_COMMUNICATION_VERSION < comm_version_double 
+      || MIN_SUPPORTED_FIRMWARE_VERSION > sw_version 
+      || MAX_SUPPORTED_FIRMWARE_VERSION < sw_version)    //Depends on 
     {
         RCLCPP_WARN_STREAM(this->get_logger(), "Gripper Versions not supported.\n" << "Used communictation software version: " << comm_version_double
-                        << "\nNeeded: " << SUPPORTED_COMMUNICATION_VERSION << "\nUsed software version: " << sw_version << "\nNeeded: " << SUPPORTED_FIRMWARE_VERSION
+                        << "\nNeeded: " << MIN_SUPPORTED_COMMUNICATION_VERSION << " to " << MAX_SUPPORTED_COMMUNICATION_VERSION << "\nUsed software version: " << sw_version 
+                        << "\nNeeded: " << MIN_SUPPORTED_FIRMWARE_VERSION << " to " << MAX_SUPPORTED_FIRMWARE_VERSION
                         << std::endl);
+
+        wrong_version = true;
+    }
+    else
+    {
+        wrong_version = false;
     }
 }
 //Declares Parameter
