@@ -11,7 +11,7 @@
 };
 
 std::map<std::string, std::string> inst_param = 
-{   
+{  
     {GRP_POS_MARGIN_INST,  "Gripper_Parameter.grp_pos_margin"},
     {GRP_PREPOS_DELTA_INST,  "Gripper_Parameter.grp_prepos_delta"},
     {ZERO_POS_OFS_INST,  "Gripper_Parameter.zero_pos_ofs"},
@@ -120,6 +120,8 @@ SchunkGripperNode::SchunkGripperNode(const rclcpp::NodeOptions &options) :
     advertiseTopics();
     advertiseServices();
     advertiseActions();
+
+    RCLCPP_INFO(this->get_logger(), "Node initialized!");
 }
 //State msg update
 void SchunkGripperNode::publishStateMsg()
@@ -1063,7 +1065,7 @@ void SchunkGripperNode::publishState()
             }
         }
     }
-    
+
     if( ((doing_something == true && endCondition() && action_active == false) //If doing_something was active, it was not an action and the modul is in Endcondition
     && connection_error == "OK")                                               //If there are no problems with the Connection
     && !gripperBitInput(PRE_HOLDING))                                          //If the gripper has not pre-hold -> next outputs
