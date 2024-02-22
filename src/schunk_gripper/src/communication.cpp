@@ -49,7 +49,7 @@ std::string AnybusCom::changeEndianFormat(const std::string &hexString)
     }
     return endian_changed;
 }
-
+//Post plc_sync_output
 void AnybusCom::postCommand()
 {  
     CURLcode res;

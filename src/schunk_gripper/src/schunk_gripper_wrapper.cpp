@@ -122,7 +122,7 @@ SchunkGripperNode::SchunkGripperNode(const rclcpp::NodeOptions &options) :
     advertiseActions();
 }
 //State msg update
-void SchunkGripperNode::updateStateMsg()
+void SchunkGripperNode::publishStateMsg()
 {
     msg.command_received_toggle = gripperBitInput(COMMAND_RECEIVED_TOGGLE); 
 
@@ -151,6 +151,8 @@ void SchunkGripperNode::updateStateMsg()
     msg.ready_for_shutdown = gripperBitInput(READY_FOR_SHUTDOWN);
     msg.workpiece_pre_grip_started = gripperBitInput(PRE_HOLDING);
     msg.grip_force_and_position_maintenance_activated = gripperBitInput(BRAKE_ACTIVE);
+
+    statePublisher->publish(msg);
 }
 //Advertise Services
 void SchunkGripperNode::advertiseServices()
@@ -377,7 +379,7 @@ rclcpp_action::GoalResponse SchunkGripperNode::handle_goal(const rclcpp_action::
             
             set_command = FAST_STOP;
             
-            post_requested = true;
+            
             sendService(lock);
             lock_service.unlock();
             //if command received, get values
@@ -436,7 +438,7 @@ void SchunkGripperNode::setFinalState(std::shared_ptr<restype> res, const std::s
         std::unique_lock<std::mutex> lock_service(lock_service_post);
         set_command = FAST_STOP;
         
-        post_requested = true;
+        
         sendService(lock);
         lock_service.unlock();
         
@@ -564,7 +566,7 @@ try
     set_speed = mm2mu(goal->velocity_of_movement);
     set_command = commands_str.at(actual_command);
     
-    post_requested = true;
+    
     sendAction();
     lock_service.unlock();
     
@@ -609,7 +611,7 @@ try
     set_speed = mm2mu(goal->velocity_of_movement);
     set_command = commands_str.at(actual_command);
     
-    post_requested = true;
+    
     sendAction();
     lock_service.unlock();
 
@@ -662,7 +664,7 @@ try
     if(gripperBitOutput(GRIP_DIRECTION) != goal->grip_direction)
     set_command |= GRIP_DIRECTION;
 
-    post_requested = true;       
+           
     sendAction();
     lock_service.unlock();
 
@@ -714,7 +716,7 @@ try
     if(gripperBitOutput(GRIP_DIRECTION) != goal->grip_direction)
     set_command |= GRIP_DIRECTION;
 
-    post_requested = true;
+    
     sendAction();
     lock_service.unlock();
 
@@ -766,7 +768,7 @@ try
     if(gripperBitOutput(GRIP_DIRECTION) != goal->grip_direction)
     set_command |= GRIP_DIRECTION;
 
-    post_requested = true;
+    
     sendAction();
     lock_service.unlock();
 
@@ -818,7 +820,7 @@ try
     if(gripperBitOutput(GRIP_DIRECTION) != goal->grip_direction)
     set_command |= GRIP_DIRECTION;
 
-    post_requested = true;
+    
     sendAction();
     lock_service.unlock();
 
@@ -863,7 +865,7 @@ try
     
     set_command = commands_str.at(actual_command);
     
-    post_requested = true;     
+         
     sendAction();
     lock_service.unlock();
 
@@ -923,7 +925,7 @@ try
     if(gripperBitOutput(GRIP_DIRECTION) != 0 && set_command != MOVE_TO_ABSOLUTE_POSITION)
     set_command |= GRIP_DIRECTION;
 
-    post_requested = true;   
+       
     sendAction();
     lock_service.unlock();
 
@@ -1035,8 +1037,9 @@ void SchunkGripperNode::publishState()
     *cycletime = now - last_time;
     last_time = now;
 
-    std::unique_lock<std::recursive_mutex> lock(lock_mutex);
-
+    std::unique_lock<std::recursive_mutex> lock(lock_mutex, std::defer_lock);
+    if(lock.try_lock())
+    {
        try
         {
             runGets();
@@ -1059,6 +1062,7 @@ void SchunkGripperNode::publishState()
                 std::this_thread::sleep_for(sleep.to_chrono<std::chrono::milliseconds>());
             }
         }
+    }
     
     if( ((doing_something == true && endCondition() && action_active == false) //If doing_something was active, it was not an action and the modul is in Endcondition
     && connection_error == "OK")                                               //If there are no problems with the Connection
@@ -1072,9 +1076,7 @@ void SchunkGripperNode::publishState()
         RCLCPP_WARN(this->get_logger(),"Workpiece lost!");
     }
     //Update msg
-    updateStateMsg();
-    //Publish state
-    statePublisher->publish(msg);
+    publishStateMsg();
 }
 //Reconnect
 void SchunkGripperNode::reconnect()
@@ -1173,14 +1175,15 @@ void SchunkGripperNode::brake_test_srv(const std::shared_ptr<BrakeTest::Request>
         
         set_command = BRAKE_TEST;
         
-        post_requested = true;
+        
         sendService(lock);
         lock_service.unlock();
         //if command received, get values
         if(handshake != gripperBitInput(COMMAND_RECEIVED_TOGGLE)) 
         while (rclcpp::ok() && check() && !gripperBitInput(SUCCESS))   
-        runGets();
-
+        {
+            runGets();
+        }
         if((gripperBitInput(SUCCESS) == true) && (handshake != gripperBitInput(COMMAND_RECEIVED_TOGGLE)))
         {
             res->brake_test_successful = true;
@@ -1193,7 +1196,7 @@ void SchunkGripperNode::brake_test_srv(const std::shared_ptr<BrakeTest::Request>
             gripper_updater->force_update();
             res->error_code = error_str;
             res->brake_test_successful = false;
-            RCLCPP_INFO(this->get_logger(),"Brake test not successful!");
+            RCLCPP_INFO(this->get_logger(),"Brake test failed!");
             
         }
     }
@@ -1260,13 +1263,15 @@ void SchunkGripperNode::stop_srv(const std::shared_ptr<Stop::Request>, std::shar
         
         set_command = STOP;
 
-        post_requested = true;
+        
         sendService(lock);
         lock_service.unlock();
         //if command received, get values
         if(handshake != gripperBitInput(COMMAND_RECEIVED_TOGGLE)) 
         while (rclcpp::ok() && check() && !gripperBitInput(SUCCESS))   
-        runGets();            
+        {
+            runGets();
+        }          
     }
     catch(const char* res)
     {
@@ -1297,13 +1302,15 @@ void SchunkGripperNode::fast_stop_srv(const std::shared_ptr<FastStop::Request>, 
         
         set_command = FAST_STOP;
 
-        post_requested = true;
+        
         sendService(lock);
         lock_service.unlock();
         //if command received, get values
         if(handshake != gripperBitInput(COMMAND_RECEIVED_TOGGLE)) 
         while (rclcpp::ok() && check())
-        runGets(); 
+        {
+            runGets();
+        }
 
         if(gripperBitInput(GRIPPER_ERROR))
         {
@@ -1337,7 +1344,7 @@ void SchunkGripperNode::softreset_srv(const std::shared_ptr<Softreset::Request>,
         
         set_command = SOFT_RESET;
 
-        post_requested = true;
+        
         sendService(lock);
         lock_service.unlock();
     }
@@ -1393,13 +1400,15 @@ void SchunkGripperNode::prepare_for_shutdown_srv(const std::shared_ptr<PrepareFo
         std::unique_lock<std::mutex> lock_service(lock_service_post);
         set_command = PREPARE_FOR_SHUTDOWN;
 
-        post_requested = true;
+        
         sendService(lock);
         lock_service.unlock();
         //if command received, get values
         if(handshake != gripperBitInput(COMMAND_RECEIVED_TOGGLE))
         while (rclcpp::ok() && check() && !gripperBitInput(READY_FOR_SHUTDOWN))
-        runGets();
+        {
+            runGets();
+        }
     }
     catch(const char* res)
     {
@@ -1434,13 +1443,15 @@ void SchunkGripperNode::releaseForManualMov_srv(const std::shared_ptr<ReleaseFor
             
             set_command = FAST_STOP;
 
-            post_requested = true;
+            
             sendService(lock);
             lock_service.unlock();
             //if command received, get values 
             if(handshake != gripperBitInput(COMMAND_RECEIVED_TOGGLE)) 
             while (rclcpp::ok() && check())
-            runGets();
+            {
+                runGets();
+            }
 
             gripper_updater->force_update();
             RCLCPP_WARN(this->get_logger(),"An error was provoked so that you can take the workpiece: %s\n", getErrorString(splitted_Diagnosis[2]).c_str());
@@ -1451,14 +1462,15 @@ void SchunkGripperNode::releaseForManualMov_srv(const std::shared_ptr<ReleaseFor
         
         set_command = EMERGENCY_RELEASE;
         
-        post_requested = true;
+        
         sendService(lock);
         lock_service.unlock();
         //if command received, get values
         if(handshake != gripperBitInput(COMMAND_RECEIVED_TOGGLE)) 
         while(rclcpp::ok() && !gripperBitInput(EMERGENCY_RELEASED))
-        runGets();
-
+        {
+            runGets();
+        }
         lock.unlock();
     }
     
@@ -1873,7 +1885,6 @@ try
             set_position = static_cast<uint32_t>(this->get_parameter("Control_Parameter.move_gripper").as_double()*1000);
             set_speed = static_cast<uint32_t>(this->get_parameter("Control_Parameter.move_gripper_velocity").as_double()*1000);
             
-            post_requested = true;
             sendAction();
             doing_something = true;
 
@@ -1890,7 +1901,7 @@ try
         if(gripperBitOutput(GRIP_DIRECTION) != this->get_parameter("Control_Parameter.grip_direction").as_bool())
         {set_command |= GRIP_DIRECTION;}
         
-        post_requested = true;
+        
         sendAction();
         doing_something = true;
 
@@ -1905,7 +1916,7 @@ try
             actual_command = "RELEASE WORKPIECE";
             set_command = commands_str.at(actual_command);
             
-            post_requested = true;
+            
             sendAction();
             doing_something = true;
             lock_service.unlock();

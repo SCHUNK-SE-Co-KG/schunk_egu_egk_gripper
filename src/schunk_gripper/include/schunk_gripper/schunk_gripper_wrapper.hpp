@@ -101,7 +101,7 @@ class SchunkGripperNode :  public rclcpp::Node, public Gripper
     rclcpp::Time     last_time;
     rclcpp::Rate     limiting_rate;    
     //Basic Functions
-    void updateStateMsg();
+    void publishStateMsg();
     void finishedCommand();
     void declareParameter();
     void advertiseServices();

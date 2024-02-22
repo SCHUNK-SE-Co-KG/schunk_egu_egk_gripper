@@ -360,50 +360,31 @@ bool Gripper::changeIp(const std::string &new_ip)
 //send action directly after current (cyclic-) http or immediately
 void Gripper::sendAction()
 {
-         std::unique_lock<std::recursive_mutex> lock(lock_mutex, std::defer_lock);
+            post_requested = true;
 
-         if(lock.try_lock())
-        {
-            handshake = gripperBitInput(COMMAND_RECEIVED_TOGGLE);
-            runPost(set_command, set_position, set_speed, set_gripping_force);
-            getWithInstance<uint32_t>(PLC_SYNC_INPUT_INST);
-            post_requested = false;
-            //Look if gripper received command     
-            if(handshake == gripperBitInput(COMMAND_RECEIVED_TOGGLE)) throw int32_t(-1);
+            std::unique_lock<std::recursive_mutex> lock(lock_mutex);
+
+            if(post_requested == true) 
+            {
+               handshake = gripperBitInput(COMMAND_RECEIVED_TOGGLE);
+      
+               runPost(set_command, set_position, set_speed, set_gripping_force);
+               getWithInstance<uint32_t>(PLC_SYNC_INPUT_INST);
+               post_requested = false;
+            }
+
+            if(handshake == gripperBitInput(COMMAND_RECEIVED_TOGGLE)) 
+            {
+               post_requested = false;
+               throw int32_t(-1);    
+            }
             lock.unlock();
-        }
-        else
-        {
-               lock.lock();
-
-               if(post_requested == true) 
-               {
-                  handshake = gripperBitInput(COMMAND_RECEIVED_TOGGLE);
-         
-                  runPost(set_command, set_position, set_speed, set_gripping_force);
-                  getWithInstance<uint32_t>(PLC_SYNC_INPUT_INST);
-                  post_requested = false;
-               }
-
-            if(handshake == gripperBitInput(COMMAND_RECEIVED_TOGGLE)) throw int32_t(-1);    
-            
-            lock.unlock();
-        }
 }
-//send service directly after current (cyclic-) http or immediately
+//send service directly after current (cyclic-) http or immediately. Locks the mutex. Does not unlock!
 void Gripper::sendService(std::unique_lock<std::recursive_mutex> &lock)
 {   
-      
-      if(lock.try_lock())
-      {
-         handshake = gripperBitInput(COMMAND_RECEIVED_TOGGLE);
-         runPost(set_command);
-         getWithInstance<uint32_t>(PLC_SYNC_INPUT_INST);
-         post_requested = false;
-      }
+         post_requested = true;
 
-      else
-      {
          lock.lock();
 
          if(post_requested == true) 
@@ -413,7 +394,6 @@ void Gripper::sendService(std::unique_lock<std::recursive_mutex> &lock)
             getWithInstance<uint32_t>(PLC_SYNC_INPUT_INST);
             post_requested = false;
          }
-      }
 }
 
 Gripper::~Gripper()
