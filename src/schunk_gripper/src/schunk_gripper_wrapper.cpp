@@ -20,7 +20,7 @@ std::map<std::string, std::string> inst_param =
     {WP_LOST_DISTANCE_INST,  "Gripper_Parameter.wp_lost_dst"}
 };
 
-//Initialize the ROS Driverntr
+//Initialize the ROS Driver
 SchunkGripperNode::SchunkGripperNode(const rclcpp::NodeOptions &options) : 
     rclcpp::Node("schunk_gripper_driver", options),
     Gripper(this->declare_parameter("IP", "0.0.0.0", parameter_descriptor("IP-Address of the gripper"))),
@@ -2043,6 +2043,14 @@ catch(const char* res)  //Lost Connection catch
 
 }
 template<typename GoalType>
+/**
+ * @brief Handles the cancellation of a goal.
+ *
+ * This function is called when a request to cancel a goal is received.
+ *
+ * @param goal_handle A shared pointer to the goal handle.
+ * @return The response indicating whether the cancellation request is accepted.
+ */
 rclcpp_action::CancelResponse SchunkGripperNode::handle_cancel(const std::shared_ptr<rclcpp_action::ServerGoalHandle<GoalType>> goal_handle)
 {
         (void)goal_handle;
@@ -2058,6 +2066,14 @@ void SchunkGripperNode::handle_accepted_rel(const std::shared_ptr<rclcpp_action:
     // this needs to return quickly to avoid blocking the executor, so spin up a new thread
 }
 
+/**
+ * @brief Handles the accepted absolute position goal for the SchunkGripperNode.
+ *
+ * This function is called when a new absolute position goal is accepted by the server.
+ * It spins up a new thread to execute the moveAbsExecute function, allowing the main executor to continue without blocking.
+ *
+ * @param goal_handle The goal handle for the accepted absolute position goal.
+ */
 void SchunkGripperNode::handle_accepted_abs(const std::shared_ptr<rclcpp_action::ServerGoalHandle<MoveToAbsolutePosition>> goal_handle)
 {
       using namespace std::placeholders;
@@ -2065,6 +2081,14 @@ void SchunkGripperNode::handle_accepted_abs(const std::shared_ptr<rclcpp_action:
     // this needs to return quickly to avoid blocking the executor, so spin up a new thread
 }
 
+/**
+ * @brief Handles the accepted grip_egk action goal.
+ *
+ * This function is responsible for handling the accepted grip_egk action goal.
+ * It spins up a new thread to execute the grip action asynchronously.
+ *
+ * @param goal_handle A shared pointer to the goal handle of the grip_egk action.
+ */
 void SchunkGripperNode::handle_accepted_grip_egk(const std::shared_ptr<rclcpp_action::ServerGoalHandle<GripWithVelocity>> goal_handle)
 {
       using namespace std::placeholders;
@@ -2072,6 +2096,15 @@ void SchunkGripperNode::handle_accepted_grip_egk(const std::shared_ptr<rclcpp_ac
     // this needs to return quickly to avoid blocking the executor, so spin up a new thread
 }
 
+/**
+ * @brief Handles the accepted grip_egu goal.
+ *
+ * This function is responsible for handling the accepted grip_egu goal. It spins up a new thread
+ * to execute the grip_egu action asynchronously, allowing the main executor to continue processing
+ * other tasks without being blocked.
+ *
+ * @param goal_handle A shared pointer to the goal handle of the accepted grip_egu goal.
+ */
 void SchunkGripperNode::handle_accepted_grip_egu(const std::shared_ptr<rclcpp_action::ServerGoalHandle<Grip>> goal_handle)
 {
       using namespace std::placeholders;
@@ -2079,6 +2112,14 @@ void SchunkGripperNode::handle_accepted_grip_egu(const std::shared_ptr<rclcpp_ac
     // this needs to return quickly to avoid blocking the executor, so spin up a new thread
 }
 
+/**
+ * @brief Handles the accepted grip position and velocity goal for EGK.
+ *
+ * This function is called when a grip position and velocity goal is accepted by the server.
+ * It spins up a new thread to execute the gripWithPositionExecute function.
+ *
+ * @param goal_handle The goal handle for the accepted goal.
+ */
 void SchunkGripperNode::handle_accepted_gripPos_egk(const std::shared_ptr<rclcpp_action::ServerGoalHandle<GripWithPositionAndVelocity>> goal_handle)
 {
       using namespace std::placeholders;
@@ -2086,6 +2127,14 @@ void SchunkGripperNode::handle_accepted_gripPos_egk(const std::shared_ptr<rclcpp
     // this needs to return quickly to avoid blocking the executor, so spin up a new thread
 }
 
+/**
+ * @brief Handles the accepted grip position goal for EGU
+ *
+ * This function is responsible for handling the accepted grip position.
+ * It spins up a new thread to execute the gripWithPosition_eguExecute function.
+ *
+ * @param goal_handle The goal handle for the accepted grip position.
+ */
 void SchunkGripperNode::handle_accepted_gripPos_egu(const std::shared_ptr<rclcpp_action::ServerGoalHandle<GripWithPosition>> goal_handle)
 {
       using namespace std::placeholders;
@@ -2093,6 +2142,14 @@ void SchunkGripperNode::handle_accepted_gripPos_egu(const std::shared_ptr<rclcpp
     // this needs to return quickly to avoid blocking the executor, so spin up a new thread
 }
 
+/**
+ * @brief Handles the accepted release goal for the SchunkGripperNode.
+ *
+ * This function is called when a release goal is accepted by the action server.
+ * It spins up a new thread to execute the release action in the background, allowing the main executor to continue running.
+ *
+ * @param goal_handle A shared pointer to the goal handle for the accepted release goal.
+ */
 void SchunkGripperNode::handle_accepted_release(const std::shared_ptr<rclcpp_action::ServerGoalHandle<ReleaseWorkpiece>> goal_handle)
 {
       using namespace std::placeholders;
@@ -2100,6 +2157,14 @@ void SchunkGripperNode::handle_accepted_release(const std::shared_ptr<rclcpp_act
     // this needs to return quickly to avoid blocking the executor, so spin up a new thread
 }
 
+/**
+ * @brief Handles the accepted control action goal.
+ *
+ * This function is called when a control action goal is accepted by the server.
+ * It spins up a new thread to execute the control action asynchronously.
+ *
+ * @param goal_handle The goal handle for the accepted control action.
+ */
 void SchunkGripperNode::handle_accepted_control(const std::shared_ptr<rclcpp_action::ServerGoalHandle<GripperCommand>> goal_handle)
 {
       using namespace std::placeholders;
@@ -2107,6 +2172,13 @@ void SchunkGripperNode::handle_accepted_control(const std::shared_ptr<rclcpp_act
     // this needs to return quickly to avoid blocking the executor, so spin up a new thread
 }
 
+/**
+ * @brief Destructor for the SchunkGripperNode class.
+ * 
+ * This destructor is responsible for performing a fast stop if the gripper is moving or doing something.
+ * It tries to perform the fast stop three times before giving up.
+ * After the fast stop, it logs a message indicating that the node has been shutdown.
+ */
 SchunkGripperNode::~SchunkGripperNode()
 { 
   std::lock_guard<std::recursive_mutex> lock(lock_mutex);

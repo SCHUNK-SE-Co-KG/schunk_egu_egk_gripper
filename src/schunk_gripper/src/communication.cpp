@@ -18,6 +18,7 @@ size_t writeCallback(void* contents, size_t size, size_t nmemb, void* userp)
     response->append(static_cast<char*>(contents), total_size);
     return total_size;
 }
+
 //Initialize the plcs and Addresses
 AnybusCom::AnybusCom(const std::string &ip) : ip(ip)
 {       
@@ -26,6 +27,7 @@ AnybusCom::AnybusCom(const std::string &ip) : ip(ip)
         curl = curl_easy_init();
 
 }
+
 //Split a hexadecimal String, which represents an Array into its parts (HERE THE DATATYPE IS ALWAYS 4 Bytes)
 std::vector<std::string> AnybusCom::splitResponse(const std::string &hex_str, const size_t &count, const size_t &data_type_size)
 {
@@ -37,6 +39,7 @@ std::vector<std::string> AnybusCom::splitResponse(const std::string &hex_str, co
     }
     return splitted;
 }
+
 //Post Plc_sync_output
 std::string AnybusCom::changeEndianFormat(const std::string &hexString)
 {
@@ -49,14 +52,64 @@ std::string AnybusCom::changeEndianFormat(const std::string &hexString)
     }
     return endian_changed;
 }
-//Post plc_sync_output
-void AnybusCom::postCommand()
-{  
+
+/**
+ * @brief Performs a CURL request with the given POST data.
+ * 
+ * This function sets up the CURL options, including the URL, POST data, and write callback.
+ * It then performs the CURL request and handles the response.
+ * If the request fails, an exception is thrown with the corresponding error message.
+ * 
+ * @param post The POST data to send in the request.
+ * @throws const char* An exception with the error message if the request fails.
+ */
+void AnybusCom::performCurlRequest(std::string post)
+{
     CURLcode res;
     std::string response;
-    
-    std::string post;
-    post = "inst=0x0048&value=";
+
+    curl_easy_setopt(curl, CURLOPT_URL, update_address.c_str());
+    curl_easy_setopt(curl, CURLOPT_POSTFIELDS, post.c_str());
+    curl_easy_setopt(curl, CURLOPT_POST, 1);
+    curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, writeCallback);
+    curl_easy_setopt(curl, CURLOPT_WRITEDATA, &response);
+    curl_easy_setopt(curl, CURLOPT_TIMEOUT, 1L);
+
+    res = curl_easy_perform(curl);
+
+    if (res != CURLE_OK)
+    {
+        fprintf(stderr, "curl_easy_perform_failed: %s\n", curl_easy_strerror(res));
+        curl_easy_reset(curl);
+        throw curl_easy_strerror(res);
+    }
+    else  
+    {
+        json_data.clear();
+        json_data = nlohmann::json::parse(response);    //Parse server response
+        if(json_data["result"] != 0)  
+        {
+            std::string sever_res = "Server response: ";
+            sever_res.append(to_string(json_data["result"]));
+            std::cout << sever_res << std::endl;
+            throw sever_res.c_str();
+        }
+    }
+    curl_easy_reset(curl);
+}
+
+/**
+ * @brief Posts a command to the Anybus communication module.
+ * 
+ * This function constructs a command string and sends it to the Anybus communication module.
+ * The command string is constructed by appending the values of the plc_sync_output array as hexadecimal strings.
+ * If the endian_format is 0, indicating big endian, the double_words are treated as big endian.
+ * 
+ * @note This function requires the curl library to be initialized.
+ */
+void AnybusCom::postCommand()
+{  
+    std::string post = "inst=0x0048&value=";
 
     if(endian_format == 0) not_double_word = false;                     //Double_words are always big endian
 
@@ -67,82 +120,39 @@ void AnybusCom::postCommand()
     }
     if (curl) 
     {
-        //POST
-        curl_easy_setopt(curl, CURLOPT_URL, update_address.c_str());
-        curl_easy_setopt(curl, CURLOPT_POSTFIELDS, post.c_str());
-        curl_easy_setopt(curl, CURLOPT_POST, 1);
-        curl_easy_setopt(curl,CURLOPT_WRITEFUNCTION, writeCallback);
-        curl_easy_setopt(curl, CURLOPT_WRITEDATA, &response);
-        curl_easy_setopt(curl, CURLOPT_TIMEOUT, 1L);
-
-        res = curl_easy_perform(curl);
-
-        if (res != CURLE_OK)
-        {
-            fprintf(stderr, "curl_easy_perform_failed: %s\n", curl_easy_strerror(res));
-            curl_easy_reset(curl);
-            throw curl_easy_strerror(res);
-        }
-        else  
-        {
-            json_data.clear();
-            json_data = nlohmann::json::parse(response);    //Parse server response
-            if(json_data["result"] != 0)  
-            {
-                std::string sever_res = "Server response: ";
-                sever_res.append(to_string(json_data["result"]));
-                std::cout << sever_res << std::endl;
-                throw  sever_res.c_str();
-            }
-        }
-    curl_easy_reset(curl);
+        performCurlRequest(post);
     }
 }
-//Post a Parameter with an instance and Value
+
+/**
+ * @brief Posts a parameter to the Anybus communication module.
+ * 
+ * This function posts a parameter to the Anybus communication module
+ * using the specified instruction and value. The instruction and value
+ * are passed as strings. The function checks the length of the instruction
+ * and value to ensure they are within the allowed limits. If the length
+ * of either the instruction or value exceeds the limits, an exception is thrown.
+ * 
+ * @param inst The instruction to be posted.
+ * @param value The value to be posted.
+ * @throws An exception if the length of the instruction or value exceeds the limits.
+ */
 void AnybusCom::postParameter(std::string inst, std::string value)
 {
-    CURLcode res;
-    std::string response;
     std::string post;
     if(inst.length() <= 20 && value.length() <= 500)
     {
         post = "inst=" + inst;
         post.append("&value=" + value);
     }
-    else throw "To many symbols.";
+    else throw "Too many symbols.";
 
     if (curl) 
     {
-        curl_easy_setopt(curl, CURLOPT_URL, update_address.c_str());
-        curl_easy_setopt(curl, CURLOPT_POSTFIELDS, post.c_str());
-        curl_easy_setopt(curl, CURLOPT_POST, 1);
-        curl_easy_setopt(curl,CURLOPT_WRITEFUNCTION, writeCallback);
-        curl_easy_setopt(curl, CURLOPT_WRITEDATA, &response);
-        curl_easy_setopt(curl, CURLOPT_TIMEOUT, 1L);
-
-        res = curl_easy_perform(curl);
-
-        if (res != CURLE_OK)
-        {
-            fprintf(stderr, "curl_easy_perform_failed: %s\n", curl_easy_strerror(res));
-            curl_easy_reset(curl);
-            throw curl_easy_strerror(res);
-        }
-        else  
-        {
-            json_data.clear();
-            json_data = nlohmann::json::parse(response);    //Parse server response
-            if(json_data["result"] != 0)  
-            {
-                std::string sever_res = "Server response: ";
-                sever_res.append(to_string(json_data["result"]));
-                std::cout << sever_res << std::endl;
-                throw sever_res.c_str();
-            }
-        }
+        performCurlRequest(post);
     }
-     curl_easy_reset(curl);
 }
+
 //Inits used Addresses with the ip
 void AnybusCom::initAddresses()
 {   
@@ -161,6 +171,7 @@ void AnybusCom::initAddresses()
     metadata_address.insert(7,ip);
 
 }
+
 //Translates the received string of double_word to an integer[4] an saves it in plc_sync_input
 void AnybusCom::updatePlc(std::string &hex_str,const std::string &inst)
 {   
@@ -179,8 +190,8 @@ void AnybusCom::updatePlc(std::string &hex_str,const std::string &inst)
        plc->at(i) = readParam<uint32_t>(save[i]);
        not_double_word = true;
     }
-
 }
+
 //Feedback strings getting translate and stored in corresponding variables
 void AnybusCom::updateFeedback(const std::string &hex_str)
 {      
@@ -191,6 +202,7 @@ void AnybusCom::updateFeedback(const std::string &hex_str)
     actual_velocity = readParam<float>(splitted[1]);
     actual_motor_current=  readParam<float>(splitted[2]);
 }
+
 //Update the plcOutput if a Command is send
 void AnybusCom::updatePlcOutput(uint32_t command, uint32_t position, uint32_t velocity, uint32_t effort)
 {   
@@ -224,6 +236,7 @@ void AnybusCom::updatePlcOutput(uint32_t command, uint32_t position, uint32_t ve
     plc_sync_output[2] = velocity;
     plc_sync_output[3] = effort; 
 }
+
 //Gets to enumNumber a corresponding Error String. response is saved in json_data
 void AnybusCom::getEnums(const char inst[7], const uint16_t &enumNum)
 {
@@ -262,6 +275,7 @@ void AnybusCom::getEnums(const char inst[7], const uint16_t &enumNum)
         curl_easy_reset(curl);
     }
 }
+
 //Used for getting dataformat
 void AnybusCom::getInfo()
 {

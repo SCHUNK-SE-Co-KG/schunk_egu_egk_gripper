@@ -224,6 +224,8 @@ class AnybusCom
 
         uint16_t grp_prehold_time;   //Grip prehold time
 
+        void performCurlRequest(std::string post);
+
         AnybusCom(const std::string &ip);
         ~AnybusCom();
     };

@@ -57,42 +57,105 @@ std::string name_space;
 
 //Callback Functions
 
+/**
+ * @brief Callback function for handling the state message.
+ * 
+ * This function is called when a new state message is received. It updates the state_msg variable with the contents of the message.
+ * 
+ * @param msg The shared pointer to the state message.
+ */
 void stateCallback(const schunk_gripper::msg::State::SharedPtr msg)
 {
     state_msg = *msg;
 }
 
+/**
+ * @brief Callback function for the joint state message.
+ * 
+ * This function is called whenever a new joint state message is received.
+ * It updates the joint_state_msg variable with the latest joint state data.
+ * 
+ * @param msg The joint state message.
+ */
 void jointStateCallback(const sensor_msgs::msg::JointState::SharedPtr msg)
 {
     joint_state_msg = *msg;
 }
 
+/**
+ * @brief Callback function for handling diagnostic messages.
+ * 
+ * This function is called when a diagnostic message is received. It updates the diagnostic_msg variable with the received message.
+ * 
+ * @param msg The received diagnostic message.
+ */
 void diagnosticsCallback(const diagnostic_msgs::msg::DiagnosticArray::SharedPtr msg)
 {   
     diagnostic_msg = *msg;
 }
 
+/**
+ * @brief Callback function for the feedback of the MoveToAbsolutePosition action.
+ * 
+ * This function is called when the action server sends feedback about the progress of the goal.
+ * It logs the current position of the gripper in millimeters.
+ * 
+ * @param goal_handle The goal handle associated with the action.
+ * @param feedback The feedback received from the action server.
+ */
 void feedbackCB(rclcpp_action::ClientGoalHandle<MoveToAbsolutePosition>::SharedPtr, const std::shared_ptr<const MoveToAbsolutePosition::Feedback> feedback)
 {
     RCLCPP_INFO(rclcpp::get_logger("schunk_gripper_example"), "Gripper is at: %f mm",feedback->absolute_position);
 }
 
+/**
+ * @brief Callback function called when the execution of the EGU action is done.
+ * 
+ * This function logs whether the workpiece has been gripped or not.
+ * 
+ * @param result The result of the EGU action.
+ */
 void doneEguCb(const rclcpp_action::ClientGoalHandle<Grip>::WrappedResult & result)
 {   
     RCLCPP_INFO(rclcpp::get_logger("schunk_gripper_example"), "%s", result.result->workpiece_gripped ? "workpiece_gripped" : "Not workpiece_gripped");
 }
 
+/**
+ * @brief Callback function called when the goal is done for the EGK action client.
+ * 
+ * This function prints whether the workpiece is gripped or not based on the result.
+ * 
+ * @param result The result of the EGK action client goal.
+ */
 void doneEgkCb(const rclcpp_action::ClientGoalHandle<GripWithVelocity>::WrappedResult & result)
 {
     RCLCPP_INFO(rclcpp::get_logger("schunk_gripper_example"), "%s", result.result->workpiece_gripped ? "workpiece_gripped" : "Not workpiece_gripped");
 }
 
+/**
+ * @brief Callback function for grip action feedback.
+ * 
+ * This function is called when feedback is received from the grip action server.
+ * It logs a message if the workpiece pre-grip has started.
+ * 
+ * @param goal_handle The goal handle for the grip action.
+ * @param feedback The feedback received from the grip action server.
+ */
 void gripFeedback(rclcpp_action::ClientGoalHandle<Grip>::SharedPtr, const std::shared_ptr<const Grip::Feedback> feedback)
 {    
     if(feedback->workpiece_pre_grip_started == true) 
     RCLCPP_INFO_ONCE(rclcpp::get_logger("schunk_gripper_example"), "Pre_grip started"); 
 }
 
+/**
+ * @brief Callback function for grip velocity feedback.
+ * 
+ * This function is called when receiving feedback from the grip velocity action.
+ * It checks if the workpiece pre-grip has started and logs a message if it is true.
+ * 
+ * @param goal_handle The goal handle for the grip velocity action.
+ * @param feedback The feedback received from the grip velocity action.
+ */
 void gripVelFeedback(rclcpp_action::ClientGoalHandle<GripWithVelocity>::SharedPtr, const std::shared_ptr<const GripWithVelocity::Feedback> feedback)
 {    
     if(feedback->workpiece_pre_grip_started == true) 
@@ -102,6 +165,11 @@ void gripVelFeedback(rclcpp_action::ClientGoalHandle<GripWithVelocity>::SharedPt
 
 //Control Functions
 
+/**
+ * Moves the gripper to an absolute position and waits for the result.
+ * 
+ * @param move_abs_client The client for the MoveToAbsolutePosition action server.
+ */
 void moveAbsoluteAndWaitForResult(rclcpp_action::Client<MoveToAbsolutePosition>::SharedPtr move_abs_client)
 {
     //Move to 0 mm with 100 mm/s
@@ -118,9 +186,15 @@ void moveAbsoluteAndWaitForResult(rclcpp_action::Client<MoveToAbsolutePosition>:
     RCLCPP_WARN(rclcpp::get_logger("schunk_gripper_example"), "%s: %f mm", state_msg.doing_command.c_str(), goal_abs.absolute_position);
 
     if(move_abs_client->async_get_result(result.get()).get().code == rclcpp_action::ResultCode::SUCCEEDED)
-    RCLCPP_INFO(rclcpp::get_logger("schunk_gripper_example"), "On the right position");     
+    RCLCPP_INFO(rclcpp::get_logger("schunk_gripper_example"), "At the right position");     
 }
 
+/**
+ * Moves the gripper to a relative position and stops it.
+ *
+ * @param move_rel_client The client for the MoveToRelativePosition action server.
+ * @param stop_client The client for the Stop service.
+ */
 void moveRelativeAndStop(rclcpp_action::Client<MoveToRelativePosition>::SharedPtr move_rel_client, rclcpp::Client<Stop>::SharedPtr stop_client)
 {
     MoveToRelativePosition::Goal goal_rel;
@@ -146,6 +220,14 @@ void moveRelativeAndStop(rclcpp_action::Client<MoveToRelativePosition>::SharedPt
     RCLCPP_INFO(rclcpp::get_logger("schunk_gripper_example"), "ResultCode: %i", static_cast<int>(final_res.code));
 }
 
+/**
+ * @brief Moves the gripper to a relative position and cancels the movement.
+ * 
+ * This function sends a goal to move the gripper to a relative position and then cancels the movement
+ * after a specified duration. It performs a fast stop to halt the movement.
+ * 
+ * @param move_rel_client A shared pointer to the action client for moving the gripper to a relative position.
+ */
 void MoveRelativeAndCancel(rclcpp_action::Client<MoveToRelativePosition>::SharedPtr move_rel_client)
 {
     MoveToRelativePosition::Goal goal_rel;
@@ -160,6 +242,14 @@ void MoveRelativeAndCancel(rclcpp_action::Client<MoveToRelativePosition>::Shared
     RCLCPP_WARN(rclcpp::get_logger("schunk_gripper_example"), "%s", state_msg.doing_command.c_str());
 }
 
+/**
+ * @brief Sends an acknowledge request to the acknowledge server.
+ * 
+ * This function sends an acknowledge request to the acknowledge server using the provided client.
+ * It logs the result of the request as "Acknowledged" or "Not acknowledged".
+ * 
+ * @param acknowledge_client The client used to send the acknowledge request.
+ */
 void acknowledge(rclcpp::Client<Acknowledge>::SharedPtr acknowledge_client)
 {
     Acknowledge::Request::SharedPtr acknowledge_srv = std::make_shared<Acknowledge::Request>();
@@ -171,6 +261,14 @@ void acknowledge(rclcpp::Client<Acknowledge>::SharedPtr acknowledge_client)
 
 }
 
+/**
+ * @brief Changes the configuration of the gripper.
+ * 
+ * This function retrieves the current configuration parameters of the gripper,
+ * modifies them, and sets the new configuration parameters.
+ * 
+ * @param param_client A shared pointer to the AsyncParametersClient used to retrieve and set parameters.
+ */
 void changeConfiguration(std::shared_ptr<rclcpp::AsyncParametersClient> param_client)
 {
     //GET CURRENT CONFIGURATION!!!!! ELSE YOU COULD SAY THE GRIPPER TO MOVE, EVEN IF YOU DONT WANT IT!!!
@@ -196,6 +294,15 @@ void changeConfiguration(std::shared_ptr<rclcpp::AsyncParametersClient> param_cl
     RCLCPP_INFO(rclcpp::get_logger("schunk_gripper_example") ,"%s: %li", parameter.at(1).get_name().c_str(), parameter.at(1).as_int());
 }
 
+/**
+ * @brief Sends a grip command to the gripper.
+ *
+ * This function sends a grip command to the gripper using the provided grip client.
+ * It sets the gripping force and grip direction in the goal message, and registers
+ * callback functions for result and feedback handling.
+ *
+ * @param grip_client The grip client used to send the grip command.
+ */
 void gripEgu(rclcpp_action::Client<Grip>::SharedPtr grip_client)
 {
     Grip::Goal goal_grip;
@@ -213,6 +320,17 @@ void gripEgu(rclcpp_action::Client<Grip>::SharedPtr grip_client)
     }
 } 
 
+/**
+ * @brief Executes the grip action with the EGK gripper.
+ *
+ * This function sends a goal to the grip action server using the provided grip_client.
+ * The goal specifies the gripping force, grip direction, and velocity of movement.
+ * It also sets the result and feedback callbacks for the goal.
+ * After sending the goal, it waits for the handshake to be received before proceeding.
+ * Once the handshake is received, it logs a warning message and retrieves the result of the goal.
+ *
+ * @param grip_client The client for the grip action server.
+ */
 void gripEgk(rclcpp_action::Client<GripWithVelocity>::SharedPtr grip_client)
 {
     GripWithVelocity::Goal goal_grip;
@@ -235,6 +353,11 @@ void gripEgk(rclcpp_action::Client<GripWithVelocity>::SharedPtr grip_client)
     }
 }
 
+/**
+ * @brief Releases the workpiece using the release_client.
+ * 
+ * @param release_client The client used to send the release goal.
+ */
 void releaseWorkpiece(rclcpp_action::Client<ReleaseWorkpiece>::SharedPtr release_client)
 {
         ReleaseWorkpiece::Goal release_goal;
@@ -249,6 +372,16 @@ void releaseWorkpiece(rclcpp_action::Client<ReleaseWorkpiece>::SharedPtr release
         
 }
 
+/**
+ * @brief Moves the gripper to an absolute position with the specified configuration parameters.
+ * 
+ * This function retrieves the control parameters for moving the gripper from the parameter server
+ * using the provided parameter client. It then sets the configuration parameters to the desired values
+ * and updates them on the parameter server. Finally, it waits for the gripper to reach the desired position
+ * and logs a message indicating if the position was reached.
+ * 
+ * @param param_client A shared pointer to the parameter client used to retrieve and update the parameters.
+ */
 void moveAbsWithConfig(std::shared_ptr<rclcpp::AsyncParametersClient> param_client)
 {
     std::vector<std::string> parameter_names;
@@ -280,6 +413,13 @@ void moveAbsWithConfig(std::shared_ptr<rclcpp::AsyncParametersClient> param_clie
 }
 
 
+/**
+ * @brief Spins the given node using a multi-threaded executor.
+ * 
+ * This function adds the given node to a multi-threaded executor and spins it until shutdown is called.
+ * 
+ * @param node A shared pointer to the node to be spun.
+ */
 void spinFunction(std::shared_ptr<rclcpp::Node> node)
 {
     rclcpp::executors::MultiThreadedExecutor executor;
@@ -291,6 +431,23 @@ void spinFunction(std::shared_ptr<rclcpp::Node> node)
     rclcpp::shutdown();
 }
 
+/**
+ * @brief The main function of the program.
+ *
+ * This function initializes the ROS 2 node, retrieves the model parameter of the gripper, creates clients for various gripper commands, and executes the gripper commands in the following order:
+ * 1. Acknowledge any errors in the gripper.
+ * 2. Move the gripper to the absolute position of 0 mm with a velocity of 100 mm/s.
+ * 3. Move the gripper relative to its current position and stop.
+ * 4. Cancel the ongoing relative movement of the gripper.
+ * 5. Acknowledge any errors in the gripper again.
+ * 6. Change the configuration parameters of the gripper.
+ * 7. Grip the workpiece (if the gripper model is EGU or EGK).
+ * 8. Release the workpiece (if it is currently gripped).
+ *
+ * @param argc The number of command-line arguments.
+ * @param argv An array of command-line arguments.
+ * @return int The exit status of the program.
+ */
 int main(int argc, char** argv)
 {
     
@@ -310,6 +467,7 @@ int main(int argc, char** argv)
     if(param_client->wait_for_service(std::chrono::seconds(5)))
     {
         model_param = param_client->get_parameters({"model"}).get();
+        RCLCPP_INFO(node->get_logger(), "Model: %s", model_param[0].as_string().c_str());
     }
     else
     {

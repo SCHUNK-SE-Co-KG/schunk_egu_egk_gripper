@@ -84,7 +84,7 @@ void Gripper::getModel()
       //Model
       getEnums(MODULE_TYPE_INST, module_type);
       model = json_data["string"];
-      //Is it model M
+      //Is it model M this means it has a break
       if(model.find("_M_") != std::string::npos) 
       {
          std::cout << "Grip force and position maintenance!" << std::endl;

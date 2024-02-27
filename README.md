@@ -3,7 +3,8 @@
 
 ## Description
 
-ROS2 driver for controlling Schunk EGU/EGK grippers. It is compatible with grippers featuring PROFINET, Ethernet/IP, or EtherCAT communication interfaces. The ROS driver encapsulates all gripper functionalities, excluding the tip mode.
+ROS2 driver for controlling Schunk EGU/EGK grippers. It is compatible with grippers featuring PROFINET, Ethernet/IP, or EtherCAT communication interfaces. The ROS driver encapsulates all gripper functionalities, excluding the jog mode.
+
 
 ### Background
 
@@ -136,11 +137,11 @@ Example: `GripperParameter.use_brk`
 
 You have the option to change the default values in the `schunk_launch.py` file, which will be loaded when you start the node.
 
-Optionally, you can perform some basic commands to the gripper via Parameter. In this case, I recommend trying out rqt and opening the parameter reconfigure Monitor. (Note: It may not function optimally in ROS 2; if that's the case, I recommend using the terminal instead)
+Optionally, you can perform some basic commands to the gripper via Parameter. In this case, we recommend trying out rqt and opening the parameter reconfigure Monitor. (Note: It may not function optimally in ROS 2; if that's the case, we recommend using the terminal instead)
 
 ## Example
 
-To explore the capabilities of the gripper-driver, I recommend using rqt. There, you can view all topics, dynamic reconfigure parameters, and services. You can also publish messages on topics (such as action goals) or call services. To launch rqt with the node, use the schunk_rqt_launch.py:
+To explore the capabilities of the gripper-driver, we recommend using rqt. There, you can view all topics, dynamic reconfigure parameters, and services. You can also publish messages on topics (such as action goals) or call services. To launch rqt with the node, use the schunk_rqt_launch.py:
 ```
 ros2 launch schunk_gripper schunk_rqt_launch.py
 ```
@@ -149,14 +150,16 @@ Alternatively, you can launch schunk.launch and open the rqt tool separately:
 ros2 launch schunk_gripper schunk_launch.py
 rqt
 ```
+It is known that rqt can not get the message class for action feedback and action goals.
 ![rqt](doc/rqt_interface.png)
 
 Open:
-- Plugins/Configuration/Parameter Reconfigure: For changing parameters.
+- Plugins/Configuration/Dynamic Reconfigure: For changing parameters.
 - Plugins/Services/Service Caller: For calling services.
 - Plugins/Topic/Topic Monitor: For viewing all messages.
 
-Additionally, you can refer to 'example.cpp' for guidance on using this driver in your code. To run the example, start 'schunk_launch.py' (or 'schunk_rqt_launch.py') and then execute the example:
+Additionally, you can refer to 'gripper_example.cpp' for guidance on using this driver in your code. To run the example, start 'schunk_launch.py' (or 'schunk_rqt_launch.py') and then execute the example:  
+**!!!WARNING!!! This will move the gripper jaws**
 ```
 ros2 run schunk_gripper schunk_example
 ```
