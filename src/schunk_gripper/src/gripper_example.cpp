@@ -325,7 +325,7 @@ int main(int argc, char** argv)
 //    auto info_client = node->create_client<GripperInfo>("gripper_info");
     //ALL ACTIONS
 
-    auto move_abs_client = rclcpp_action::create_client<MoveToAbsolutePosition>(node, name_space+"move_to_absolute_psition");
+    auto move_abs_client = rclcpp_action::create_client<MoveToAbsolutePosition>(node, name_space+"move_to_absolute_position");
     auto move_rel_client = rclcpp_action::create_client<MoveToRelativePosition>(node, name_space+"move_to_relative_position");
     
     rclcpp_action::Client<Grip>::SharedPtr grip_egu_client;
