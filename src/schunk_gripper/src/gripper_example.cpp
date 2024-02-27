@@ -325,8 +325,8 @@ int main(int argc, char** argv)
 //    auto info_client = node->create_client<GripperInfo>("gripper_info");
     //ALL ACTIONS
 
-    auto move_abs_client = rclcpp_action::create_client<MoveToAbsolutePosition>(node, name_space+"move_absolute");
-    auto move_rel_client = rclcpp_action::create_client<MoveToRelativePosition>(node, name_space+"move_relative");
+    auto move_abs_client = rclcpp_action::create_client<MoveToAbsolutePosition>(node, name_space+"move_to_absolute_psition");
+    auto move_rel_client = rclcpp_action::create_client<MoveToRelativePosition>(node, name_space+"move_to_relative_position");
     
     rclcpp_action::Client<Grip>::SharedPtr grip_egu_client;
     rclcpp_action::Client<GripWithPosition>::SharedPtr grp_w_pos_egu_client;
@@ -337,12 +337,12 @@ int main(int argc, char** argv)
     if(model_param[0].as_string().find("EGU") != std::string::npos)
     {
         grip_egu_client = rclcpp_action::create_client<Grip>(node, name_space+"grip");
-        grp_w_pos_egu_client = rclcpp_action::create_client<GripWithPosition>(node, name_space+"grip_with_pos");
+        grp_w_pos_egu_client = rclcpp_action::create_client<GripWithPosition>(node, name_space+"grip_with_position");
     }
     else if(model_param[0].as_string().find("EGK") != std::string::npos)
     {
         grip_egk_client = rclcpp_action::create_client<GripWithVelocity>(node, name_space+"grip");
-        grp_w_pos_egk_client = rclcpp_action::create_client<GripWithPositionAndVelocity>(node, name_space+"grip_with_pos");
+        grp_w_pos_egk_client = rclcpp_action::create_client<GripWithPositionAndVelocity>(node, name_space+"grip_with_position");
     }
     auto release_client = rclcpp_action::create_client<ReleaseWorkpiece>(node, name_space+"release_workpiece");
     
