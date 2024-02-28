@@ -443,6 +443,7 @@ void spinFunction(std::shared_ptr<rclcpp::Node> node)
  * 6. Change the configuration parameters of the gripper.
  * 7. Grip the workpiece (if the gripper model is EGU or EGK).
  * 8. Release the workpiece (if it is currently gripped).
+ * 8/9. Move the gripper with Parameters (Not recommended)
  *
  * @param argc The number of command-line arguments.
  * @param argv An array of command-line arguments.
