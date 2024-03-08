@@ -26,36 +26,6 @@ SchunkGripperNode::SchunkGripperNode(const rclcpp::NodeOptions &options) :
     Gripper(this->declare_parameter("IP", "0.0.0.0", parameter_descriptor("IP-Address of the gripper"))),
     limiting_rate(1000) //limiting_rate for loops
 { 
-
-    while(start_connection == false && rclcpp::ok())    //If gripper something went wrong with the first connection
-    {
-        if(!rclcpp::ok()) return;                       //If User ^C
-        
-        try
-        {
-            startGripper();
-            getActualParameters();
-            getModel();
-            //get Versions
-            getWithInstance<uint16_t>(SW_VERSION_NUM_INST, &sw_version);
-            getWithInstance<char>(COMM_VERSION_TXT_INST, NULL, 12);
-            comm_version = save_data_char.data();
-            ip_changed_with_all_param = true;
-        }
-        catch(...)
-        {
-            std::this_thread::sleep_for(std::chrono::seconds(1));
-            RCLCPP_ERROR(this->get_logger(), "Trying to connect...");
-        }
-    }  
-    
-    if(comm_version.find("1.5") == std::string::npos && sw_version > 502)       //Version right?
-    {
-        RCLCPP_WARN(this->get_logger(),"Using not suitable software-version.");
-        wrong_version = true;
-    }
-    else wrong_version = false;
-
     //Callback groups
     messages_group = this->create_callback_group(rclcpp::CallbackGroupType::MutuallyExclusive);
     services_group = this->create_callback_group(rclcpp::CallbackGroupType::MutuallyExclusive);
@@ -1006,9 +976,8 @@ catch(const char* response)
 //Updates final successful state and zero position offset
 void SchunkGripperNode::finishedCommand()
 {      
-
         if(connection_error != "OK") 
-        {           
+        {   
             doing_something = false;
             action_active = false;   
             actual_command = "NO COMMAND";
@@ -1023,12 +992,19 @@ void SchunkGripperNode::finishedCommand()
 
         this->set_parameters(params);
         //Was Command successfully processed?
+        if(gripperBitInput(NO_WORKPIECE_DETECTED) )
+        {
+            RCLCPP_WARN(this->get_logger(),"No workpiece detected!");
+        }
+        if(gripperBitInput(WRONG_WORKPIECE_DETECTED)) 
+        {
+            RCLCPP_WARN(this->get_logger(),"Wrong workpiece detected!");
+        }
+        //Was Command successfully processed?
         if(gripperBitInput(SUCCESS) && gripperBitInput(POSITION_REACHED) && doing_something == true) 
-        RCLCPP_INFO(this->get_logger(),"%s SUCCEEDED", actual_command.c_str());
-
-        doing_something = false;
-        action_active = false;   
-        
+        {
+            RCLCPP_INFO(this->get_logger(),"%s SUCCEEDED", actual_command.c_str());
+        }
         if(gripperBitInput(GRIPPED))  
         {
             RCLCPP_WARN(this->get_logger(),"Gripped Workpiece!");
