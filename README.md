@@ -1,4 +1,8 @@
-# schunk_gripper_driver
+![build badge](https://github.com/SCHUNK-SE-Co-KG/schunk_egu_egk_gripper/actions/workflows/industrial_ci_humble_action.yml/badge.svg)
+![build badge](https://github.com/SCHUNK-SE-Co-KG/schunk_egu_egk_gripper/actions/workflows/industrial_ci_iron_action.yml/badge.svg)
+![build badge](https://github.com/SCHUNK-SE-Co-KG/schunk_egu_egk_gripper/actions/workflows/industrial_ci_rolling_action.yml/badge.svg)
+
+# Schunk EGU/EGK Gripper
 
 
 ## Description
