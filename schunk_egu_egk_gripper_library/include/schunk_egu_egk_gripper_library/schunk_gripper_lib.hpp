@@ -12,7 +12,7 @@
 #ifndef SCHUNK_GRIPPER_HPP
 #define SCHUNK_GRIPPER_HPP
 
-#include "schunk_gripper/communication.hpp"
+#include "schunk_egu_egk_gripper_library/communication.hpp"
 #include <chrono>
 #include <thread>
 #include <mutex>

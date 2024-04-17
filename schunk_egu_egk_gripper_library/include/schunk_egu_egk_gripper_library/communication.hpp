@@ -18,7 +18,7 @@
 #include <iomanip>
 #include <type_traits>
 #include <sstream>
-#include <schunk_gripper/json.hpp>
+#include <schunk_egu_egk_gripper_library/json.hpp>
 
 //Control double word
 #define FAST_STOP 0x01000000

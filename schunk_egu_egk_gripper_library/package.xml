@@ -1,43 +1,17 @@
 <?xml version="1.0"?>
-
 <package format="3">
-  <name>schunk_gripper</name>
-  <version>0.0.0</version>
-  <description>The schunk_gripper package</description>
-
+  <name>schunk_egu_egk_gripper_library</name>
+  <version>1.0.0</version>
+  <description>Standalone C++ library for Schunk's EGU/EGK grippers</description>
   <author>Viktora Krimer</author>
   <author>Fabian Reinwald</author>
-  <maintainer email="viktoria.krimer@de.schunk.com">Viktoria Krimer</maintainer>
+  <maintainer email="stefan.scherzinger@de.schunk.com">Stefan Scherzinger</maintainer>
 
-  <license>BSD</license>
-  <license>MIT</license>
-  <license>curl</license>
+  <license>todo</license>
 
-  <buildtool_depend>ament_cmake</buildtool_depend>
-  <buildtool_depend>rosidl_default_generators</buildtool_depend>
-  
-  <depend>ament_index_cpp</depend>
-  <depend>rclcpp</depend>
-  <depend>action_msgs</depend>
-  <depend>control_msgs</depend>
-  <depend>sensor_msgs</depend>
-  <depend>diagnostic_msgs</depend>
-  <depend>diagnostic_updater</depend>
-  <depend>rclcpp_action</depend>
-  <depend>rclcpp_components</depend>
-
-  <exec_depend>ros2launch</exec_depend>
-  <exec_depend>rosidl_default_runtime</exec_depend>
- 
-  <test_depend>ament_lint_auto</test_depend>
-  <test_depend>ament_lint_common</test_depend>
- 
- <member_of_group>rosidl_interface_packages</member_of_group>
-
-  <!-- The export tag contains other, unspecified, tags -->
+  <buildtool_depend>cmake</buildtool_depend>
   <export>
-    <!-- Other tools can request additional information be placed here -->
-     <build_type>ament_cmake</build_type>
-
+    <build_type>cmake</build_type>
   </export>
+
 </package>
