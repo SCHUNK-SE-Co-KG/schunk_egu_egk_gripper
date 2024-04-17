@@ -74,58 +74,69 @@ ament_export_dependencies(rosidl_default_runtime)
 ament_export_include_directories(include)
 ament_export_dependencies(sensor_msgs control_msgs action_msgs diagnostic_msgs)
 
-# Declare a C++ library for schunk_gripper_driver
+#--------------------------------------------------------------------------------
+# Build
+#--------------------------------------------------------------------------------
+
+# The driver
 add_library(schunk_gripper_driver SHARED
   src/schunk_gripper_wrapper.cpp
   src/schunk_gripper_lib.cpp
   src/communication.cpp
 )
-
-# Define compilation definition for schunk_gripper_driver
-target_compile_definitions(schunk_gripper_driver
-  PRIVATE "COMPOSITION_BUILDING_DLL"
+target_include_directories(schunk_gripper_driver PUBLIC
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+  $<INSTALL_INTERFACE:include>
 )
-
-# Link libraries to schunk_gripper_driver
 target_link_libraries(schunk_gripper_driver
   ${CURL_LIBRARIES}
+  ${cpp_typesupport_target}
+)
+ament_target_dependencies(schunk_gripper_driver
+  rclcpp
+  sensor_msgs
+  control_msgs
+  rclcpp_action
+  rclcpp_components
+  diagnostic_updater
+  diagnostic_msgs 
 )
 
-# Add dependencies for schunk_gripper_driver
-ament_target_dependencies(schunk_gripper_driver
-"rclcpp" "sensor_msgs" "control_msgs" "rclcpp_action" "rclcpp_components" "diagnostic_updater" "diagnostic_msgs" 
-)
-rosidl_get_typesupport_target(cpp_typesupport_target  "${PROJECT_NAME}" "rosidl_typesupport_cpp")
-target_link_libraries(schunk_gripper_driver "${cpp_typesupport_target}")
+rosidl_get_typesupport_target(cpp_typesupport_target "${PROJECT_NAME}" "rosidl_typesupport_cpp")
 # Register schunk_gripper_driver as a component node
 rclcpp_components_register_nodes(schunk_gripper_driver "SchunkGripperNode")
 
-# Link libraries to schunk_gripper_driver
-target_link_libraries(schunk_gripper_driver
-  ${CURL_LIBRARIES}
+# Example
+add_executable(schunk_gripper_example
+  src/gripper_example.cpp
 )
-
-# Install schunk_gripper_example executable
-add_executable(schunk_gripper_example src/gripper_example.cpp)
 ament_target_dependencies(schunk_gripper_example
-"rclcpp" "sensor_msgs" "control_msgs" "rclcpp_action" "rclcpp_components" "diagnostic_updater" "diagnostic_msgs"  
+  rclcpp
+  sensor_msgs
+  control_msgs
+  rclcpp_action
+  rclcpp_components
+  diagnostic_updater
+  diagnostic_msgs
+)
+target_link_libraries(schunk_gripper_example
+  "${cpp_typesupport_target}"
+  schunk_gripper_driver
 )
 
-target_link_libraries(schunk_gripper_example "${cpp_typesupport_target}" schunk_gripper_driver)
-
-# Install targets
+#--------------------------------------------------------------------------------
+# Install
+#--------------------------------------------------------------------------------
 install(TARGETS
   schunk_gripper_driver
   ARCHIVE DESTINATION lib
   LIBRARY DESTINATION lib
   RUNTIME DESTINATION bin
 )
-
 install(TARGETS
   schunk_gripper_example
   DESTINATION lib/${PROJECT_NAME}
 )
-
 install(DIRECTORY 
   include/
   DESTINATION include

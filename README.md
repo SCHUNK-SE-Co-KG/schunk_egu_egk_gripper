@@ -145,7 +145,7 @@ ros2 launch schunk_gripper schunk_launch.py
 rqt
 ```
 It is known that rqt can not get the message class for action feedback and action goals.
-![rqt](doc/rqt_interface.png)
+![rqt](resources/images/rqt_interface.png)
 
 Open:
 - Plugins/Configuration/Dynamic Reconfigure: For changing parameters.
