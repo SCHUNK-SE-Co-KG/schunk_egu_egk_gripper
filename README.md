@@ -4,28 +4,18 @@
 
 # Schunk EGU/EGK Gripper
 
+This is the ROS2 driver for controlling the SCHUNK EGU/EGK grippers. It is compatible with
+grippers featuring PROFINET, Ethernet/IP, or EtherCAT and communicates with the AnybusCom 40 interface.
+The driver supports most gripper functionalities, except for the jog mode.
 
-## Description
+## System dependencies
 
-ROS2 driver for controlling Schunk EGU/EGK grippers. It is compatible with grippers featuring PROFINET, Ethernet/IP, or EtherCAT communication interfaces. The ROS driver encapsulates all gripper functionalities, excluding the jog mode.
+We use the _curl_ library for the _HTTP_-based communication to the devices. Install that system-wide with
+```bash
+sudo apt install curl libcurl4-openssl-dev
+```
 
-
-### Background
-
-The driver communicates with the AnybusCom 40 interface, enabling its use with PROFINET, Ethernet/IP, and EtherCAT grippers over HTTP. The ROS wrapper exposes the gripper's functionalities through ROS.
-
-## Requirements
-
-The provided distribution is "humble." To install ROS2 and verify compatibility with your operating system, please refer to the following link: 
-[ROS2 Installation Guide](https://docs.ros.org/en/humble/Installation.html)
-
-Following C++ libraries are required: 
-- [libcurl](https://curl.se/libcurl/)
-- [nlohmann/json](https://github.com/nlohmann/json)
-
-'nlohmann/json' is included in the project. You don't need to download it separately.
-
-## Build
+## Build and install
 Clone the GitLab repository into your workspace:
 ```
 git clone https://gitlab-test.cloud.schunk.com/technology-factory/students/ros-gripper/ros2_schunk_driver.git
