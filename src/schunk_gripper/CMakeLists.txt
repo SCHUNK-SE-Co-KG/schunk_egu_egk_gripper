@@ -89,7 +89,6 @@ target_compile_definitions(schunk_gripper_driver
 # Link libraries to schunk_gripper_driver
 target_link_libraries(schunk_gripper_driver
   ${CURL_LIBRARIES}
-  -lcurl
 )
 
 # Add dependencies for schunk_gripper_driver
@@ -104,7 +103,6 @@ rclcpp_components_register_nodes(schunk_gripper_driver "SchunkGripperNode")
 # Link libraries to schunk_gripper_driver
 target_link_libraries(schunk_gripper_driver
   ${CURL_LIBRARIES}
-  -lcurl
 )
 
 # Install schunk_gripper_example executable
