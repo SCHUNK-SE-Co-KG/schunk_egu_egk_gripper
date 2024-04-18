@@ -1,4 +1,4 @@
-#include "schunk_gripper/schunk_gripper_wrapper.hpp"
+#include "schunk_egu_egk_gripper_driver/schunk_gripper_wrapper.hpp"
 
  std::map<std::string, const char*> param_inst = 
  {
@@ -168,7 +168,7 @@ void SchunkGripperNode::advertiseTopics()
 {
     //Advertise state
     last_time = this->now(); //Initialize last_time 
-    statePublisher = this->create_publisher<schunk_gripper::msg::State>("state", 1);
+    statePublisher = this->create_publisher<State>("state", 1);
     publish_state_timer=this->create_wall_timer(std::chrono::duration<double>(1 / state_frq), std::bind(&SchunkGripperNode::publishState, this), messages_group);
     
     //Initialize diagnostics
