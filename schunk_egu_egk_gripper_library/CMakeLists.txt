@@ -86,4 +86,7 @@ install(
 # Test
 #--------------------------------------------------------------------------------
 enable_testing()
+if(BUILD_TESTING)
+  find_package(ament_lint_auto REQUIRED)
+endif()
 

@@ -19,6 +19,8 @@
   <depend>control_msgs</depend>
   <depend>sensor_msgs</depend>
 
+  <test_depend>ament_cmake_copyright</test_depend>
+
   <export>
     <build_type>ament_cmake</build_type>
   </export>
