@@ -1,14 +1,36 @@
+////////////////////////////////////////////////////////////////////////////////
+//
+// Copyright (C) 2024 SCHUNK SE & Co. KG
+//
+// This file is part of the Schunk EGU/EGK gripper.
+//
+// The Schunk EGU/EGK gripper is free software: you can redistribute it and/or
+// modify it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or (at your
+// option) any later version.
+//
+// The Schunk EGU/EGK gripper is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General
+// Public License for more details.
+//
+// You should have received a copy of the GNU General Public License along with
+// the Schunk EGU/EGK gripper. If not, see <https://www.gnu.org/licenses/>.
+//
+////////////////////////////////////////////////////////////////////////////////
+
 /*
  * Author:        Viktoria Krimer (viktoria.krimer@de.schunk.com)
- * Maintainer:    Viktoria Krimer (viktoria.krimer@de.schunk.com)
- * Created:       DECEMBER 2023
- * 
+ * Maintainer:    Stefan Scherzinger (stefan.scherzinger@de.schunk.com)
+ */
+
+
+/*
  * Definitions to communicate with the Gripper via AnybusCom 40.
  * 
  * This task involves receiving a ByteString via HTTP, interpreting it,
  * and posting a ByteString if any action needs to be performed by the gripper.
  */
-
 
 #ifndef COMMUNICATION_HPP
 #define COMMUNICATION_HPP
