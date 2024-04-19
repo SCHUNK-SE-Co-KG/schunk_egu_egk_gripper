@@ -3,56 +3,59 @@
 #include "rclcpp/rclcpp.hpp"
 #include "rclcpp_action/rclcpp_action.hpp"
 #include "rclcpp/wait_for_message.hpp"
-#include "rclcpp_components/register_node_macro.hpp"
 #include <rclcpp/parameter.hpp>
 #include <rcl_interfaces/msg/parameter_event.hpp>
 #include "sensor_msgs/msg/joint_state.hpp"
-#include <diagnostic_updater/diagnostic_updater.hpp>
+#include <diagnostic_msgs/msg/diagnostic_array.hpp>
 
-#include "schunk_gripper/schunk_gripper_wrapper.hpp"
+#include "schunk_egu_egk_gripper_interfaces/msg/state.hpp"
+#include "schunk_egu_egk_gripper_interfaces/srv/acknowledge.hpp"
+#include "schunk_egu_egk_gripper_interfaces/srv/stop.hpp"
+#include "schunk_egu_egk_gripper_interfaces/srv/fast_stop.hpp"
+#include "schunk_egu_egk_gripper_interfaces/srv/prepare_for_shutdown.hpp"
+#include "schunk_egu_egk_gripper_interfaces/srv/softreset.hpp"
+#include "schunk_egu_egk_gripper_interfaces/srv/brake_test.hpp"
+#include "schunk_egu_egk_gripper_interfaces/srv/change_ip.hpp"
+#include "schunk_egu_egk_gripper_interfaces/srv/parameter_get.hpp"
+#include "schunk_egu_egk_gripper_interfaces/srv/parameter_set.hpp"
+#include "schunk_egu_egk_gripper_interfaces/srv/release_for_manual_movement.hpp"
+#include "schunk_egu_egk_gripper_interfaces/srv/gripper_info.hpp"
 
-#include "schunk_gripper/action/grip_with_velocity.hpp"
-#include "schunk_gripper/action/grip_with_position_and_velocity.hpp"
-#include "schunk_gripper/action/move_to_absolute_position.hpp"
-#include "schunk_gripper/action/move_to_relative_position.hpp"
-#include "schunk_gripper/msg/state.hpp"
-#include "schunk_gripper/srv/acknowledge.hpp"
-#include "schunk_gripper/srv/stop.hpp"
-#include "schunk_gripper/srv/fast_stop.hpp"
-#include "schunk_gripper/srv/prepare_for_shutdown.hpp"
-#include "schunk_gripper/srv/softreset.hpp"
-#include "schunk_gripper/action/release_workpiece.hpp"
-#include "schunk_gripper/srv/release_for_manual_movement.hpp"
-#include "schunk_gripper/srv/gripper_info.hpp"
+#include "schunk_egu_egk_gripper_interfaces/action/grip_with_velocity.hpp"
+#include "schunk_egu_egk_gripper_interfaces/action/grip_with_position_and_velocity.hpp"
+#include "schunk_egu_egk_gripper_interfaces/action/move_to_absolute_position.hpp"
+#include "schunk_egu_egk_gripper_interfaces/action/move_to_relative_position.hpp"
+#include "schunk_egu_egk_gripper_interfaces/action/release_workpiece.hpp"
+#include "schunk_egu_egk_gripper_interfaces/action/grip.hpp"
+#include "schunk_egu_egk_gripper_interfaces/action/grip_with_position.hpp"
 #include "control_msgs/action/gripper_command.hpp"
-#include "schunk_gripper/action/grip.hpp"
-#include "schunk_gripper/action/grip_with_position.hpp"
 
-schunk_gripper::msg::State state_msg;
+schunk_egu_egk_gripper_interfaces::msg::State state_msg;
 sensor_msgs::msg::JointState joint_state_msg;
 diagnostic_msgs::msg::DiagnosticArray diagnostic_msg;
 bool handshake;
 std::string name_space;
+    using State = schunk_egu_egk_gripper_interfaces::msg::State;
 
-    using Acknowledge = schunk_gripper::srv::Acknowledge;
-    using BrakeTest = schunk_gripper::srv::BrakeTest;
-    using Stop = schunk_gripper::srv::Stop;
-    using FastStop =  schunk_gripper::srv::FastStop;
-    using ReleaseForManualMovement = schunk_gripper::srv::ReleaseForManualMovement;
-    using Softreset = schunk_gripper::srv::Softreset;
-    using PrepareForShutdown = schunk_gripper::srv::PrepareForShutdown;
-    using GripperInfo= schunk_gripper::srv::GripperInfo;
-    using ChangeIp = schunk_gripper::srv::ChangeIp;
-    using ParameterGet = schunk_gripper::srv::ParameterGet;
-    using ParameterSet = schunk_gripper::srv::ParameterSet;
+    using Acknowledge = schunk_egu_egk_gripper_interfaces::srv::Acknowledge;
+    using BrakeTest = schunk_egu_egk_gripper_interfaces::srv::BrakeTest;
+    using Stop = schunk_egu_egk_gripper_interfaces::srv::Stop;
+    using FastStop =  schunk_egu_egk_gripper_interfaces::srv::FastStop;
+    using ReleaseForManualMovement = schunk_egu_egk_gripper_interfaces::srv::ReleaseForManualMovement;
+    using Softreset = schunk_egu_egk_gripper_interfaces::srv::Softreset;
+    using PrepareForShutdown = schunk_egu_egk_gripper_interfaces::srv::PrepareForShutdown;
+    using GripperInfo= schunk_egu_egk_gripper_interfaces::srv::GripperInfo;
+    using ChangeIp = schunk_egu_egk_gripper_interfaces::srv::ChangeIp;
+    using ParameterGet = schunk_egu_egk_gripper_interfaces::srv::ParameterGet;
+    using ParameterSet = schunk_egu_egk_gripper_interfaces::srv::ParameterSet;
 
-    using MoveToAbsolutePosition = schunk_gripper::action::MoveToAbsolutePosition;
-    using MoveToRelativePosition = schunk_gripper::action::MoveToRelativePosition;
-    using GripWithVelocity = schunk_gripper::action::GripWithVelocity;
-    using Grip = schunk_gripper::action::Grip;
-    using GripWithPositionAndVelocity = schunk_gripper::action::GripWithPositionAndVelocity;
-    using GripWithPosition = schunk_gripper::action::GripWithPosition;
-    using ReleaseWorkpiece = schunk_gripper::action::ReleaseWorkpiece;
+    using MoveToAbsolutePosition = schunk_egu_egk_gripper_interfaces::action::MoveToAbsolutePosition;
+    using MoveToRelativePosition = schunk_egu_egk_gripper_interfaces::action::MoveToRelativePosition;
+    using GripWithVelocity = schunk_egu_egk_gripper_interfaces::action::GripWithVelocity;
+    using Grip = schunk_egu_egk_gripper_interfaces::action::Grip;
+    using GripWithPositionAndVelocity = schunk_egu_egk_gripper_interfaces::action::GripWithPositionAndVelocity;
+    using GripWithPosition = schunk_egu_egk_gripper_interfaces::action::GripWithPosition;
+    using ReleaseWorkpiece = schunk_egu_egk_gripper_interfaces::action::ReleaseWorkpiece;
     using GripperCommand = control_msgs::action::GripperCommand;
 
 //Callback Functions
@@ -64,7 +67,7 @@ std::string name_space;
  * 
  * @param msg The shared pointer to the state message.
  */
-void stateCallback(const schunk_gripper::msg::State::SharedPtr msg)
+void stateCallback(const State::SharedPtr msg)
 {
     state_msg = *msg;
 }
@@ -508,7 +511,7 @@ int main(int argc, char** argv)
     auto control_client = rclcpp_action::create_client<GripperCommand>(node, name_space+"gripper_control");
 
     //TOPICS
-    auto state_sub = node->create_subscription<schunk_gripper::msg::State>(name_space+"state", 1, stateCallback);
+    auto state_sub = node->create_subscription<State>(name_space+"state", 1, stateCallback);
     auto joint_state_sub = node->create_subscription<sensor_msgs::msg::JointState>(name_space+"joint_states", 1, jointStateCallback);
     auto diagnostics_sub = node->create_subscription<diagnostic_msgs::msg::DiagnosticArray>("diagnostics", 1, diagnosticsCallback);
 

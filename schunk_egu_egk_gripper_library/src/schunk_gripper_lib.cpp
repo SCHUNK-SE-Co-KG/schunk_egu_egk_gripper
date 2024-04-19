@@ -9,7 +9,7 @@
  * 
  */
 
-#include "schunk_gripper/schunk_gripper_lib.hpp"
+#include "schunk_egu_egk_gripper_library/schunk_gripper_lib.hpp"
 
 std::recursive_mutex lock_mutex;  //Locks if something is receiving or posting data
 //Commands for using in ROS

@@ -1,0 +1,32 @@
+<?xml version="1.0"?>
+<package format="3">
+  <name>schunk_egu_egk_gripper_driver</name>
+  <version>1.0.0</version>
+  <description>ROS2 driver for Schunk's EGU/EGK grippers</description>
+  <author>Viktora Krimer</author>
+  <author>Fabian Reinwald</author>
+  <maintainer email="stefan.scherzinger@de.schunk.com">Stefan Scherzinger</maintainer>
+
+  <license>todo</license>
+
+  <buildtool_depend>ament_cmake</buildtool_depend>
+
+  <depend>schunk_egu_egk_gripper_library</depend>
+  <depend>schunk_egu_egk_gripper_interfaces</depend>
+  <depend>ament_index_cpp</depend>
+  <depend>diagnostic_updater</depend>
+  <depend>rclcpp</depend>
+  <depend>rclcpp_action</depend>
+  <depend>rclcpp_components</depend>
+  <depend>control_msgs</depend>
+  <depend>sensor_msgs</depend>
+
+  <exec_depend>ros2launch</exec_depend>
+
+  <export>
+    <build_type>ament_cmake</build_type>
+  </export>
+
+</package>
+
+ 
