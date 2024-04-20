@@ -17,36 +17,36 @@ sudo apt install curl libcurl4-openssl-dev
 ```
 
 ## Build and install
-Clone the GitLab repository into your workspace:
-```
-git clone https://gitlab-test.cloud.schunk.com/technology-factory/students/ros-gripper/ros2_schunk_driver.git
-```
-Now install all ros-dependencies:
-```
+Switch to the `src` folder of your current ROS2 workspace and
+
+```bash
+git clone https://github.com/SCHUNK-SE-Co-KG/schunk_egu_egk_gripper.git
 sudo apt update -qq
 rosdep update
-rosdep install --from-paths src --ignore-src -y
+rosdep install --from-paths ./ --ignore-src -y
+cd ..
+colcon build --symlink-install --packages-select schunk_egu_egk_gripper_driver schunk_egu_egk_gripper_library schunk_egu_egk_gripper_interfaces  
 ```
-Build the workspace and activate it:
-```
-colcon build
-source install/local_setup.bash
-```
+
 ## Getting started
-
-To set up the environment for an EGU/EGK gripper, you'll need its IP address. Once obtained, you can then input it into the 'schunk_launch.py' file. (path: src/schunk_gripper/launch/schunk_launch.py) configuring it to appear as follows:
-```
- parameters=[ {'IP': '10.49.60.74'} ]
-```
-Replace **"10.49.60.74"** with your own IP address.
-
-Build the workspace using the following command:
-
-```
-colcon build
+First, you'll need the IP address of your EGU/EGK gripper. The grippers should ship with _DHCP_ by default.
+Let's say your own IP address is `192.168.0.3`.
+You can then scan your local network to find the device with
+```bash
+nmap -sP -A 192.168.0.1/24
 ```
 
-After that, you should be able to start the launch file and interact with the gripper.
+Now adjust the `schunk_launch.py` file in the driver's repository with the gripper's _IP_, such as
+```
+ parameters=[ {'IP': '192.168.0.4'} ]
+```
+Replace `192.168.0.4` with the IP address you found for your gripper.
+
+You should now be able to start the launch file and interact with the gripper
+```bash
+source install/setup.bash
+ros2 launch schunk_egu_egk_gripper_driver schunk_launch.py
+```
 
 In the launch file, you can also adjust the frequencies of the 'joint_states', 'state', and 'diagnostics' topics.
 
@@ -68,9 +68,6 @@ a) Using a component manager – this process is also outlined in the launch fil
 b) Within your custom executable, coupled with a (multithreaded-)executor.
 
 If you prefer starting the node in your main function, ensure that you include "schunk_gripper_driver" in the cmake target_link_libraries. Additionally, always specify the IP address, setting the parameter overrides for "IP" to your designated IP. Alternatively, create the "SchunkGripperNode"-Component and utilize the "reconnect" service, specifying your IP.
-
-# ROS-Node
-This section demonstrates the capabilities of the driver and provides instructions on how to utilize it. The node is a ROS2 component.
 
 ## Actions
 All functionalities of the gripper, including movement, are treated as actions. This implies that when gripping, moving, or releasing a workpiece, you need to send a goal and can receive a result or feedback. Releasing a workpiece is the only action where you send an empty goal:
@@ -115,7 +112,7 @@ All other services can be used whenever you like. (**Note:** Fast stop is an abo
 
 With `parameter_get` and `parameter_set` you can read and set all allowed Parameter of the gripper. For getting and setting you need always the parameter instance. After that 
 
-## Parameter
+## Parameters
 
 You can change parameter of the Gripper using dynamic reconfigure. Following parameters are available for change:
 
