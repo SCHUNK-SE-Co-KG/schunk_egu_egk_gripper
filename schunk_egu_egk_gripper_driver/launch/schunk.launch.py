@@ -32,7 +32,7 @@ def generate_launch_description():
         target_container='gripper_container',
         composable_node_descriptions=[
                 ComposableNode(
-                    package='schunk_gripper',
+                    package='schunk_egu_egk_gripper_driver',
                     plugin='SchunkGripperNode',
                     name='schunk_gripper_driver',
                     namespace='EGK_50_M_B',
