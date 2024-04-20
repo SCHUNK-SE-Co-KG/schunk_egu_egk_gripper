@@ -1,13 +1,33 @@
-![build badge](https://github.com/SCHUNK-SE-Co-KG/schunk_egu_egk_gripper/actions/workflows/industrial_ci_humble_action.yml/badge.svg)
-![build badge](https://github.com/SCHUNK-SE-Co-KG/schunk_egu_egk_gripper/actions/workflows/industrial_ci_iron_action.yml/badge.svg)
-![build badge](https://github.com/SCHUNK-SE-Co-KG/schunk_egu_egk_gripper/actions/workflows/industrial_ci_rolling_action.yml/badge.svg)
-[![License](https://img.shields.io/badge/License-GPLv3-orange)](https://opensource.org/licenses/gpl-license)
 
-# Schunk EGU/EGK Gripper
+<div align="center">
+  <img src="resources/images/schunk_egu.png" alt="Schunk EGU/EGK Gripper" style="width: 25%;"/>
+  <h1 align="center">Schunk EGU/EGK Gripper</h1>
+</div>
 
-This is the ROS2 driver for controlling the SCHUNK EGU/EGK grippers. It is compatible with
-grippers featuring PROFINET, Ethernet/IP, or EtherCAT and communicates with the AnybusCom 40 interface.
-The driver supports most gripper functionalities, except for the jog mode.
+<p align="center">
+  <a href="https://opensource.org/licenses/gpl-license">
+    <img src="https://img.shields.io/badge/License-GPLv3-orange.svg" alt="License">
+  </a>
+  <a href="https://github.com/SCHUNK-SE-Co-KG/schunk_egu_egk_gripper/actions">
+    <img src="https://github.com/SCHUNK-SE-Co-KG/schunk_egu_egk_gripper/actions/workflows/industrial_ci_humble_action.yml/badge.svg" alt="build badge humble">
+  </a>
+  <a href="https://github.com/SCHUNK-SE-Co-KG/schunk_egu_egk_gripper/actions">
+    <img src="https://github.com/SCHUNK-SE-Co-KG/schunk_egu_egk_gripper/actions/workflows/industrial_ci_iron_action.yml/badge.svg" alt="build badge iron">
+  </a>
+  <a href="https://github.com/SCHUNK-SE-Co-KG/schunk_egu_egk_gripper/actions">
+    <img src="https://github.com/SCHUNK-SE-Co-KG/schunk_egu_egk_gripper/actions/workflows/industrial_ci_rolling_action.yml/badge.svg" alt="build badge rolling">
+  </a>
+</p>
+
+
+This is the ROS2 driver for the SCHUNK
+[EGU](https://schunk.com/us/en/gripping-systems/parallel-gripper/egu/c/PGR_6556)
+and
+[EGK](https://schunk.com/us/en/gripping-systems/parallel-gripper/egk/c/PGR_6557)
+grippers. The driver communicates via the _AnybusCom 40_ interface and is
+compatible with
+grippers featuring _PROFINET_, _Ethernet/IP_, and _EtherCAT_.
+The driver currently supports most gripper functionalities, except for the jog mode.
 
 ## System dependencies
 
