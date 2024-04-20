@@ -11,6 +11,13 @@ if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   add_compile_options(-Wall -Wextra -Wpedantic)
 endif()
 
+# Default CMake build type
+if (NOT CMAKE_CONFIGURATION_TYPES AND NOT CMAKE_BUILD_TYPE)
+  message(STATUS "${PROJECT_NAME}: No CMake build type specified. Building in 'Release' mode.")
+  message(STATUS "${PROJECT_NAME}: You can specify the build type in colcon with --cmake-args -DCMAKE_BUILD_TYPE=Release|RelWithDebInfo|Debug.")
+  set(CMAKE_BUILD_TYPE Release)
+endif()
+
 # Find required packages
 find_package(schunk_egu_egk_gripper_library REQUIRED)
 find_package(schunk_egu_egk_gripper_interfaces REQUIRED)
