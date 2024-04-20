@@ -4,10 +4,10 @@
   <version>1.0.0</version>
   <description>Example node for Schunk's EGU/EGK driver interfaces</description>
   <author>Viktora Krimer</author>
-  <author>Fabian Reinwald</author>
+  <author email="fabian.reinwald@de.schunk.com">Fabian Reinwald</author>
   <maintainer email="stefan.scherzinger@de.schunk.com">Stefan Scherzinger</maintainer>
 
-  <license>todo</license>
+  <license>GPL-3.0-or-later</license>
 
   <buildtool_depend>ament_cmake</buildtool_depend>
 
@@ -18,6 +18,9 @@
   <depend>rclcpp_components</depend>
   <depend>control_msgs</depend>
   <depend>sensor_msgs</depend>
+
+  <test_depend>ament_lint_auto</test_depend>
+  <test_depend>ament_cmake_copyright</test_depend>
 
   <export>
     <build_type>ament_cmake</build_type>

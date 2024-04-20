@@ -1,6 +1,7 @@
 ![build badge](https://github.com/SCHUNK-SE-Co-KG/schunk_egu_egk_gripper/actions/workflows/industrial_ci_humble_action.yml/badge.svg)
 ![build badge](https://github.com/SCHUNK-SE-Co-KG/schunk_egu_egk_gripper/actions/workflows/industrial_ci_iron_action.yml/badge.svg)
 ![build badge](https://github.com/SCHUNK-SE-Co-KG/schunk_egu_egk_gripper/actions/workflows/industrial_ci_rolling_action.yml/badge.svg)
+[![License](https://img.shields.io/badge/License-GPLv3-orange)](https://opensource.org/licenses/gpl-license)
 
 # Schunk EGU/EGK Gripper
 
