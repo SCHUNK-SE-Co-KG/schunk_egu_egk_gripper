@@ -17,9 +17,18 @@
 import launch
 from launch_ros.actions import LoadComposableNodes, Node
 from launch_ros.descriptions import ComposableNode
+from launch.actions import DeclareLaunchArgument
+from launch.substitutions import LaunchConfiguration
 
 
 def generate_launch_description():
+    ip = DeclareLaunchArgument(
+        "IP",
+        default_value="10.49.60.86",
+        description="IP address of the gripper on your network",
+    )
+    args = [ip]
+
     container = Node(
         name="gripper_container",
         package="rclcpp_components",
@@ -37,7 +46,7 @@ def generate_launch_description():
                 name="schunk_gripper_driver",
                 namespace="EGK_50_M_B",
                 parameters=[
-                    {"IP": "10.49.60.86"},
+                    {"IP": LaunchConfiguration("IP")},
                     {"state_frq": 60.0},
                     {"rate": 10.0},
                     {"use_brk": False},
@@ -51,4 +60,4 @@ def generate_launch_description():
             )
         ],
     )
-    return launch.LaunchDescription([container, load_composable_nodes])
+    return launch.LaunchDescription(args + [container, load_composable_nodes])

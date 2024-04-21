@@ -55,26 +55,21 @@ You can then scan your local network to find the device with
 ```bash
 nmap -sP -A 192.168.0.1/24
 ```
+Let's say you obtained the `192.168.0.4` for the gripper.
+Now launch the driver with
 
-Now adjust the `schunk.launch.py` file in the driver's repository with the gripper's _IP_, such as
-```
- parameters=[ {'IP': '192.168.0.4'} ]
-```
-Replace `192.168.0.4` with the IP address you found for your gripper.
-
-You should now be able to start the launch file and interact with the gripper
 ```bash
 source install/setup.bash
-ros2 launch schunk_egu_egk_gripper_driver schunk.launch.py
+ros2 launch schunk_egu_egk_gripper_driver schunk.launch.py IP:=192.168.0.4
 ```
+and you should be able to interact with the gripper.
 
-In the launch file, you can also adjust the frequencies of the 'joint_states', 'state', and 'diagnostics' topics.
+You can adjust additional parameters in the driver's `schunk.launch.py` file, such as the frequencies of the 'joint_states' or the 'state' topics.
 
 | topic             | parameter frequency                                  |
 | ------            | ------                                               |
 | state             | state_frq (1.0 Hz - ca. 60 Hz)                       |
 | joint_states      | rate                                                 |
-| diagnostics       | diagnostics_period (**Note:** Period, not frequency) |
 
 **Note:** The 'state' topic will always publish the fastest rate. All other topics publish either at a slower rate or at the same rate, even if a faster rate is specified in the launch file. Actions always publish at the same rate as the 'state'.
 

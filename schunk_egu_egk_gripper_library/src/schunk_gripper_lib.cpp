@@ -60,7 +60,7 @@ post_requested(false)
    }
    catch(...)
    {
-      std::cout << "Failed Connection to gripper."  << std::endl;
+      std::cout << "Failed connection to gripper at " << ip << std::endl;
       start_connection = false;
    }
 }
