@@ -2,7 +2,7 @@ This license applies only to the `json.hpp` file.
 The `json.hpp` file was copied from its official [Github repository](https://github.com/nlohmann/json).
 
 
-MIT License 
+MIT License
 
 Copyright (c) 2013-2022 Niels Lohmann
 

@@ -45,7 +45,7 @@ sudo apt update -qq
 rosdep update
 rosdep install --from-paths ./ --ignore-src -y
 cd ..
-colcon build --symlink-install --packages-select schunk_egu_egk_gripper_driver schunk_egu_egk_gripper_library schunk_egu_egk_gripper_interfaces  
+colcon build --symlink-install --packages-select schunk_egu_egk_gripper_driver schunk_egu_egk_gripper_library schunk_egu_egk_gripper_interfaces
 ```
 
 ## Getting started
@@ -55,26 +55,21 @@ You can then scan your local network to find the device with
 ```bash
 nmap -sP -A 192.168.0.1/24
 ```
+Let's say you obtained the `192.168.0.4` for the gripper.
+Now launch the driver with
 
-Now adjust the `schunk_launch.py` file in the driver's repository with the gripper's _IP_, such as
-```
- parameters=[ {'IP': '192.168.0.4'} ]
-```
-Replace `192.168.0.4` with the IP address you found for your gripper.
-
-You should now be able to start the launch file and interact with the gripper
 ```bash
 source install/setup.bash
-ros2 launch schunk_egu_egk_gripper_driver schunk_launch.py
+ros2 launch schunk_egu_egk_gripper_driver schunk.launch.py IP:=192.168.0.4
 ```
+and you should be able to interact with the gripper.
 
-In the launch file, you can also adjust the frequencies of the 'joint_states', 'state', and 'diagnostics' topics.
+You can adjust additional parameters in the driver's `schunk.launch.py` file, such as the frequencies of the 'joint_states' or the 'state' topics.
 
 | topic             | parameter frequency                                  |
 | ------            | ------                                               |
 | state             | state_frq (1.0 Hz - ca. 60 Hz)                       |
 | joint_states      | rate                                                 |
-| diagnostics       | diagnostics_period (**Note:** Period, not frequency) |
 
 **Note:** The 'state' topic will always publish the fastest rate. All other topics publish either at a slower rate or at the same rate, even if a faster rate is specified in the launch file. Actions always publish at the same rate as the 'state'.
 
@@ -130,7 +125,7 @@ All other services can be used whenever you like. (**Note:** Fast stop is an abo
 
 `reconnect` is the only method for altering the IP address during runtime. If nothing is connected to the IP address or a gripper is connected, it undergoes a change. If something else is linked to this IP, errors will occur, and the old address will be retained in such cases. Exercise caution when using this service!
 
-With `parameter_get` and `parameter_set` you can read and set all allowed Parameter of the gripper. For getting and setting you need always the parameter instance. After that 
+With `parameter_get` and `parameter_set` you can read and set all allowed Parameter of the gripper. For getting and setting you need always the parameter instance. After that
 
 ## Parameters
 
@@ -147,19 +142,19 @@ You can change parameter of the Gripper using dynamic reconfigure. Following par
 For this type of parameter, you have to include the namespace: "GripperParameter."
 Example: `GripperParameter.use_brk`
 
-You have the option to change the default values in the `schunk_launch.py` file, which will be loaded when you start the node.
+You have the option to change the default values in the `schunk.launch.py` file, which will be loaded when you start the node.
 
 Optionally, you can perform some basic commands to the gripper via Parameter. In this case, we recommend trying out rqt and opening the parameter reconfigure Monitor. (Note: It may not function optimally in ROS 2; if that's the case, we recommend using the terminal instead)
 
 ## Example
 
-To explore the capabilities of the gripper-driver, we recommend using rqt. There, you can view all topics, dynamic reconfigure parameters, and services. You can also publish messages on topics (such as action goals) or call services. To launch rqt with the node, use the schunk_rqt_launch.py:
+To explore the capabilities of the gripper-driver, we recommend using rqt. There, you can view all topics, dynamic reconfigure parameters, and services. You can also publish messages on topics (such as action goals) or call services. To launch rqt with the node, use the schunk_rqt.launch.py:
 ```
-ros2 launch schunk_gripper schunk_rqt_launch.py
+ros2 launch schunk_gripper schunk_rqt.launch.py
 ```
 Alternatively, you can launch schunk.launch and open the rqt tool separately:
 ```
-ros2 launch schunk_gripper schunk_launch.py
+ros2 launch schunk_gripper schunk.launch.py
 rqt
 ```
 It is known that rqt can not get the message class for action feedback and action goals.
@@ -170,7 +165,7 @@ Open:
 - Plugins/Services/Service Caller: For calling services.
 - Plugins/Topic/Topic Monitor: For viewing all messages.
 
-Additionally, you can refer to 'gripper_example.cpp' for guidance on using this driver in your code. To run the example, start 'schunk_launch.py' (or 'schunk_rqt_launch.py') and then execute the example:  
+Additionally, you can refer to 'gripper_example.cpp' for guidance on using this driver in your code. To run the example, start 'schunk.launch.py' (or 'schunk_rqt_launch.py') and then execute the example:
 **!!!WARNING!!! This will move the gripper jaws**
 ```
 ros2 run schunk_gripper schunk_example

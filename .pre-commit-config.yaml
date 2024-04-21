@@ -1,0 +1,34 @@
+repos:
+  # Standard hooks
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: 'c4a0b883114b00d8d76b479c820ce7950211c99b'  # v4.5.0
+    hooks:
+      - id: check-added-large-files
+      - id: check-ast
+      - id: check-case-conflict
+      - id: check-docstring-first
+      - id: check-merge-conflict
+      - id: check-symlinks
+      - id: check-xml
+      - id: check-yaml
+      - id: debug-statements
+      - id: end-of-file-fixer
+      - id: mixed-line-ending
+      - id: trailing-whitespace
+      - id: check-byte-order-marker  # Forbid UTF-8 byte-order markers
+
+  # Python
+  - repo: https://github.com/pycqa/flake8
+    rev: '88a4f9b2f48fc44b025a48fa6a8ac7cc89ef70e0'  # 7.0.0
+    hooks:
+    -   id: flake8
+
+  - repo: https://github.com/psf/black.git
+    rev: '6fdf8a4af28071ed1d079c01122b34c5d587207a' # 24.2.0
+    hooks:
+    -   id: black
+
+  - repo: https://github.com/pre-commit/mirrors-mypy
+    rev: '9db9854e3041219b1eb619872a2dfaf58adfb20b'  # v1.9.0
+    hooks:
+    -   id: mypy

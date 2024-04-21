@@ -50,18 +50,22 @@ ament_target_dependencies(${PROJECT_NAME}
   rclcpp_action
   rclcpp_components
   diagnostic_updater
-  diagnostic_msgs 
+  diagnostic_msgs
   schunk_egu_egk_gripper_interfaces
 )
 target_link_libraries(${PROJECT_NAME}
   Schunk::schunk_egu_egk_gripper_library
 )
 
+# Make our component discoverable by the ROS2 component tooling
+rclcpp_components_register_nodes(${PROJECT_NAME} "SchunkGripperNode")
+
 #--------------------------------------------------------------------------------
 # Install
 #--------------------------------------------------------------------------------
 install(TARGETS ${PROJECT_NAME}
-  DESTINATION lib/${PROJECT_NAME})
+  DESTINATION lib
+)
 
 install(
   DIRECTORY launch
@@ -78,4 +82,3 @@ endif()
 
 # Ament package configuration
 ament_package()
-

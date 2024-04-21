@@ -4,12 +4,12 @@
 // under the terms of the GNU General Public License as published by the Free
 // Software Foundation, either version 3 of the License, or (at your option)
 // any later version.
-// 
+//
 // This program is distributed in the hope that it will be useful, but WITHOUT
 // ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
 // FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
 // more details.
-// 
+//
 // You should have received a copy of the GNU General Public License along with
 // this program. If not, see <https://www.gnu.org/licenses/>.
 // --------------------------------------------------------------------------------
@@ -22,9 +22,9 @@
 /*
  * Definitions for implementing common procedures to communicate with the gripper.
  *
- * The gripper initializes at the beginning. It acts as the middleware between 
+ * The gripper initializes at the beginning. It acts as the middleware between
  * communication and the Ros-Wrapper.
- * 
+ *
  */
 #ifndef SCHUNK_GRIPPER_HPP
 #define SCHUNK_GRIPPER_HPP
@@ -46,18 +46,18 @@ class Gripper : protected AnybusCom
    void getActualParameters();                     //Get all necessary parameters
    void getModel();                                //Get the string of the model and set flags
    void getVersions();
-   
+
    bool start_connection;
    bool model_M;
-   bool handshake;   
-   std::string model;                              
+   bool handshake;
+   std::string model;
 
    bool gripperBitInput(const uint32_t&) const;    //retrieve individual bits from the status double word
    bool gripperBitOutput(const uint32_t&) const;   //retrieve individual bits from the control double word
-   
+
    void acknowledge();                             //acknowledge
    bool changeIp(const std::string &);             //changeIP
-   
+
    bool ip_changed_with_all_param;                 //IP and parameter changed
 
    uint32_t mm2mu(const float &);                  //Convert millimeters to micrometers. All unsigned -> For control double word
@@ -70,14 +70,14 @@ class Gripper : protected AnybusCom
    void runPost(uint32_t command, uint32_t position = 0, uint32_t velocity = 0, uint32_t effort = 0); //Post control d
    void getParameter(const std::string& instance, const size_t&, const uint8_t&);
    std::string getErrorString(const uint8_t &);                                         //Get for the error code the error string
-   
+
    void sendAction();
    void sendService(std::unique_lock<std::recursive_mutex> &);
 
    bool check();                                                                                      //Check for errors
    bool endCondition();                                                                               //Is the gripper in an endCondition? -> example Successbit is set
 
-   std::array<uint8_t, 3> splitDiagnosis();                                             //Split the diagnosis to get error, warning and not-feasible     
+   std::array<uint8_t, 3> splitDiagnosis();                                             //Split the diagnosis to get error, warning and not-feasible
 
    bool post_requested;
    uint32_t set_position;
@@ -97,7 +97,7 @@ inline void Gripper::changeOneParameter(const char inst[7], parametertype new_va
 {
    std::string value = writeValueToString<parametertype>(new_value);   //Hexstring Value
    postParameter(inst, value);                                         //Post
-   std::string instance = inst;                                       
+   std::string instance = inst;
 
    getWithInstance<parametertype>(inst, store);
 }
