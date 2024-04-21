@@ -4,12 +4,12 @@
 // under the terms of the GNU General Public License as published by the Free
 // Software Foundation, either version 3 of the License, or (at your option)
 // any later version.
-// 
+//
 // This program is distributed in the hope that it will be useful, but WITHOUT
 // ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
 // FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
 // more details.
-// 
+//
 // You should have received a copy of the GNU General Public License along with
 // this program. If not, see <https://www.gnu.org/licenses/>.
 // --------------------------------------------------------------------------------
@@ -21,7 +21,7 @@
 
 /*
  * Implementation to communicate with the Gripper via AnybusCom 40.
- * 
+ *
  * This task involves receiving a ByteString via HTTP, interpreting it,
  * and posting a ByteString if any action needs to be performed by the gripper.
  */
@@ -38,7 +38,7 @@ size_t writeCallback(void* contents, size_t size, size_t nmemb, void* userp)
 
 //Initialize the plcs and Addresses
 AnybusCom::AnybusCom(const std::string &ip) : ip(ip)
-{       
+{
         initAddresses();                  //Init addresses for post and get
 
         curl = curl_easy_init();
@@ -50,9 +50,9 @@ std::vector<std::string> AnybusCom::splitResponse(const std::string &hex_str, co
 {
     std::vector<std::string> splitted;
     splitted.resize(count);
-    for(size_t i = 0; i < count; i++) 
+    for(size_t i = 0; i < count; i++)
     {
-        splitted[i] = hex_str.substr(2+(data_type_size*2 + 3)*i, data_type_size*2);   
+        splitted[i] = hex_str.substr(2+(data_type_size*2 + 3)*i, data_type_size*2);
     }
     return splitted;
 }
@@ -72,11 +72,11 @@ std::string AnybusCom::changeEndianFormat(const std::string &hexString)
 
 /**
  * @brief Performs a CURL request with the given POST data.
- * 
+ *
  * This function sets up the CURL options, including the URL, POST data, and write callback.
  * It then performs the CURL request and handles the response.
  * If the request fails, an exception is thrown with the corresponding error message.
- * 
+ *
  * @param post The POST data to send in the request.
  * @throws const char* An exception with the error message if the request fails.
  */
@@ -100,11 +100,11 @@ void AnybusCom::performCurlRequest(std::string post)
         curl_easy_reset(curl);
         throw curl_easy_strerror(res);
     }
-    else  
+    else
     {
         json_data.clear();
         json_data = nlohmann::json::parse(response);    //Parse server response
-        if(json_data["result"] != 0)  
+        if(json_data["result"] != 0)
         {
             std::string sever_res = "Server response: ";
             sever_res.append(to_string(json_data["result"]));
@@ -117,25 +117,25 @@ void AnybusCom::performCurlRequest(std::string post)
 
 /**
  * @brief Posts a command to the Anybus communication module.
- * 
+ *
  * This function constructs a command string and sends it to the Anybus communication module.
  * The command string is constructed by appending the values of the plc_sync_output array as hexadecimal strings.
  * If the endian_format is 0, indicating big endian, the double_words are treated as big endian.
- * 
+ *
  * @note This function requires the curl library to be initialized.
  */
 void AnybusCom::postCommand()
-{  
+{
     std::string post = "inst=0x0048&value=";
 
     if(endian_format == 0) not_double_word = false;                     //Double_words are always big endian
 
-    for(int i = 0; i < 4 ; i++) 
+    for(int i = 0; i < 4 ; i++)
     {
         post.append(writeValueToString<uint32_t>(plc_sync_output[i])); //Array to HexString
         not_double_word = true;
     }
-    if (curl) 
+    if (curl)
     {
         performCurlRequest(post);
     }
@@ -143,13 +143,13 @@ void AnybusCom::postCommand()
 
 /**
  * @brief Posts a parameter to the Anybus communication module.
- * 
+ *
  * This function posts a parameter to the Anybus communication module
  * using the specified instruction and value. The instruction and value
  * are passed as strings. The function checks the length of the instruction
  * and value to ensure they are within the allowed limits. If the length
  * of either the instruction or value exceeds the limits, an exception is thrown.
- * 
+ *
  * @param inst The instruction to be posted.
  * @param value The value to be posted.
  * @throws An exception if the length of the instruction or value exceeds the limits.
@@ -164,7 +164,7 @@ void AnybusCom::postParameter(std::string inst, std::string value)
     }
     else throw "Too many symbols.";
 
-    if (curl) 
+    if (curl)
     {
         performCurlRequest(post);
     }
@@ -172,7 +172,7 @@ void AnybusCom::postParameter(std::string inst, std::string value)
 
 //Inits used Addresses with the ip
 void AnybusCom::initAddresses()
-{   
+{
     data_address = "http:///adi/data.json?";
     update_address = "http:///adi/update.json";
     enum_address = "http:///adi/enum.json?";
@@ -180,7 +180,7 @@ void AnybusCom::initAddresses()
     metadata_address = "http:///adi/metadata.json?";
 
     if(ip.size() >= 100) ip = "0.0.0.0";
-    
+
     data_address.insert(7, ip);
     update_address.insert(7, ip);
     enum_address.insert(7,ip);
@@ -191,8 +191,8 @@ void AnybusCom::initAddresses()
 
 //Translates the received string of double_word to an integer[4] an saves it in plc_sync_input
 void AnybusCom::updatePlc(std::string &hex_str,const std::string &inst)
-{   
-    plc_Array *plc = plc_pairs.at(inst); 
+{
+    plc_Array *plc = plc_pairs.at(inst);
     plc->fill(0);
 
     hex_str.erase(hex_str.begin(), hex_str.begin() + 2);
@@ -211,7 +211,7 @@ void AnybusCom::updatePlc(std::string &hex_str,const std::string &inst)
 
 //Feedback strings getting translate and stored in corresponding variables
 void AnybusCom::updateFeedback(const std::string &hex_str)
-{      
+{
     std::vector<std::string> splitted;
     splitted = splitResponse(hex_str, 3, sizeof(float));
 
@@ -222,12 +222,12 @@ void AnybusCom::updateFeedback(const std::string &hex_str)
 
 //Update the plcOutput if a Command is send
 void AnybusCom::updatePlcOutput(uint32_t command, uint32_t position, uint32_t velocity, uint32_t effort)
-{   
+{
     uint32_t actual_command = command & (~GRIP_DIRECTION);      //Command without Grip direction
 
     if(last_command != actual_command && command != FAST_STOP)             //If not repeating command so do this, and reset the sended Bits
     plc_sync_output[0] &= mask;
-    
+
     if(GRIP_DIRECTION == (command & GRIP_DIRECTION)) plc_sync_output[0] ^= GRIP_DIRECTION;  //if command have an positive Grip direction bit
                                                                                             //Change the direction
 
@@ -236,22 +236,22 @@ void AnybusCom::updatePlcOutput(uint32_t command, uint32_t position, uint32_t ve
         plc_sync_output[0] &= ~FAST_STOP;
         last_command = 0;
     }
-    else if(command == USE_GPE)                                                             //If GPE is requested toggle 
+    else if(command == USE_GPE)                                                             //If GPE is requested toggle
     {
         plc_sync_output[0] ^= command;
         last_command = actual_command;
     }
     else if(last_command == actual_command) plc_sync_output[0] ^= REPEAT_COMMAND_TOGGLE;    //REPEAT_COMMAND
-    else if(command == EMERGENCY_RELEASE) plc_sync_output[0] |= (FAST_STOP | EMERGENCY_RELEASE);    
-    else 
-    {   
+    else if(command == EMERGENCY_RELEASE) plc_sync_output[0] |= (FAST_STOP | EMERGENCY_RELEASE);
+    else
+    {
         last_command = actual_command;
         plc_sync_output[0] |= actual_command;
     }
 
     plc_sync_output[1] = position;
     plc_sync_output[2] = velocity;
-    plc_sync_output[3] = effort; 
+    plc_sync_output[3] = effort;
 }
 
 //Gets to enumNumber a corresponding Error String. response is saved in json_data
@@ -264,15 +264,15 @@ void AnybusCom::getEnums(const char inst[7], const uint16_t &enumNum)
     address.append("inst=" + instance);
     address.append("&value=" + std::to_string(enumNum));    //Enum code to string
 
-    if(curl) 
-    {   
+    if(curl)
+    {
         //GET
         curl_easy_setopt(curl, CURLOPT_URL, address.c_str());
         curl_easy_setopt(curl,CURLOPT_WRITEFUNCTION, writeCallback);
         curl_easy_setopt(curl, CURLOPT_HTTPGET, 1);
         curl_easy_setopt(curl, CURLOPT_WRITEDATA, &response);
         curl_easy_setopt(curl, CURLOPT_TIMEOUT, 1L);
-        
+
         res = curl_easy_perform(curl);
 
         if (res != CURLE_OK)
@@ -299,7 +299,7 @@ void AnybusCom::getInfo()
     std::string response;
     CURLcode res;
 
-    if(curl) 
+    if(curl)
     {
         //GET
         curl_easy_setopt(curl, CURLOPT_URL, info_address.c_str());
@@ -337,7 +337,7 @@ void AnybusCom::getMetadata(const std::string &instance)
     address.append("inst=" + instance);
     address.append("&count=1");    //Metadata
 
-    if(curl) 
+    if(curl)
     {
         //GET
         curl_easy_setopt(curl, CURLOPT_URL, address.c_str());
@@ -363,7 +363,7 @@ void AnybusCom::getMetadata(const std::string &instance)
         }
 
         curl_easy_reset(curl);
-    }   
+    }
 }
 
 AnybusCom::~AnybusCom()

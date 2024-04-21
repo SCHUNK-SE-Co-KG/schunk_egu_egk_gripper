@@ -50,7 +50,7 @@ ament_target_dependencies(${PROJECT_NAME}
   rclcpp_action
   rclcpp_components
   diagnostic_updater
-  diagnostic_msgs 
+  diagnostic_msgs
   schunk_egu_egk_gripper_interfaces
 )
 target_link_libraries(${PROJECT_NAME}
@@ -82,4 +82,3 @@ endif()
 
 # Ament package configuration
 ament_package()
-

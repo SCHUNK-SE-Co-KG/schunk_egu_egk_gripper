@@ -4,12 +4,12 @@
 // under the terms of the GNU General Public License as published by the Free
 // Software Foundation, either version 3 of the License, or (at your option)
 // any later version.
-// 
+//
 // This program is distributed in the hope that it will be useful, but WITHOUT
 // ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
 // FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
 // more details.
-// 
+//
 // You should have received a copy of the GNU General Public License along with
 // this program. If not, see <https://www.gnu.org/licenses/>.
 // --------------------------------------------------------------------------------
@@ -23,7 +23,7 @@
  * Implementation for common procedures to communicate with the gripper.
  *
  * The gripper initializes at the beginning. It acts as the middleware between communication and the Ros-Wrapper.
- * 
+ *
  */
 
 #include "schunk_egu_egk_gripper_library/schunk_gripper_lib.hpp"
@@ -44,12 +44,12 @@ std::map<std::string, uint32_t> commands_str
     {"SOFT RESET", SOFT_RESET}
 };
 //Start th gripper, so it is ready to operate
-Gripper::Gripper(const std::string &ip): 
-AnybusCom(ip), 
+Gripper::Gripper(const std::string &ip):
+AnybusCom(ip),
 post_requested(false)
-{  
+{
    try
-   {  
+   {
       startGripper();
       set_command = 0;
       set_position = actual_position;
@@ -102,7 +102,7 @@ void Gripper::getModel()
       getEnums(MODULE_TYPE_INST, module_type);
       model = json_data["string"];
       //Is it model M this means it has a break
-      if(model.find("_M_") != std::string::npos) 
+      if(model.find("_M_") != std::string::npos)
       {
          std::cout << "Grip force and position maintenance!" << std::endl;
          model_M = true;
@@ -113,16 +113,16 @@ void Gripper::getModel()
          model_M = false;
       }
       if(model.find("EGU") != std::string::npos) getWithInstance<float>(MAX_ALLOW_FORCE_INST,&max_allow_force);
-      
+
       std::cout <<  model << " CONNECTED!" << std::endl;
 }
 
 void Gripper::getParameter(const std::string& instance, const size_t& elements, const uint8_t& datatype)
-{     
+{
       if(instance == PLC_SYNC_INPUT_INST || instance == PLC_SYNC_OUTPUT_INST) not_double_word = false;
-      
+
       char inst[7];
-      if(instance.size() < 7) 
+      if(instance.size() < 7)
       {
        std::strcpy(inst, instance.c_str());
       }
@@ -135,12 +135,12 @@ void Gripper::getParameter(const std::string& instance, const size_t& elements, 
       updateSaveData<uint8_t>(uint8_vector, elements);   //ROS 1
       updateSaveData<bool>(bool_vector, elements);       // ROS2
       break;
-      
+
       case UINT8_DATA :
       getWithInstance<uint8_t>(inst, NULL, elements);
       updateSaveData<uint8_t>( uint8_vector, elements);
       break;
-      
+
       case UINT16_DATA:
       getWithInstance<uint16_t>(inst, NULL, elements);
       updateSaveData<uint16_t>(uint16_vector, elements);
@@ -150,7 +150,7 @@ void Gripper::getParameter(const std::string& instance, const size_t& elements, 
       getWithInstance<uint32_t>(inst, NULL, elements);
       updateSaveData<uint32_t>(uint32_vector, elements);
       break;
-      
+
       case INT32_DATA:
       getWithInstance<int32_t>(inst, NULL, elements);
       updateSaveData<int32_t>(int32_vector, elements);
@@ -160,7 +160,7 @@ void Gripper::getParameter(const std::string& instance, const size_t& elements, 
       getWithInstance<float>(inst, NULL, elements);
       updateSaveData<float>(float_vector, elements);
       break;
-      
+
       case CHAR_DATA:
       getWithInstance<char>(inst, NULL, elements);
       updateSaveData<char>(char_vector, elements);
@@ -172,7 +172,7 @@ void Gripper::getParameter(const std::string& instance, const size_t& elements, 
       break;
    }
 }
- 
+
 bool Gripper::check()
 {
    if(plc_sync_input[3] == 0) return 1;
@@ -184,26 +184,26 @@ std::array<uint8_t, 3> Gripper::splitDiagnosis()
    std::array<uint8_t, 3> error_codes;
    error_codes[0] = (plc_sync_input[3] >> 3*8) & 0xFF;
    error_codes[1] = (plc_sync_input[3]  >> 2*8) & 0xFF;
-   error_codes[2] =  plc_sync_input[3] & 0xFF;   
+   error_codes[2] =  plc_sync_input[3] & 0xFF;
    return error_codes;
 }
 //Return true when the Gripper is in end condition
-bool Gripper::endCondition()  
+bool Gripper::endCondition()
 {
-   return (gripperBitInput(SUCCESS) || gripperBitInput(POSITION_REACHED) || gripperBitInput(NO_WORKPIECE_DETECTED) 
-   || gripperBitInput(GRIPPED) || gripperBitInput(GRIPPER_ERROR) || gripperBitInput(WARNING) 
+   return (gripperBitInput(SUCCESS) || gripperBitInput(POSITION_REACHED) || gripperBitInput(NO_WORKPIECE_DETECTED)
+   || gripperBitInput(GRIPPED) || gripperBitInput(GRIPPER_ERROR) || gripperBitInput(WARNING)
    || gripperBitInput(WORK_PIECE_LOST) || gripperBitInput(WRONG_WORKPIECE_DETECTED));
 }
 //Post a Command and receive Gripper response
 void Gripper::runPost(uint32_t command, uint32_t position, uint32_t velocity, uint32_t effort)
-{  
+{
     updatePlcOutput(command, position, velocity, effort);
     postCommand();
 }
 //Receive Gripper response and actual Data
 void Gripper::runGets()
-{   
-    if(post_requested) 
+{
+    if(post_requested)
     {
       handshake = gripperBitInput(COMMAND_RECEIVED_TOGGLE);
       runPost(set_command, set_position, set_speed, set_gripping_force);
@@ -213,8 +213,8 @@ void Gripper::runGets()
     }
 
     getWithOffset<float>(ACTUAL_POS_OFFSET, 3, float_vector);
-    
-    if(post_requested) 
+
+    if(post_requested)
     {
       handshake = gripperBitInput(COMMAND_RECEIVED_TOGGLE);
       runPost(set_command, set_position, set_speed, set_gripping_force);
@@ -222,10 +222,10 @@ void Gripper::runGets()
       post_requested = false;
       return;
     }
-    
+
     getWithInstance<uint32_t>(PLC_SYNC_INPUT_INST);
 
-   if(post_requested) 
+   if(post_requested)
    {
       handshake = gripperBitInput(COMMAND_RECEIVED_TOGGLE);
       runPost(set_command, set_position, set_speed, set_gripping_force);
@@ -235,7 +235,7 @@ void Gripper::runGets()
 }
 //If the gripper is ready for shutdown, so do softreset. DO: Acknowledge and get receive
 void Gripper::startGripper()
-{     
+{
         //get dataformat -> big/little endian
         getInfo();
         //Get plc Values
@@ -260,7 +260,7 @@ void Gripper::startGripper()
             std::cout << ("SOFTRESET FINISHED") << std::endl;
 
         }
-      
+
          //Get parameters
          getActualParameters();
          //Model
@@ -294,7 +294,7 @@ bool Gripper::gripperBitOutput(const uint32_t &bitmakro) const
     return bitmakro & plc_sync_output[0];
 }
 //Get to an Error the corresponding string
-std::string Gripper::getErrorString(const uint8_t &error) 
+std::string Gripper::getErrorString(const uint8_t &error)
 {
    try
    {
@@ -323,7 +323,7 @@ void Gripper::acknowledge()
 bool Gripper::changeIp(const std::string &new_ip)
 {
    if(new_ip.size() > 100) return false;
-   
+
    std::string old_ip = ip;
    ip = new_ip;
    std::string old_model = model;
@@ -332,9 +332,9 @@ bool Gripper::changeIp(const std::string &new_ip)
    try
    {
       startGripper();
-      
+
       ip_changed_with_all_param = true;
-   
+
       return true;
    }
    catch(const char* res)
@@ -346,7 +346,7 @@ bool Gripper::changeIp(const std::string &new_ip)
    }
    catch(const nlohmann::json::parse_error &e)
    {
-      ip_changed_with_all_param = true;    
+      ip_changed_with_all_param = true;
       ip = old_ip;
       std::cout << "message: " << e.what()  << "\nexception id: " << e.id << std::endl;
       std::cout << "Setting to old IP: " << ip << std::endl;
@@ -361,7 +361,7 @@ bool Gripper::changeIp(const std::string &new_ip)
       initAddresses();
       return false;
    }
-  
+
 }
 //send action directly after current (cyclic-) http or immediately
 void Gripper::sendAction()
@@ -370,30 +370,30 @@ void Gripper::sendAction()
 
             std::unique_lock<std::recursive_mutex> lock(lock_mutex);
 
-            if(post_requested == true) 
+            if(post_requested == true)
             {
                handshake = gripperBitInput(COMMAND_RECEIVED_TOGGLE);
-      
+
                runPost(set_command, set_position, set_speed, set_gripping_force);
                getWithInstance<uint32_t>(PLC_SYNC_INPUT_INST);
                post_requested = false;
             }
 
-            if(handshake == gripperBitInput(COMMAND_RECEIVED_TOGGLE)) 
+            if(handshake == gripperBitInput(COMMAND_RECEIVED_TOGGLE))
             {
                post_requested = false;
-               throw int32_t(-1);    
+               throw int32_t(-1);
             }
             lock.unlock();
 }
 //send service directly after current (cyclic-) http or immediately. Locks the mutex. Does not unlock!
 void Gripper::sendService(std::unique_lock<std::recursive_mutex> &lock)
-{   
+{
          post_requested = true;
 
          lock.lock();
 
-         if(post_requested == true) 
+         if(post_requested == true)
          {
             handshake = gripperBitInput(COMMAND_RECEIVED_TOGGLE);
             runPost(set_command, set_position, set_speed, set_gripping_force);

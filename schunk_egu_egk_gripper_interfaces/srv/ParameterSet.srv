@@ -5,7 +5,7 @@ uint8[] uint8_value
 uint16[] uint16_value
 uint32[] uint32_value
 int32[] int32_value
-float32[] float_value 
+float32[] float_value
 ---
 bool[] actual_bool_value
 uint8[] actual_uint8_value

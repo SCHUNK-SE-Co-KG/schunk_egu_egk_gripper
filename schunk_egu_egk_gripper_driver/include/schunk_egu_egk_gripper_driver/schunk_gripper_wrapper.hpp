@@ -4,12 +4,12 @@
 // under the terms of the GNU General Public License as published by the Free
 // Software Foundation, either version 3 of the License, or (at your option)
 // any later version.
-// 
+//
 // This program is distributed in the hope that it will be useful, but WITHOUT
 // ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
 // FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
 // more details.
-// 
+//
 // You should have received a copy of the GNU General Public License along with
 // this program. If not, see <https://www.gnu.org/licenses/>.
 // --------------------------------------------------------------------------------
@@ -56,7 +56,7 @@ extern  std::map<std::string, const char*> param_inst;
 extern std::map<std::string, std::string> inst_param;
 
 class SchunkGripperNode :  public rclcpp::Node, public Gripper
-{    
+{
     private:
 
     std::mutex lock_service_post;
@@ -86,7 +86,7 @@ class SchunkGripperNode :  public rclcpp::Node, public Gripper
     //Flags
     bool doing_something;
     bool action_active;
-    bool wrong_version;     
+    bool wrong_version;
     //Topic publishing
     void publishJointState();
     void publishState();
@@ -102,7 +102,7 @@ class SchunkGripperNode :  public rclcpp::Node, public Gripper
     //Diagnostic updater
     std::shared_ptr<diagnostic_updater::Updater> gripper_updater;
 
-    std::array<uint8_t,3> old_diagnosis; 
+    std::array<uint8_t,3> old_diagnosis;
     std::string error_str;
     std::string warn_str;
 
@@ -118,10 +118,10 @@ class SchunkGripperNode :  public rclcpp::Node, public Gripper
     void callback_move_parameter(const rclcpp::Parameter &);
 
     double abs_pos_param;
-    std::string actual_command; 
+    std::string actual_command;
     std::shared_ptr<rclcpp::Duration> cycletime;
     rclcpp::Time     last_time;
-    rclcpp::Rate     limiting_rate;    
+    rclcpp::Rate     limiting_rate;
     //Basic Functions
     void publishStateMsg();
     void finishedCommand();
@@ -137,7 +137,7 @@ class SchunkGripperNode :  public rclcpp::Node, public Gripper
     rcl_interfaces::msg::ParameterDescriptor parameter_descriptor(const std::string&);
     rcl_interfaces::msg::FloatingPointRange FloatingPointRange(double, double, double step = 0.0);
     rcl_interfaces::msg::IntegerRange IntegerRange(int64_t, int64_t, uint64_t step = 0);
-    
+
     //Services
     void acknowledge_srv(const std::shared_ptr<Acknowledge::Request>, std::shared_ptr<Acknowledge::Response> );
     void brake_test_srv(const std::shared_ptr<BrakeTest::Request>, std::shared_ptr<BrakeTest::Response> );

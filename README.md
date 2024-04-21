@@ -45,7 +45,7 @@ sudo apt update -qq
 rosdep update
 rosdep install --from-paths ./ --ignore-src -y
 cd ..
-colcon build --symlink-install --packages-select schunk_egu_egk_gripper_driver schunk_egu_egk_gripper_library schunk_egu_egk_gripper_interfaces  
+colcon build --symlink-install --packages-select schunk_egu_egk_gripper_driver schunk_egu_egk_gripper_library schunk_egu_egk_gripper_interfaces
 ```
 
 ## Getting started
@@ -130,7 +130,7 @@ All other services can be used whenever you like. (**Note:** Fast stop is an abo
 
 `reconnect` is the only method for altering the IP address during runtime. If nothing is connected to the IP address or a gripper is connected, it undergoes a change. If something else is linked to this IP, errors will occur, and the old address will be retained in such cases. Exercise caution when using this service!
 
-With `parameter_get` and `parameter_set` you can read and set all allowed Parameter of the gripper. For getting and setting you need always the parameter instance. After that 
+With `parameter_get` and `parameter_set` you can read and set all allowed Parameter of the gripper. For getting and setting you need always the parameter instance. After that
 
 ## Parameters
 
@@ -170,7 +170,7 @@ Open:
 - Plugins/Services/Service Caller: For calling services.
 - Plugins/Topic/Topic Monitor: For viewing all messages.
 
-Additionally, you can refer to 'gripper_example.cpp' for guidance on using this driver in your code. To run the example, start 'schunk.launch.py' (or 'schunk_rqt_launch.py') and then execute the example:  
+Additionally, you can refer to 'gripper_example.cpp' for guidance on using this driver in your code. To run the example, start 'schunk.launch.py' (or 'schunk_rqt_launch.py') and then execute the example:
 **!!!WARNING!!! This will move the gripper jaws**
 ```
 ros2 run schunk_gripper schunk_example
