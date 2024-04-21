@@ -492,11 +492,17 @@ int main(int argc, char** argv)
     if(param_client->wait_for_service(std::chrono::seconds(5)))
     {
         model_param = param_client->get_parameters({"model"}).get();
+        if (model_param.empty())
+        {
+            RCLCPP_ERROR(node->get_logger(), "Model parameter not available. The driver is not working properly.");
+            return 1;
+        }
         RCLCPP_INFO(node->get_logger(), "Model: %s", model_param[0].as_string().c_str());
     }
     else
     {
-        RCLCPP_ERROR_STREAM(node->get_logger(), "Node " << name_space << "schunk_gripper_driver not found");
+        RCLCPP_ERROR_STREAM(node->get_logger(), "Node " << name_space << "schunk_gripper_driver not found. You must start that first.");
+        return 1;
     }
     //ALL SERVICES
     auto acknowledge_client = node->create_client<Acknowledge> (name_space+"acknowledge");
