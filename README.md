@@ -64,14 +64,14 @@ ros2 launch schunk_egu_egk_gripper_driver schunk.launch.py IP:=192.168.0.4
 ```
 and you should be able to interact with the gripper.
 
-You can adjust additional parameters in the driver's `schunk.launch.py` file, such as the frequencies of the 'joint_states' or the 'state' topics.
+You can adjust additional parameters in the driver's `schunk.launch.py` file, such as the frequencies of the `joint_states` or the `state` topics.
 
 | topic             | parameter frequency                                  |
 | ------            | ------                                               |
 | state             | state_frq (1.0 Hz - ca. 60 Hz)                       |
 | joint_states      | rate                                                 |
 
-**Note:** The 'state' topic will always publish the fastest rate. All other topics publish either at a slower rate or at the same rate, even if a faster rate is specified in the launch file. Actions always publish at the same rate as the 'state'.
+**Note:** The `state` topic will always publish the fastest rate. All other topics publish either at a slower rate or at the same rate, even if a faster rate is specified in the launch file. Actions always publish at the same rate as the `state`.
 
 **Note:** There is also a namespace. It is recommended to set the model name as the namespace when using a single gripper. If you use multiple grippers of the same model, you can also utilize different namespaces.
 
@@ -82,7 +82,7 @@ a) Using a component manager – this process is also outlined in the launch fil
 
 b) Within your custom executable, coupled with a (multithreaded-)executor.
 
-If you prefer starting the node in your main function, ensure that you include "schunk_gripper_driver" in the cmake target_link_libraries. Additionally, always specify the IP address, setting the parameter overrides for "IP" to your designated IP. Alternatively, create the "SchunkGripperNode"-Component and utilize the "reconnect" service, specifying your IP.
+If you prefer starting the node in your main function, ensure that you include `Schunk::schunk_egu_egk_gripper_driver` in CMake's `target_link_libraries()`. Additionally, always specify the IP address, setting the parameter overrides "IP" to your designated IP. Alternatively, create the `SchunkGripperNode`-Component and utilize the `reconnect` service, specifying your IP.
 
 ## Actions
 All functionalities of the gripper, including movement, are treated as actions. This implies that when gripping, moving, or releasing a workpiece, you need to send a goal and can receive a result or feedback. Releasing a workpiece is the only action where you send an empty goal:
@@ -144,29 +144,19 @@ Example: `GripperParameter.use_brk`
 
 You have the option to change the default values in the `schunk.launch.py` file, which will be loaded when you start the node.
 
-Optionally, you can perform some basic commands to the gripper via Parameter. In this case, we recommend trying out rqt and opening the parameter reconfigure Monitor. (Note: It may not function optimally in ROS 2; if that's the case, we recommend using the terminal instead)
+Optionally, you can perform some basic commands to the gripper via Parameter. In this case, we recommend trying out `rqt` and opening the parameter reconfigure monitor.
 
-## Example
+## Dynamic reconfiguration
 
-To explore the capabilities of the gripper-driver, we recommend using rqt. There, you can view all topics, dynamic reconfigure parameters, and services. You can also publish messages on topics (such as action goals) or call services. To launch rqt with the node, use the schunk_rqt.launch.py:
+We recommend using `rqt` to explore the capabilities of the gripper-driver. It lets you view all topics, dynamic reconfigure parameters, and services. You can also publish messages on topics (such as action goals) or call services. First, launch your driver as explained in [getting-started]. Open a new terminal
 ```
-ros2 launch schunk_gripper schunk_rqt.launch.py
-```
-Alternatively, you can launch schunk.launch and open the rqt tool separately:
-```
-ros2 launch schunk_gripper schunk.launch.py
+source install/setup.bash
 rqt
 ```
-It is known that rqt can not get the message class for action feedback and action goals.
+Note that `rqt` currently has limitations in getting message classes for action feedback and action goals.
 ![rqt](resources/images/rqt_interface.png)
 
 Open:
 - Plugins/Configuration/Dynamic Reconfigure: For changing parameters.
 - Plugins/Services/Service Caller: For calling services.
 - Plugins/Topic/Topic Monitor: For viewing all messages.
-
-Additionally, you can refer to 'gripper_example.cpp' for guidance on using this driver in your code. To run the example, start 'schunk.launch.py' (or 'schunk_rqt_launch.py') and then execute the example:
-**!!!WARNING!!! This will move the gripper jaws**
-```
-ros2 run schunk_gripper schunk_example
-```
