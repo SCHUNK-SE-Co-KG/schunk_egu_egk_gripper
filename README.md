@@ -148,7 +148,7 @@ Optionally, you can perform some basic commands to the gripper via Parameter. In
 
 ## Dynamic reconfiguration
 
-We recommend using `rqt` to explore the capabilities of the gripper-driver. It lets you view all topics, dynamic reconfigure parameters, and services. You can also publish messages on topics (such as action goals) or call services. First, launch your driver as explained in [getting-started]. Open a new terminal
+We recommend using `rqt` to explore the capabilities of the gripper-driver. It lets you view all topics, dynamic reconfigure parameters, and services. You can also publish messages on topics (such as action goals) or call services. First, launch your driver as explained in [Getting started](#getting-started). Open a new terminal
 ```
 source install/setup.bash
 rqt
