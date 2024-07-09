@@ -87,7 +87,7 @@ class Gripper : protected AnybusCom
 
    public:
 
-   Gripper(const std::string &ip);                                                        //Gripper initialisation
+   Gripper(const std::string &ip, int port);                                                        //Gripper initialisation
    ~Gripper();
 };
 

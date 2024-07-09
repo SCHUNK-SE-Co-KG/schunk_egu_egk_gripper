@@ -27,7 +27,12 @@ def generate_launch_description():
         default_value="10.49.60.86",
         description="IP address of the gripper on your network",
     )
-    args = [ip]
+    port = DeclareLaunchArgument(
+        "port",
+        default_value="80",
+        description="TCP/IP port of the gripper",
+    )
+    args = [ip, port]
 
     container = Node(
         name="gripper_container",
@@ -47,6 +52,7 @@ def generate_launch_description():
                 namespace="EGK_50_M_B",
                 parameters=[
                     {"IP": LaunchConfiguration("IP")},
+                    {"port": LaunchConfiguration("port")},
                     {"state_frq": 60.0},
                     {"rate": 10.0},
                     {"use_brk": False},

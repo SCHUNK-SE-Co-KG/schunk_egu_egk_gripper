@@ -243,7 +243,7 @@ class AnybusCom
 
         void performCurlRequest(std::string post);
 
-        AnybusCom(const std::string &ip);
+        AnybusCom(const std::string &ip, int port);
         ~AnybusCom();
     };
 //Get something with Instance

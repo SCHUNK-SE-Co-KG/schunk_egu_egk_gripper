@@ -37,12 +37,11 @@ size_t writeCallback(void* contents, size_t size, size_t nmemb, void* userp)
 }
 
 //Initialize the plcs and Addresses
-AnybusCom::AnybusCom(const std::string &ip) : ip(ip)
+AnybusCom::AnybusCom(const std::string &ip, int port) : ip(ip)
 {
-        initAddresses();                  //Init addresses for post and get
-
+        initAddresses();  // for post and get
         curl = curl_easy_init();
-
+        curl_easy_setopt(curl, CURLOPT_PORT, port);
 }
 
 //Split a hexadecimal String, which represents an Array into its parts (HERE THE DATATYPE IS ALWAYS 4 Bytes)

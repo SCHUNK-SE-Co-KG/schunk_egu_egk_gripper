@@ -44,7 +44,10 @@ std::map<std::string, std::string> inst_param =
 //Initialize the ROS Driver
 SchunkGripperNode::SchunkGripperNode(const rclcpp::NodeOptions &options) :
     rclcpp::Node("schunk_gripper_driver", options),
-    Gripper(this->declare_parameter("IP", "0.0.0.0", parameter_descriptor("IP-Address of the gripper"))),
+    Gripper(
+        this->declare_parameter("IP", "0.0.0.0", parameter_descriptor("IP-Address of the gripper")),
+        this->declare_parameter("port", 80, parameter_descriptor("TCP/IP port of the gripper"))
+        ),
     limiting_rate(1000) //limiting_rate for loops
 {
     //Callback groups

@@ -44,8 +44,8 @@ std::map<std::string, uint32_t> commands_str
     {"SOFT RESET", SOFT_RESET}
 };
 //Start th gripper, so it is ready to operate
-Gripper::Gripper(const std::string &ip):
-AnybusCom(ip),
+Gripper::Gripper(const std::string &ip, int port):
+AnybusCom(ip, port),
 post_requested(false)
 {
    try
