@@ -27,3 +27,12 @@ class Dummy(object):
     def process(self, msg: str) -> bool:
         print(msg)
         return True
+
+    def get_info(self) -> dict:
+        return {"dataformat": 0, "numadis": 123, "webversion": 1}
+
+    def get_enum(self) -> list:
+        return []
+
+    def get_data(self) -> list:
+        return []

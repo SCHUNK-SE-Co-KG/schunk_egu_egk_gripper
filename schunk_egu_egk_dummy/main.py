@@ -32,6 +32,16 @@ async def put(msg: Message):
     return True
 
 
-@server.get("/")
-async def get():
-    return "Dummy ready"
+@server.get("/adi/info.json")
+async def get_info():
+    return dummy.get_info()
+
+
+@server.get("/adi/enum.json")
+async def get_enum():
+    return dummy.get_enum()
+
+
+@server.get("/adi/data.json")
+async def get_data():
+    return dummy.get_data()
