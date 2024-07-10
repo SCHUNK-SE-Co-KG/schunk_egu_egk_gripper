@@ -1,5 +1,6 @@
 from threading import Thread
 import time
+from urllib.parse import parse_qs
 
 
 class Dummy(object):
@@ -19,20 +20,20 @@ class Dummy(object):
         self.thread.join()
         self.running = False
 
-    def _run(self):
+    def _run(self) -> None:
         while not self.done:
             time.sleep(1)
         print("Done")
 
-    def process(self, msg: str) -> bool:
-        print(msg)
-        return True
+    def process_get(self, path: str, query: dict[str, list[str]]) -> dict | list | None:
+        print(f"path: {path}")
+        query = parse_qs(str(query))
+        print(f"query: {query}")
 
-    def get_info(self) -> dict:
-        return {"dataformat": 0, "numadis": 123, "webversion": 1}
-
-    def get_enum(self) -> list:
-        return []
-
-    def get_data(self) -> list:
-        return []
+        if path == "info.json":
+            return {}
+        if path == "enum.json":
+            return []
+        if path == "data.json":
+            return []
+        return None

@@ -1,6 +1,6 @@
 from src.dummy import Dummy
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from typing import Optional
 from pydantic import BaseModel
@@ -28,20 +28,10 @@ class Message(BaseModel):
 
 @server.put("/")
 async def put(msg: Message):
-    dummy.process(msg.message)
+    print(msg)
     return True
 
 
-@server.get("/adi/info.json")
-async def get_info():
-    return dummy.get_info()
-
-
-@server.get("/adi/enum.json")
-async def get_enum():
-    return dummy.get_enum()
-
-
-@server.get("/adi/data.json")
-async def get_data():
-    return dummy.get_data()
+@server.get("/adi/{path}")
+async def get(request: Request):
+    return dummy.process_get(request.path_params["path"], request.query_params)

@@ -21,23 +21,25 @@ def test_dummy_survives_repeated_starts_and_stops():
     assert not dummy.running
 
 
-def test_dummy_processes_messages():
+def test_dummy_responds_correctly_to_info_requests():
     dummy = Dummy()
-    msg = "Hello simulator!"
-    assert dummy.process(msg)
+    path = "info.json"
+    query = ""
+    expected = {}
+    assert dummy.process_get(path, query) == expected
 
 
-def test_dummy_returns_valid_info():
+def test_dummy_responds_correctly_to_enum_requests():
     dummy = Dummy()
-    info = {"dataformat": 0, "numadis": 123, "webversion": 1}
-    assert dummy.get_info() == info
+    path = "enum.json"
+    query = ""
+    expected = []
+    assert dummy.process_get(path, query) == expected
 
 
-def test_dummy_returns_valid_enums():
+def test_dummy_responds_correctly_to_data_requests():
     dummy = Dummy()
-    assert dummy.get_enum() == []
-
-
-def test_dummy_returns_valid_data():
-    dummy = Dummy()
-    assert dummy.get_data() == []
+    path = "data.json"
+    query = ""
+    expected = []
+    assert dummy.process_get(path, query) == expected
