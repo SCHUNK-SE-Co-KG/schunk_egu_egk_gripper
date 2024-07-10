@@ -25,7 +25,7 @@ def test_dummy_responds_correctly_to_info_requests():
     dummy = Dummy()
     path = "info.json"
     query = ""
-    expected = {}
+    expected = {"dataformat": 0}
     assert dummy.process_get(path, query) == expected
 
 

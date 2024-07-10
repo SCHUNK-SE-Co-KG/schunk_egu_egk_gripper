@@ -31,7 +31,7 @@ class Dummy(object):
         print(f"query: {query}")
 
         if path == "info.json":
-            return {}
+            return {"dataformat": 0}  # 0: Little endian, 1: Big endian
         if path == "enum.json":
             return []
         if path == "data.json":
