@@ -6,6 +6,8 @@ from launch.substitutions import PathJoinSubstitution
 from launch_ros.substitutions import FindPackageShare
 import launch_pytest
 import subprocess
+from ament_index_python.packages import get_package_share_directory
+
 
 # We avoid black's F811, F401 linting warnings
 # by using pytest's special conftest.py file.
@@ -22,7 +24,8 @@ def isolated():
 
 @pytest.fixture()
 def gripper_dummy():
-    dummy_dir = "/home/stefan/src/ros2_workspaces/egu-egk/src/schunk_egu_egk_gripper/schunk_egu_egk_gripper_dummy"  # noqa: E501
+    package_name = "schunk_egu_egk_gripper_dummy"
+    dummy_dir = get_package_share_directory(package_name)
     start_cmd = " uvicorn main:server --port 8000"
     p = subprocess.Popen(
         "exec" + start_cmd, stdin=subprocess.PIPE, cwd=dummy_dir, shell=True
