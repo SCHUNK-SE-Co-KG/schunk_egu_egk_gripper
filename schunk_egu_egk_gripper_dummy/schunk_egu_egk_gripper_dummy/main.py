@@ -34,4 +34,4 @@ async def put(msg: Message):
 
 @server.get("/adi/{path}")
 async def get(request: Request):
-    return dummy.process_get(request.path_params["path"], request.query_params)
+    return dummy.get(request.path_params["path"], request.query_params)

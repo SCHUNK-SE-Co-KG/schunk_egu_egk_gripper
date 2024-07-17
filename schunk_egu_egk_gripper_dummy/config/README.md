@@ -9,6 +9,12 @@ For instance, reading available error codes for the enum `HEX=0x0118` (`DEC=280`
 http://<gripper-ip>/adi/enum.json?inst=280
 ```
 
+## Metadata
+
+```bash
+http://<gripper-ip>/adi/metadata.json?offset=0&count=300
+```
+
 ## Data
 Use this script that reads the data directly from the gripper:
 ```bash

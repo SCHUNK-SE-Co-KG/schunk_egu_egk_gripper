@@ -13,6 +13,7 @@ setup(
         ("share/" + package_name, ["package.xml"]),
         (os.path.join("share", package_name), [package_name + "/main.py"]),
         (os.path.join("share", package_name, "src"), glob("src/*.py")),
+        (os.path.join("share", package_name, "config"), glob("config/*.json")),
     ],
     install_requires=["setuptools"],
     zip_safe=True,
