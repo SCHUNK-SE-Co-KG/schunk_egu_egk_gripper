@@ -34,4 +34,12 @@ async def put(msg: Message):
 
 @server.get("/adi/{path}")
 async def get(request: Request):
-    return dummy.get(request.path_params["path"], request.query_params)
+    path = request.path_params["path"]
+    params = request.query_params
+    if path == "info.json":
+        return dummy.get_info(params)
+    if path == "enum.json":
+        return dummy.get_enum(params)
+    if path == "data.json":
+        return dummy.get_data(params)
+    return None

@@ -46,34 +46,38 @@ class Dummy(object):
             time.sleep(1)
         print("Done")
 
-    def get(self, path: str, query: dict[str, str]) -> dict | list | None:
-        print(f"path: {path}")
-        print(f"query: {query}")
+    def get_info(self, query: dict[str, str]) -> dict:
+        return {"dataformat": 0}  # 0: Little endian, 1: Big endian
 
-        if path == "info.json":
-            return {"dataformat": 0}  # 0: Little endian, 1: Big endian
+    def get_enum(self, query: dict[str, str]) -> list:
+        inst = query["inst"]
+        value = int(query["value"])
+        if inst in self.enum:
+            string = self.enum[inst][value]["string"]
+            return [{"string": string, "value": value}]
+        else:
+            return []
 
-        if path == "enum.json":
-            inst = query["inst"]
-            value = int(query["value"])
-            if inst in self.enum:
-                string = self.enum[inst][value]["string"]
-                return [{"string": string, "value": value}]
-            else:
-                return []
-
-        if path == "data.json":
-            result: list = []
-            if "offset" in query and "count" in query:
-                offset = int(query["offset"])
-                count = int(query["count"])
-                if offset < 0 or count < 0:
-                    return result
-                if offset + count >= len(self.metadata):
-                    return result
-                for i in range(count):
-                    result.append(self.metadata[offset + i])
+    def get_data(self, query: dict[str, str]) -> list:
+        result: list = []
+        if "offset" in query and "count" in query:
+            offset = int(query["offset"])
+            count = int(query["count"])
+            if offset < 0 or count < 0:
                 return result
-            else:
-                return []
-        return None
+            if offset + count >= len(self.metadata):
+                return result
+            for i in range(count):
+                result.append(self.metadata[offset + i])
+            return result
+
+        if "inst" in query and "count" in query:
+            inst = query["inst"]
+            count = int(query["count"])
+            if count != 1:
+                return result
+            if inst not in self.data:
+                return result
+            return self.data[inst]
+        else:
+            return []
