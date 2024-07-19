@@ -46,6 +46,9 @@ class Dummy(object):
             time.sleep(1)
         print("Done")
 
+    def post(self, msg: dict) -> dict:
+        return {"result": 0}
+
     def get_info(self, query: dict[str, str]) -> dict:
         return {"dataformat": 0}  # 0: Little endian, 1: Big endian
 

@@ -87,3 +87,11 @@ def test_dummy_survives_invalid_data_requests():
     query = {"inst": "0x0040", "count": "2"}
     expected = []
     assert dummy.get_data(query) == expected
+
+
+def test_dummy_responds_correctly_to_post_requests():
+    dummy = Dummy()
+    inst = "0x0048"
+    data = {"inst": inst, "value": "01"}
+    expected = {"result": 0}
+    assert dummy.post(data) == expected
