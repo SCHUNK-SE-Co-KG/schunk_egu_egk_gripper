@@ -17,9 +17,16 @@ def read_parameter_codes(filepath: str) -> list[str]:
     def contains_hex(line: str) -> bool:
         return True if "0x" in line and line[0] != "#" else False
 
+    def remove_comments(line: str) -> str:
+        if line.find("#") != -1:
+            line = line[0 : line.find("#")]
+        line = line.strip()
+        return line
+
     with open(filepath, "r") as f:
         lines = f.read().split("\n")
     lines = list(filter(contains_hex, lines))
+    lines = list(map(remove_comments, lines))
     return lines
 
 

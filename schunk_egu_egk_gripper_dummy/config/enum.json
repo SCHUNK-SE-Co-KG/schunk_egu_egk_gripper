@@ -1013,7 +1013,7 @@
             "string": "ERR_SW_COMM"
         }
     ],
-    "0x120": [
+    "0x0120": [
         {
             "value": 0,
             "string": "ERR_NONE"
@@ -2139,6 +2139,40 @@
         {
             "value": 27,
             "string": "EGU_80_M_SD"
+        }
+    ],
+    "0x1130": [
+        {
+            "value": 0,
+            "string": "UNKNOWN"
+        },
+        {
+            "value": 1,
+            "string": "PROFINET"
+        },
+        {
+            "value": 2,
+            "string": "EtherNet/IP (TM)"
+        },
+        {
+            "value": 3,
+            "string": "EtherCAT"
+        },
+        {
+            "value": 4,
+            "string": "Modbus TCP"
+        },
+        {
+            "value": 5,
+            "string": "Common Ethernet"
+        },
+        {
+            "value": 6,
+            "string": "IOLink"
+        },
+        {
+            "value": 7,
+            "string": "Modbus RTU"
         }
     ]
 }

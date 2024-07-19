@@ -2,3 +2,6 @@
 [flake8]
 # Use black's line length (default 88) instead of the flake8 default of 79:
 max-line-length = 88
+
+per-file-ignores =
+    schunk_egu_egk_gripper_dummy/*.py:E203
