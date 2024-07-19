@@ -16,7 +16,7 @@ pip install fastapi uvicorn
 ## Run tests locally
 
 ```bash
-pip install pytest coverage
+pip install pytest httpx coverage
 ```
 
 ```bash

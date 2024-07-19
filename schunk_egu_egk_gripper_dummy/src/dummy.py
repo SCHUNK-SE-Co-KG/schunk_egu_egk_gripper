@@ -50,6 +50,8 @@ class Dummy(object):
         return {"dataformat": 0}  # 0: Little endian, 1: Big endian
 
     def get_enum(self, query: dict[str, str]) -> list:
+        if "inst" not in query or "value" not in query:
+            return []
         inst = query["inst"]
         value = int(query["value"])
         if inst in self.enum:
