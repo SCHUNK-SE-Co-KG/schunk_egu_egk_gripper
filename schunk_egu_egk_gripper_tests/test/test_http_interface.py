@@ -26,4 +26,4 @@ def test_driver_connnects_to_gripper_dummy(launch_context, isolated, gripper_dum
     timeout = 3
 
     time.sleep(until_dummy_ready)
-    assert CheckTopic("/joint_states", JointState).event.wait(timeout)
+    assert CheckTopic("/EGK_50_M_B/joint_states", JointState).event.wait(timeout)
