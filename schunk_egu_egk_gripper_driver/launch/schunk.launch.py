@@ -49,7 +49,7 @@ def generate_launch_description():
                 package="schunk_egu_egk_gripper_driver",
                 plugin="SchunkGripperNode",
                 name="schunk_gripper_driver",
-                namespace="EGK_50_M_B",
+                namespace="",
                 parameters=[
                     {"IP": LaunchConfiguration("IP")},
                     {"port": LaunchConfiguration("port")},
