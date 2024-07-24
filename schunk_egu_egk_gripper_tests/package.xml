@@ -12,6 +12,7 @@
 
   <test_depend>ament_lint_auto</test_depend>
   <test_depend>schunk_egu_egk_gripper_driver</test_depend>
+  <test_depend>schunk_egu_egk_gripper_dummy</test_depend>
   <test_depend>launch</test_depend>
   <test_depend>launch_ros</test_depend>
   <test_depend>launch_pytest</test_depend>

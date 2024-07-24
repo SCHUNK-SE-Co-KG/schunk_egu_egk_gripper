@@ -4,7 +4,7 @@ A minimalist protocol simulator for system tests.
 ## Dependencies
 
 ```bash
-pip install fastapi uvicorn
+pip install --user fastapi uvicorn
 ```
 
 ## Getting started
@@ -16,7 +16,7 @@ pip install fastapi uvicorn
 ## Run tests locally
 
 ```bash
-pip install pytest httpx coverage
+pip install --user pytest httpx coverage
 ```
 
 ```bash
