@@ -280,7 +280,7 @@ void acknowledge(rclcpp::Client<Acknowledge>::SharedPtr acknowledge_client)
 
     RCLCPP_INFO(rclcpp::get_logger("schunk_gripper_example"), "Call acknowledge-server.");
     //To end the error: acknowledge
-    bool acknowledged = acknowledge_client->async_send_request(acknowledge_srv).get()->acknowledged;
+    bool acknowledged = acknowledge_client->async_send_request(acknowledge_srv).get()->success;
     RCLCPP_INFO(rclcpp::get_logger("schunk_gripper_example"), "%s", acknowledged ? "Acknowledged" : "Not acknowledged");
 
 }
@@ -548,7 +548,7 @@ int main(int argc, char** argv)
     if(diagnostic_msg.status[0].level == diagnostic_msgs::msg::DiagnosticStatus::ERROR)
     {
         auto response = acknowledge_client->async_send_request(acknowledge_req);
-        if(response.get()->acknowledged)
+        if(response.get()->success)
         RCLCPP_INFO(node->get_logger(), "AN ERROR WAS ACKNOWLEDGED!");
     }
 

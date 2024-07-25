@@ -1153,12 +1153,12 @@ void SchunkGripperNode::acknowledge_srv(const std::shared_ptr<Acknowledge::Reque
 
         if(check()) //TODO handshake
         {
-            res->acknowledged = true;
+            res->success = true;
             RCLCPP_WARN(this->get_logger(),"Acknowledged");
         }
         else
         {
-            res->acknowledged = false;
+            res->success = false;
             RCLCPP_WARN(this->get_logger(),"Acknowledge failed!");
         }
     }
@@ -1166,7 +1166,7 @@ void SchunkGripperNode::acknowledge_srv(const std::shared_ptr<Acknowledge::Reque
     {
         connection_error = server_err ;
         RCLCPP_ERROR(this->get_logger(), "Failed Connection! %s", connection_error.c_str());
-        res->acknowledged = false;
+        res->success = false;
         RCLCPP_WARN(this->get_logger(), "Acknowledge failed!");
     }
     last_command = 0;
