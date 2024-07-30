@@ -15,6 +15,7 @@ class Dummy(object):
         self.data = None
         self.plc_input = "0x0040"
         self.plc_output = "0x0048"
+        self.reserved_status_bits = [10, 15] + list(range(18, 31))
 
         enum_config = os.path.join(
             Path(__file__).resolve().parents[1], "config/enum.json"
@@ -101,3 +102,23 @@ class Dummy(object):
 
     def get_plc_output(self):
         return [self.plc_output_buffer.hex().upper()]
+
+    def set_status_bit(self, bit: int, value: bool) -> bool:
+        if bit < 0 or bit > 31:
+            return False
+        if bit in self.reserved_status_bits:
+            return False
+        byte_index, bit_index = divmod(bit, 8)
+        if value:
+            self.plc_input_buffer[byte_index] |= 1 << bit_index
+        else:
+            self.plc_input_buffer[byte_index] &= ~(1 << bit_index)
+        return True
+
+    def get_status_bit(self, bit: int) -> int | bool:
+        if bit < 0 or bit > 31:
+            return False
+        if bit in self.reserved_status_bits:
+            return False
+        byte_index, bit_index = divmod(bit, 8)
+        return 1 if self.plc_input_buffer[byte_index] & (1 << bit_index) != 0 else 0

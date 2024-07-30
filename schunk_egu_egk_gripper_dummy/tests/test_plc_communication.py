@@ -16,6 +16,42 @@ def test_dummy_returns_plc_data():
     assert dummy.data[dummy.plc_output] == dummy.get_plc_output()
 
 
+def test_dummy_rejects_writing_reserved_status_bits():
+    dummy = Dummy()
+    invalid_bits = [-1, 999]
+    for bit in invalid_bits + dummy.reserved_status_bits:
+        assert not dummy.set_status_bit(bit, True)
+
+
+def test_dummy_rejects_reading_reserved_status_bits():
+    dummy = Dummy()
+    for bit in dummy.reserved_status_bits:
+        assert isinstance(dummy.get_status_bit(bit), bool)  # call fails
+        assert not dummy.get_status_bit(bit)
+
+
+def test_dummy_supports_reading_and_writing_bits_in_plc_status():
+    dummy = Dummy()
+    valid_bits = list(range(0, 10)) + [11, 12, 13, 14, 16, 17, 31]
+    for bit in valid_bits:
+        dummy.set_status_bit(bit=bit, value=True)
+        result = dummy.get_status_bit(bit=bit)
+        assert isinstance(result, int)  # successful calls get the bit's value
+        assert result == 1
+
+
+def test_dummy_only_touches_specified_bits():
+    dummy = Dummy()
+    before = dummy.get_plc_input()
+    valid_bits = list(range(0, 10)) + [11, 12, 13, 14, 16, 17, 31]
+    for bit in valid_bits:
+        initial_value = dummy.get_status_bit(bit=bit)
+        dummy.set_status_bit(bit=bit, value=True)
+        dummy.set_status_bit(bit=bit, value=initial_value)
+
+    assert dummy.get_plc_input() == before
+
+
 # See p. 24 in
 # Booting and establishing operational readiness [1]
 
