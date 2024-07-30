@@ -13,6 +13,8 @@ class Dummy(object):
         self.enum = None
         self.metadata = None
         self.data = None
+        self.plc_input = "0x0040"
+        self.plc_output = "0x0048"
 
         enum_config = os.path.join(
             Path(__file__).resolve().parents[1], "config/enum.json"
@@ -29,6 +31,9 @@ class Dummy(object):
             self.metadata = json.load(f)
         with open(data_config, "r") as f:
             self.data = json.load(f)
+
+        self.plc_input_buffer = bytearray(bytes.fromhex(self.data[self.plc_input][0]))
+        self.plc_output_buffer = bytearray(bytes.fromhex(self.data[self.plc_output][0]))
 
     def start(self) -> None:
         if self.running:
@@ -83,6 +88,16 @@ class Dummy(object):
                 return result
             if inst not in self.data:
                 return result
+            if inst == self.plc_input:
+                return self.get_plc_input()
+            if inst == self.plc_output:
+                return self.get_plc_output()
             return self.data[inst]
         else:
             return []
+
+    def get_plc_input(self):
+        return [self.plc_input_buffer.hex().upper()]
+
+    def get_plc_output(self):
+        return [self.plc_output_buffer.hex().upper()]
