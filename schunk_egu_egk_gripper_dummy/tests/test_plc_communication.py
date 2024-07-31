@@ -52,17 +52,46 @@ def test_dummy_only_touches_specified_bits():
     assert dummy.get_plc_input() == before
 
 
+def test_dummy_supports_reading_and_writing_status_error():
+    dummy = Dummy()
+    error_codes = ["AA", "bb", "0xcc"]
+    expected = ["AA", "BB", "CC"]
+    for error, expected in zip(error_codes, expected):
+        dummy.set_status_error(error)
+        assert dummy.get_status_error() == expected
+
+
+def test_dummy_rejects_writing_invalid_status_error():
+    dummy = Dummy()
+    invalid_codes = ["zz", "-1", "aaa"]
+    for error in invalid_codes:
+        assert not dummy.set_status_error(error)
+
+
+def test_dummy_supports_reading_and_writing_status_diagnostics():
+    dummy = Dummy()
+    diagnostics_code = "EF"
+    dummy.set_status_diagnostics(diagnostics_code)
+    assert dummy.get_status_diagnostics() == diagnostics_code
+
+
+def test_dummy_rejects_writing_invalid_status_diagnostics():
+    dummy = Dummy()
+    invalid_codes = ["zz", "-1", "aaa"]
+    for code in invalid_codes:
+        assert not dummy.set_status_diagnostics(code)
+
+
 # See p. 24 in
 # Booting and establishing operational readiness [1]
 
 
-@pytest.mark.skip()
 def test_dummy_starts_in_error_state():
     dummy = Dummy()
-    query = {"inst": dummy.plc_input, "count": 1}
-    data = dummy.get_data(query)[0]
-    assert data[0:2] == "80"
-    assert data[30:] == "D9"  # ERR_FAST_STOP
+    assert dummy.get_status_bit(0) == 0  # not ready for operation
+    assert dummy.get_status_bit(7) == 1  # there's an error
+    assert dummy.get_status_error() == "D9"  # ERR_FAST_STOP
+    assert dummy.get_status_diagnostics() == "EF"  # ERR_COMM_LOST
 
 
 @pytest.mark.skip()

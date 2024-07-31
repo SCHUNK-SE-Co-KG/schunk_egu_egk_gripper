@@ -15,6 +15,8 @@ class Dummy(object):
         self.data = None
         self.plc_input = "0x0040"
         self.plc_output = "0x0048"
+        self.error_byte = 12
+        self.diagnostics_byte = 15
         self.reserved_status_bits = [10, 15] + list(range(18, 31))
 
         enum_config = os.path.join(
@@ -122,3 +124,25 @@ class Dummy(object):
             return False
         byte_index, bit_index = divmod(bit, 8)
         return 1 if self.plc_input_buffer[byte_index] & (1 << bit_index) != 0 else 0
+
+    def set_status_error(self, error: str) -> bool:
+        try:
+            self.plc_input_buffer[self.error_byte] = int(error, 16)
+            return True
+        except ValueError:
+            return False
+
+    def get_status_error(self) -> str:
+        return hex(self.plc_input_buffer[self.error_byte]).replace("0x", "").upper()
+
+    def set_status_diagnostics(self, diagnostics: str) -> bool:
+        try:
+            self.plc_input_buffer[self.diagnostics_byte] = int(diagnostics, 16)
+            return True
+        except ValueError:
+            return False
+
+    def get_status_diagnostics(self) -> str:
+        return (
+            hex(self.plc_input_buffer[self.diagnostics_byte]).replace("0x", "").upper()
+        )
