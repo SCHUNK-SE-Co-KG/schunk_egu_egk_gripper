@@ -3,7 +3,6 @@ from src.dummy import Dummy
 from fastapi import FastAPI, Request, Form
 from fastapi.middleware.cors import CORSMiddleware
 from typing import Optional
-from pydantic import BaseModel
 
 # Components
 dummy = Dummy()
@@ -20,13 +19,6 @@ server.add_middleware(
 )
 
 
-class Update(BaseModel):
-    inst: str
-    value: str
-    elem: Optional[int] = None
-    callback: Optional[str] = None
-
-
 @server.post("/adi/update.json")
 async def post(
     inst: str = Form(...),
@@ -34,7 +26,7 @@ async def post(
     elem: Optional[int] = Form(None),
     callback: Optional[str] = Form(None),
 ):
-    msg = Update(inst=inst, value=value, elem=elem, callback=callback)
+    msg = {"inst": inst, "value": value, "elem": elem, "callback": callback}
     return dummy.post(msg)
 
 

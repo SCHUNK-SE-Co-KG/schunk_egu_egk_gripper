@@ -3,6 +3,7 @@ import time
 import os
 from pathlib import Path
 import json
+import string
 
 
 class Dummy(object):
@@ -55,6 +56,17 @@ class Dummy(object):
         print("Done")
 
     def post(self, msg: dict) -> dict:
+        if "inst" not in msg and "value" not in msg:
+            return {"result": 1}
+        if msg["inst"] not in self.data:
+            return {"result": 1}
+        if not all(digit in string.hexdigits for digit in msg["value"]):
+            return {"result": 1}
+
+        if msg["inst"] == self.plc_output:
+            self.plc_output_buffer = bytearray(bytes.fromhex(msg["value"]))
+        else:
+            self.data[msg["inst"]] = [msg["value"]]
         return {"result": 0}
 
     def get_info(self, query: dict[str, str]) -> dict:
