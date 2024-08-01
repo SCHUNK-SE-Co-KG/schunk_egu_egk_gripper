@@ -68,6 +68,9 @@ class Dummy(object):
             self.plc_output_buffer = bytearray(bytes.fromhex(msg["value"]))
         else:
             self.data[msg["inst"]] = [msg["value"]]
+
+        # Behavior
+        self.process_control_bits()
         return {"result": 0}
 
     def get_info(self, query: dict[str, str]) -> dict:
@@ -167,3 +170,12 @@ class Dummy(object):
             return False
         byte_index, bit_index = divmod(bit, 8)
         return 1 if self.plc_output_buffer[byte_index] & (1 << bit_index) != 0 else 0
+
+    def process_control_bits(self) -> None:
+
+        # Acknowledge
+        if self.get_control_bit(2) == 1:
+            self.set_status_bit(bit=0, value=True)
+            self.set_status_bit(bit=7, value=False)
+            self.set_status_error("00")
+            self.set_status_diagnostics("00")
