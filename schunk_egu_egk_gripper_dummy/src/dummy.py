@@ -19,6 +19,7 @@ class Dummy(object):
         self.error_byte = 12
         self.diagnostics_byte = 15
         self.reserved_status_bits = [10, 15] + list(range(18, 31))
+        self.reserved_control_bits = [10, 15] + list(range(17, 30))
 
         enum_config = os.path.join(
             Path(__file__).resolve().parents[1], "config/enum.json"
@@ -158,3 +159,11 @@ class Dummy(object):
         return (
             hex(self.plc_input_buffer[self.diagnostics_byte]).replace("0x", "").upper()
         )
+
+    def get_control_bit(self, bit: int) -> int | bool:
+        if bit < 0 or bit > 31:
+            return False
+        if bit in self.reserved_control_bits:
+            return False
+        byte_index, bit_index = divmod(bit, 8)
+        return 1 if self.plc_output_buffer[byte_index] & (1 << bit_index) != 0 else 0
