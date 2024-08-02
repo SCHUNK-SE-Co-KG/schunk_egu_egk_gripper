@@ -3,7 +3,6 @@ import time
 import os
 from pathlib import Path
 import json
-import string
 import struct
 
 
@@ -17,14 +16,14 @@ class Dummy(object):
         self.data = None
         self.plc_input = "0x0040"
         self.plc_output = "0x0048"
+        self.actual_position = "0x0230"
+        self.actual_speed = "0x0238"
         self.error_byte = 12
         self.diagnostics_byte = 15
         self.valid_status_bits = list(range(0, 10)) + [11, 12, 13, 14, 16, 17, 31]
         self.valid_control_bits = list(range(0, 10)) + [11, 12, 13, 14, 16, 30, 31]
         self.reserved_status_bits = [10, 15] + list(range(18, 31))
         self.reserved_control_bits = [10, 15] + list(range(17, 30))
-        self.actual_position = "0x0230"
-        self.actual_speed = "0x0238"
 
         enum_config = os.path.join(
             Path(__file__).resolve().parents[1], "config/enum.json"
@@ -62,13 +61,6 @@ class Dummy(object):
         print("Done")
 
     def post(self, msg: dict) -> dict:
-        if "inst" not in msg and "value" not in msg:
-            return {"result": 1}
-        if msg["inst"] not in self.data:
-            return {"result": 1}
-        if not all(digit in string.hexdigits for digit in msg["value"]):
-            return {"result": 1}
-
         if msg["inst"] == self.plc_output:
             self.plc_output_buffer = bytearray(bytes.fromhex(msg["value"]))
         else:

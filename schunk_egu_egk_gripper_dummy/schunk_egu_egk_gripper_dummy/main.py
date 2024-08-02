@@ -1,8 +1,9 @@
 from src.dummy import Dummy
 
-from fastapi import FastAPI, Request, Form
+from fastapi import FastAPI, Request, Form, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
 from typing import Optional
+import string
 
 # Components
 dummy = Dummy()
@@ -25,9 +26,16 @@ async def post(
     value: str = Form(...),
     elem: Optional[int] = Form(None),
     callback: Optional[str] = Form(None),
+    background_tasks: BackgroundTasks = None,
 ):
     msg = {"inst": inst, "value": value, "elem": elem, "callback": callback}
-    return dummy.post(msg)
+
+    if msg["inst"] not in dummy.data:
+        return {"result": 1}
+    if not all(digit in string.hexdigits for digit in str(msg["value"])):
+        return {"result": 1}
+    background_tasks.add_task(dummy.post, msg)
+    return {"result": 0}
 
 
 @server.get("/adi/{path}")

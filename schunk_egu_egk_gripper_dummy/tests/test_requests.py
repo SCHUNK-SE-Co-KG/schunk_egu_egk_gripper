@@ -1,4 +1,6 @@
 from src.dummy import Dummy
+from schunk_egu_egk_gripper_dummy.main import server
+from fastapi.testclient import TestClient
 
 
 def test_dummy_responds_correctly_to_info_requests():
@@ -80,18 +82,19 @@ def test_dummy_stores_post_requests():
 
 
 def test_dummy_rejects_invalid_post_requests():
-    dummy = Dummy()
+    client = TestClient(server)
+
     valid_data = "AABBCCDD"
     valid_inst = "0x0238"
     data = {"inst": valid_inst, "value": valid_data}
-    assert dummy.post(data) == {"result": 0}
+    assert client.post("/adi/update.json", data=data).json() == {"result": 0}
 
     invalid_data = "hello:)"
     valid_inst = "0x0238"
     data = {"inst": valid_inst, "value": invalid_data}
-    assert dummy.post(data) == {"result": 1}
+    assert client.post("/adi/update.json", data=data).json() == {"result": 1}
 
     valid_data = "AABBCCDD"
     invalid_inst = "0x9999"
     data = {"inst": invalid_inst, "value": valid_data}
-    assert dummy.post(data) == {"result": 1}
+    assert client.post("/adi/update.json", data=data).json() == {"result": 1}
