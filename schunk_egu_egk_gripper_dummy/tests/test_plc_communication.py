@@ -33,8 +33,7 @@ def test_dummy_rejects_reading_reserved_status_bits():
 
 def test_dummy_supports_reading_and_writing_bits_in_plc_status():
     dummy = Dummy()
-    valid_bits = list(range(0, 10)) + [11, 12, 13, 14, 16, 17, 31]
-    for bit in valid_bits:
+    for bit in dummy.valid_status_bits:
         dummy.set_status_bit(bit=bit, value=True)
         result = dummy.get_status_bit(bit=bit)
         assert isinstance(result, int)  # successful calls get the bit's value
@@ -44,8 +43,7 @@ def test_dummy_supports_reading_and_writing_bits_in_plc_status():
 def test_dummy_only_touches_specified_status_bits():
     dummy = Dummy()
     before = dummy.get_plc_input()
-    valid_bits = list(range(0, 10)) + [11, 12, 13, 14, 16, 17, 31]
-    for bit in valid_bits:
+    for bit in dummy.valid_status_bits:
         initial_value = dummy.get_status_bit(bit=bit)
         dummy.set_status_bit(bit=bit, value=True)
         dummy.set_status_bit(bit=bit, value=initial_value)
@@ -85,8 +83,7 @@ def test_dummy_rejects_writing_invalid_status_diagnostics():
 
 def test_dummy_supports_reading_bits_in_plc_control():
     dummy = Dummy()
-    valid_bits = list(range(0, 10)) + [11, 12, 13, 14, 16, 30, 31]
-    for bit in valid_bits:
+    for bit in dummy.valid_control_bits:
         result = dummy.get_control_bit(bit=bit)
         assert isinstance(result, int)  # successful calls get the bit's value
 
@@ -96,6 +93,23 @@ def test_dummy_rejects_reading_reserved_control_bits():
     for bit in dummy.reserved_control_bits:
         assert isinstance(dummy.get_control_bit(bit), bool)  # call fails
         assert not dummy.get_control_bit(bit)
+
+
+def test_dummy_supports_toggling_status_bits():
+    dummy = Dummy()
+    for bit in dummy.valid_status_bits:
+        before = dummy.get_status_bit(bit)
+        dummy.toggle_status_bit(bit=bit)
+        after = dummy.get_status_bit(bit)
+        assert after != before
+        dummy.toggle_status_bit(bit=bit)
+        assert dummy.get_status_bit(bit=bit) == before
+
+
+def test_dummy_rejects_toggling_reserved_status_bits():
+    dummy = Dummy()
+    for bit in dummy.reserved_status_bits:
+        assert not dummy.toggle_status_bit(bit)
 
 
 def test_dummy_supports_reading_target_position():

@@ -19,6 +19,8 @@ class Dummy(object):
         self.plc_output = "0x0048"
         self.error_byte = 12
         self.diagnostics_byte = 15
+        self.valid_status_bits = list(range(0, 10)) + [11, 12, 13, 14, 16, 17, 31]
+        self.valid_control_bits = list(range(0, 10)) + [11, 12, 13, 14, 16, 30, 31]
         self.reserved_status_bits = [10, 15] + list(range(18, 31))
         self.reserved_control_bits = [10, 15] + list(range(17, 30))
         self.actual_position = "0x0230"
@@ -143,6 +145,15 @@ class Dummy(object):
             return False
         byte_index, bit_index = divmod(bit, 8)
         return 1 if self.plc_input_buffer[byte_index] & (1 << bit_index) != 0 else 0
+
+    def toggle_status_bit(self, bit: int) -> bool:
+        if bit < 0 or bit > 31:
+            return False
+        if bit in self.reserved_status_bits:
+            return False
+        byte_index, bit_index = divmod(bit, 8)
+        self.plc_input_buffer[byte_index] ^= 1 << bit_index
+        return True
 
     def set_status_error(self, error: str) -> bool:
         try:
