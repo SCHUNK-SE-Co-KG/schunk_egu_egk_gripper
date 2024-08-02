@@ -4,6 +4,7 @@ import os
 from pathlib import Path
 import json
 import string
+import struct
 
 
 class Dummy(object):
@@ -20,6 +21,8 @@ class Dummy(object):
         self.diagnostics_byte = 15
         self.reserved_status_bits = [10, 15] + list(range(18, 31))
         self.reserved_control_bits = [10, 15] + list(range(17, 30))
+        self.actual_position = "0x0230"
+        self.actual_speed = "0x0238"
 
         enum_config = os.path.join(
             Path(__file__).resolve().parents[1], "config/enum.json"
@@ -170,6 +173,20 @@ class Dummy(object):
             return False
         byte_index, bit_index = divmod(bit, 8)
         return 1 if self.plc_output_buffer[byte_index] & (1 << bit_index) != 0 else 0
+
+    def get_target_position(self) -> float:
+        return struct.unpack("f", self.plc_output_buffer[4:8])[0]
+
+    def get_target_speed(self) -> float:
+        return struct.unpack("f", self.plc_output_buffer[8:12])[0]
+
+    def set_actual_position(self, position: float) -> None:
+        self.data[self.actual_position] = [
+            bytes(struct.pack("f", position)).hex().upper()
+        ]
+
+    def set_actual_speed(self, speed: float) -> None:
+        self.data[self.actual_speed] = [bytes(struct.pack("f", speed)).hex().upper()]
 
     def process_control_bits(self) -> None:
 

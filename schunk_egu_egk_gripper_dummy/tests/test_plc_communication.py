@@ -1,4 +1,6 @@
 from src.dummy import Dummy
+import struct
+import pytest
 
 # [1]: https://stb.cloud.schunk.com/media/IM0046706.PDF
 
@@ -94,3 +96,37 @@ def test_dummy_rejects_reading_reserved_control_bits():
     for bit in dummy.reserved_control_bits:
         assert isinstance(dummy.get_control_bit(bit), bool)  # call fails
         assert not dummy.get_control_bit(bit)
+
+
+def test_dummy_supports_reading_target_position():
+    dummy = Dummy()
+    target_pos = 0.0123
+    dummy.plc_output_buffer[4:8] = bytes(struct.pack("f", target_pos))
+    assert pytest.approx(dummy.get_target_position()) == target_pos
+
+
+def test_dummy_supports_reading_target_speed():
+    dummy = Dummy()
+    target_speed = 55.3
+    dummy.plc_output_buffer[8:12] = bytes(struct.pack("f", target_speed))
+    assert pytest.approx(dummy.get_target_speed()) == target_speed
+
+
+def test_dummy_supports_writing_actual_position():
+    dummy = Dummy()
+    inst = "0x0230"  # <actual_pos>
+    pos = 0.123
+    dummy.set_actual_position(pos)
+    read_pos = dummy.data[inst][0]
+    read_pos = struct.unpack("f", bytes.fromhex(read_pos))[0]
+    assert pytest.approx(read_pos) == pos
+
+
+def test_dummy_supports_writing_actual_speed():
+    dummy = Dummy()
+    inst = "0x0238"  # <actual_vel>
+    speed = 66.5
+    dummy.set_actual_speed(speed)
+    read_speed = dummy.data[inst][0]
+    read_speed = struct.unpack("f", bytes.fromhex(read_speed))[0]
+    assert pytest.approx(read_speed) == speed
