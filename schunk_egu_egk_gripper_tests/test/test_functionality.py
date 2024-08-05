@@ -29,17 +29,18 @@ def test_driver_is_ready_after_acknowledge(launch_context, isolated, gripper_dum
 
 
 @pytest.mark.launch(fixture=launch_description)
-@pytest.mark.skip()
 def test_driver_moves_to_absolute_position(launch_context, isolated, gripper_dummy):
     node = Node("move_test")
-    # activate_srv = node.create_client(Acknowledge, "/acknowledge")
-    # future = activate_srv.call_async(Acknowledge.Request())
-    # rclpy.spin_until_future_complete(node, future)
 
     client = ActionClient(node, MoveToAbsolutePosition, "/move_to_absolute_position")
     client.wait_for_server()
     goal = MoveToAbsolutePosition.Goal()
-    future = client.send_goal_async(goal)
-    rclpy.spin_until_future_complete(node, future)
-    print("done :)")
-    assert False
+
+    goal_future = client.send_goal_async(goal)
+    rclpy.spin_until_future_complete(node, goal_future)
+    goal_handle = goal_future.result()
+
+    result_future = goal_handle.get_result_async()
+    rclpy.spin_until_future_complete(node, result_future)
+    result = result_future.result().result
+    assert result.position_reached
