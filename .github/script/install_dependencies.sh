@@ -3,7 +3,7 @@ cd $HOME
 apt-get install -y curl libcurl4-openssl-dev
 
 # Python dependencies
-python_deps="fastapi uvicorn httpx requests coverage"
+python_deps="fastapi uvicorn httpx requests coverage python-multipart"
 os_name=$(lsb_release -cs)
 
 case $os_name in
