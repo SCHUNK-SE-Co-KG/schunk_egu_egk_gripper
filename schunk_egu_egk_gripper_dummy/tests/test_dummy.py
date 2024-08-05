@@ -1,4 +1,6 @@
 from src.dummy import Dummy
+import pytest
+import struct
 
 # [1]: https://stb.cloud.schunk.com/media/IM0046706.PDF
 
@@ -55,3 +57,29 @@ def test_dummy_is_ready_after_acknowledge():
     assert dummy.get_status_bit(7) == 0  # no error
     assert dummy.get_status_error() == "0"
     assert dummy.get_status_diagnostics() == "0"
+
+
+def test_dummy_moves_to_absolute_position():
+    dummy = Dummy()
+    target_pos = 12.345
+    target_speed = 50.3
+
+    control_double_word = "00200000"
+    set_position = bytes(struct.pack("f", target_pos)).hex().upper()
+    set_speed = bytes(struct.pack("f", target_speed)).hex().upper()
+    gripping_force = "00000000"
+    command = {
+        "inst": dummy.plc_output,
+        "value": control_double_word + set_position + set_speed + gripping_force,
+    }
+    before = dummy.get_status_bit(bit=5)  # command received toggle
+
+    # Motion
+    dummy.post(command)
+
+    # Done
+    assert pytest.approx(dummy.get_actual_position()) == target_pos
+    after = dummy.get_status_bit(bit=5)
+    assert after != before
+    assert dummy.get_status_bit(bit=13) == 1  # position reached
+    assert dummy.get_status_bit(bit=4) == 1  # command successfully processed

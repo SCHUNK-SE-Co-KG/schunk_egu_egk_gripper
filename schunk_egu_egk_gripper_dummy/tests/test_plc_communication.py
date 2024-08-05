@@ -142,3 +142,17 @@ def test_dummy_supports_writing_actual_speed():
     read_speed = dummy.data[dummy.actual_speed][0]
     read_speed = struct.unpack("f", bytes.fromhex(read_speed))[0]
     assert pytest.approx(read_speed) == speed
+
+
+def test_dummy_supports_reading_actual_position():
+    dummy = Dummy()
+    pos = 0.123
+    dummy.set_actual_position(pos)
+    assert pytest.approx(dummy.get_actual_position()) == pos
+
+
+def test_dummy_supports_reading_actual_speed():
+    dummy = Dummy()
+    speed = 66.5
+    dummy.set_actual_speed(speed)
+    assert pytest.approx(dummy.get_actual_speed()) == speed

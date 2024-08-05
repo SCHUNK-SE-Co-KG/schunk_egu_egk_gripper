@@ -4,6 +4,36 @@ import os
 from pathlib import Path
 import json
 import struct
+from typing import Tuple
+
+
+class LinearMotion(object):
+    def __init__(
+        self,
+        initial_pos: float,
+        initial_speed: float,
+        target_pos: float,
+        target_speed: float,
+    ):
+        self.min_speed = 0.001
+        self.initial_pos = initial_pos
+        self.initial_speed = max(0.0, initial_speed)
+        self.target_pos = target_pos
+        self.target_speed = max(self.min_speed, target_speed)
+        self.time_finish = abs(self.target_pos / self.target_speed)
+
+    def sample(self, t: float) -> Tuple[float, float]:
+        if t <= 0.0:
+            return (self.initial_pos, self.initial_speed)
+        if t >= self.time_finish:
+            return (self.target_pos, 0.0)
+
+        v = self.target_speed
+        if self.target_pos < self.initial_pos:
+            v = -v
+        current_pos = v * t + self.initial_pos
+        current_speed = abs(v)
+        return (current_pos, current_speed)
 
 
 class Dummy(object):
@@ -59,6 +89,22 @@ class Dummy(object):
         while not self.done:
             time.sleep(1)
         print("Done")
+
+    def move(self, target_pos: float, target_speed: float) -> None:
+        motion = LinearMotion(
+            initial_pos=self.get_actual_position(),
+            initial_speed=self.get_actual_speed(),
+            target_pos=target_pos,
+            target_speed=target_speed,
+        )
+        start = time.time()
+        actual_pos, actual_speed = motion.sample(0)
+        while abs(actual_pos) < abs(target_pos):
+            t = time.time() - start
+            actual_pos, actual_speed = motion.sample(t)
+            self.set_actual_position(actual_pos)
+            self.set_actual_speed(actual_speed)
+            time.sleep(0.01)
 
     def post(self, msg: dict) -> dict:
         if msg["inst"] == self.plc_output:
@@ -191,6 +237,14 @@ class Dummy(object):
     def set_actual_speed(self, speed: float) -> None:
         self.data[self.actual_speed] = [bytes(struct.pack("f", speed)).hex().upper()]
 
+    def get_actual_position(self) -> float:
+        read_pos = self.data[self.actual_position][0]
+        return struct.unpack("f", bytes.fromhex(read_pos))[0]
+
+    def get_actual_speed(self) -> float:
+        read_speed = self.data[self.actual_speed][0]
+        return struct.unpack("f", bytes.fromhex(read_speed))[0]
+
     def process_control_bits(self) -> None:
 
         # Acknowledge
@@ -199,3 +253,13 @@ class Dummy(object):
             self.set_status_bit(bit=7, value=False)
             self.set_status_error("00")
             self.set_status_diagnostics("00")
+
+        # Move to absolute position
+        if self.get_control_bit(13) == 1:
+            self.toggle_status_bit(5)
+            self.move(
+                target_pos=self.get_target_position(),
+                target_speed=self.get_target_speed(),
+            )
+            self.set_status_bit(bit=13, value=True)
+            self.set_status_bit(bit=4, value=True)
