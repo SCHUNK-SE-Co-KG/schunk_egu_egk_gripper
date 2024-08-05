@@ -44,7 +44,10 @@ std::map<std::string, std::string> inst_param =
 //Initialize the ROS Driver
 SchunkGripperNode::SchunkGripperNode(const rclcpp::NodeOptions &options) :
     rclcpp::Node("schunk_gripper_driver", options),
-    Gripper(this->declare_parameter("IP", "0.0.0.0", parameter_descriptor("IP-Address of the gripper"))),
+    Gripper(
+        this->declare_parameter("IP", "0.0.0.0", parameter_descriptor("IP-Address of the gripper")),
+        this->declare_parameter("port", 80, parameter_descriptor("TCP/IP port of the gripper"))
+        ),
     limiting_rate(1000) //limiting_rate for loops
 {
     //Callback groups
@@ -1150,12 +1153,12 @@ void SchunkGripperNode::acknowledge_srv(const std::shared_ptr<Acknowledge::Reque
 
         if(check()) //TODO handshake
         {
-            res->acknowledged = true;
+            res->success = true;
             RCLCPP_WARN(this->get_logger(),"Acknowledged");
         }
         else
         {
-            res->acknowledged = false;
+            res->success = false;
             RCLCPP_WARN(this->get_logger(),"Acknowledge failed!");
         }
     }
@@ -1163,7 +1166,7 @@ void SchunkGripperNode::acknowledge_srv(const std::shared_ptr<Acknowledge::Reque
     {
         connection_error = server_err ;
         RCLCPP_ERROR(this->get_logger(), "Failed Connection! %s", connection_error.c_str());
-        res->acknowledged = false;
+        res->success = false;
         RCLCPP_WARN(this->get_logger(), "Acknowledge failed!");
     }
     last_command = 0;

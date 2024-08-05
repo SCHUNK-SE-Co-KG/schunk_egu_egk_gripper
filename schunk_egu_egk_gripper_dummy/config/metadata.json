@@ -1,0 +1,1679 @@
+[
+    {
+        "instance": 64,
+        "name": "plc_sync_input",
+        "min": "00000000",
+        "max": "FFFFFFFF",
+        "datatype": 6,
+        "numelements": 4,
+        "access": 9
+    },
+    {
+        "instance": 72,
+        "name": "plc_sync_output",
+        "min": "00000000",
+        "max": "FFFFFFFF",
+        "datatype": 6,
+        "numelements": 4,
+        "access": 19
+    },
+    {
+        "instance": 256,
+        "name": "command_code",
+        "min": "0000",
+        "max": "FFFF",
+        "datatype": 5,
+        "numelements": 1,
+        "access": 3
+    },
+    {
+        "instance": 264,
+        "name": "system_state",
+        "min": "00000000",
+        "max": "FFFFFFFF",
+        "datatype": 6,
+        "numelements": 1,
+        "access": 1
+    },
+    {
+        "instance": 272,
+        "name": "ctrl_authority",
+        "min": "00",
+        "max": "92",
+        "datatype": 8,
+        "numelements": 1,
+        "access": 3
+    },
+    {
+        "instance": 280,
+        "name": "err_code",
+        "min": "00",
+        "max": "FC",
+        "datatype": 8,
+        "numelements": 1,
+        "access": 1
+    },
+    {
+        "instance": 288,
+        "name": "wrn_code",
+        "min": "00",
+        "max": "FC",
+        "datatype": 8,
+        "numelements": 1,
+        "access": 1
+    },
+    {
+        "instance": 296,
+        "name": "sys_msg_req",
+        "min": "0000",
+        "max": "FFFF",
+        "datatype": 5,
+        "numelements": 1,
+        "access": 3
+    },
+    {
+        "instance": 304,
+        "name": "sys_msg_buffer",
+        "min": null,
+        "max": null,
+        "datatype": 7,
+        "numelements": 214,
+        "access": 1
+    },
+    {
+        "instance": 512,
+        "name": "set_pos",
+        "min": "FF7FFFFF",
+        "max": "7F7FFFFF",
+        "datatype": 18,
+        "numelements": 1,
+        "access": 3
+    },
+    {
+        "instance": 520,
+        "name": "set_vel",
+        "min": "FF7FFFFF",
+        "max": "7F7FFFFF",
+        "datatype": 18,
+        "numelements": 1,
+        "access": 3
+    },
+    {
+        "instance": 528,
+        "name": "used_cur_limit",
+        "min": "FF7FFFFF",
+        "max": "7F7FFFFF",
+        "datatype": 18,
+        "numelements": 1,
+        "access": 1
+    },
+    {
+        "instance": 536,
+        "name": "set_acc",
+        "min": "FF7FFFFF",
+        "max": "7F7FFFFF",
+        "datatype": 18,
+        "numelements": 1,
+        "access": 3
+    },
+    {
+        "instance": 544,
+        "name": "set_force",
+        "min": "FF7FFFFF",
+        "max": "7F7FFFFF",
+        "datatype": 18,
+        "numelements": 1,
+        "access": 3
+    },
+    {
+        "instance": 552,
+        "name": "grp_dir",
+        "min": "00",
+        "max": "01",
+        "datatype": 0,
+        "numelements": 1,
+        "access": 3
+    },
+    {
+        "instance": 560,
+        "name": "actual_pos",
+        "min": "FF7FFFFF",
+        "max": "7F7FFFFF",
+        "datatype": 18,
+        "numelements": 1,
+        "access": 1
+    },
+    {
+        "instance": 568,
+        "name": "actual_vel",
+        "min": "FF7FFFFF",
+        "max": "7F7FFFFF",
+        "datatype": 18,
+        "numelements": 1,
+        "access": 1
+    },
+    {
+        "instance": 576,
+        "name": "actual_cur",
+        "min": "FF7FFFFF",
+        "max": "7F7FFFFF",
+        "datatype": 18,
+        "numelements": 1,
+        "access": 1
+    },
+    {
+        "instance": 584,
+        "name": "actual_pos_mse",
+        "min": "FF7FFFFF",
+        "max": "7F7FFFFF",
+        "datatype": 18,
+        "numelements": 1,
+        "access": 1
+    },
+    {
+        "instance": 592,
+        "name": "grp_pos_lock",
+        "min": "00",
+        "max": "01",
+        "datatype": 0,
+        "numelements": 1,
+        "access": 3
+    },
+    {
+        "instance": 768,
+        "name": "ds_sin_ofs_raw",
+        "min": "0000",
+        "max": "FFFF",
+        "datatype": 5,
+        "numelements": 1,
+        "access": 3
+    },
+    {
+        "instance": 776,
+        "name": "ds_cos_ofs_raw",
+        "min": "0000",
+        "max": "FFFF",
+        "datatype": 5,
+        "numelements": 1,
+        "access": 3
+    },
+    {
+        "instance": 784,
+        "name": "ds_line_count",
+        "min": "00000000",
+        "max": "7F7FFFFF",
+        "datatype": 18,
+        "numelements": 1,
+        "access": 3
+    },
+    {
+        "instance": 792,
+        "name": "ds_vel",
+        "min": "FF7FFFFF",
+        "max": "7F7FFFFF",
+        "datatype": 18,
+        "numelements": 1,
+        "access": 1
+    },
+    {
+        "instance": 800,
+        "name": "ds_angle",
+        "min": "FF7FFFFF",
+        "max": "7F7FFFFF",
+        "datatype": 18,
+        "numelements": 1,
+        "access": 1
+    },
+    {
+        "instance": 808,
+        "name": "pole_pairs",
+        "min": "0001",
+        "max": "FFFF",
+        "datatype": 5,
+        "numelements": 1,
+        "access": 3
+    },
+    {
+        "instance": 816,
+        "name": "mse_gear_ratio",
+        "min": "00000000",
+        "max": "7F7FFFFF",
+        "datatype": 18,
+        "numelements": 1,
+        "access": 3
+    },
+    {
+        "instance": 824,
+        "name": "brk_lag_time",
+        "min": "0000",
+        "max": "01F4",
+        "datatype": 5,
+        "numelements": 1,
+        "access": 3
+    },
+    {
+        "instance": 832,
+        "name": "zv_angle",
+        "min": "FF7FFFFF",
+        "max": "7F7FFFFF",
+        "datatype": 18,
+        "numelements": 1,
+        "access": 3
+    },
+    {
+        "instance": 840,
+        "name": "ds_cur_filter_k1",
+        "min": "00000000",
+        "max": "3F800000",
+        "datatype": 18,
+        "numelements": 1,
+        "access": 3
+    },
+    {
+        "instance": 856,
+        "name": "ds_pos_sens_inv",
+        "min": "00",
+        "max": "01",
+        "datatype": 0,
+        "numelements": 1,
+        "access": 3
+    },
+    {
+        "instance": 864,
+        "name": "ds_vel_ma_len",
+        "min": "3DCCCCCD",
+        "max": "40000000",
+        "datatype": 18,
+        "numelements": 1,
+        "access": 3
+    },
+    {
+        "instance": 872,
+        "name": "zvs_ofs",
+        "min": "00000000",
+        "max": "40C90FDB",
+        "datatype": 18,
+        "numelements": 1,
+        "access": 3
+    },
+    {
+        "instance": 880,
+        "name": "zvs_volt_len",
+        "min": "00000000",
+        "max": "41C00000",
+        "datatype": 18,
+        "numelements": 1,
+        "access": 3
+    },
+    {
+        "instance": 888,
+        "name": "brk_delay_time",
+        "min": "000A",
+        "max": "01F4",
+        "datatype": 5,
+        "numelements": 1,
+        "access": 3
+    },
+    {
+        "instance": 896,
+        "name": "grp_prehold_time",
+        "min": "0000",
+        "max": "EA60",
+        "datatype": 5,
+        "numelements": 1,
+        "access": 3
+    },
+    {
+        "instance": 904,
+        "name": "ofs_del_time",
+        "min": "000A",
+        "max": "01F4",
+        "datatype": 5,
+        "numelements": 1,
+        "access": 3
+    },
+    {
+        "instance": 912,
+        "name": "chp_ofs_on",
+        "min": "00000000",
+        "max": "42100000",
+        "datatype": 18,
+        "numelements": 1,
+        "access": 3
+    },
+    {
+        "instance": 920,
+        "name": "chp_ofs_off",
+        "min": "00000000",
+        "max": "42100000",
+        "datatype": 18,
+        "numelements": 1,
+        "access": 3
+    },
+    {
+        "instance": 928,
+        "name": "chp_mode",
+        "min": "00",
+        "max": "01",
+        "datatype": 8,
+        "numelements": 1,
+        "access": 3
+    },
+    {
+        "instance": 936,
+        "name": "dead_load_kg",
+        "min": "3DCCCCCD",
+        "max": "41700000",
+        "datatype": 18,
+        "numelements": 1,
+        "access": 3
+    },
+    {
+        "instance": 944,
+        "name": "tool_cent_point",
+        "min": "FF7FFFFF",
+        "max": "7F7FFFFF",
+        "datatype": 18,
+        "numelements": 6,
+        "access": 3
+    },
+    {
+        "instance": 952,
+        "name": "cent_of_mass",
+        "min": "FF7FFFFF",
+        "max": "7F7FFFFF",
+        "datatype": 18,
+        "numelements": 6,
+        "access": 3
+    },
+    {
+        "instance": 960,
+        "name": "brk_release_time",
+        "min": "0000",
+        "max": "0708",
+        "datatype": 5,
+        "numelements": 1,
+        "access": 3
+    },
+    {
+        "instance": 1024,
+        "name": "ctrl_cur_kr",
+        "min": "00000000",
+        "max": "7F7FFFFF",
+        "datatype": 18,
+        "numelements": 1,
+        "access": 3
+    },
+    {
+        "instance": 1032,
+        "name": "ctrl_cur_tn",
+        "min": "00000000",
+        "max": "7F7FFFFF",
+        "datatype": 18,
+        "numelements": 1,
+        "access": 3
+    },
+    {
+        "instance": 1040,
+        "name": "ctrl_cur_td",
+        "min": "00000000",
+        "max": "7F7FFFFF",
+        "datatype": 18,
+        "numelements": 1,
+        "access": 3
+    },
+    {
+        "instance": 1056,
+        "name": "ctrl_vel_kr",
+        "min": "00000000",
+        "max": "7F7FFFFF",
+        "datatype": 18,
+        "numelements": 1,
+        "access": 3
+    },
+    {
+        "instance": 1064,
+        "name": "ctrl_vel_tn",
+        "min": "00000000",
+        "max": "7F7FFFFF",
+        "datatype": 18,
+        "numelements": 1,
+        "access": 3
+    },
+    {
+        "instance": 1072,
+        "name": "ctrl_vel_td",
+        "min": "00000000",
+        "max": "7F7FFFFF",
+        "datatype": 18,
+        "numelements": 1,
+        "access": 3
+    },
+    {
+        "instance": 1088,
+        "name": "ctrl_pos_kr",
+        "min": "00000000",
+        "max": "7F7FFFFF",
+        "datatype": 18,
+        "numelements": 1,
+        "access": 3
+    },
+    {
+        "instance": 1096,
+        "name": "ctrl_pos_tn",
+        "min": "00000000",
+        "max": "7F7FFFFF",
+        "datatype": 18,
+        "numelements": 1,
+        "access": 3
+    },
+    {
+        "instance": 1104,
+        "name": "ctrl_pos_td",
+        "min": "00000000",
+        "max": "7F7FFFFF",
+        "datatype": 18,
+        "numelements": 1,
+        "access": 3
+    },
+    {
+        "instance": 1120,
+        "name": "inv_driving_dir",
+        "min": "00",
+        "max": "01",
+        "datatype": 0,
+        "numelements": 1,
+        "access": 3
+    },
+    {
+        "instance": 1128,
+        "name": "max_vector_len",
+        "min": "00000000",
+        "max": "7F7FFFFF",
+        "datatype": 18,
+        "numelements": 1,
+        "access": 3
+    },
+    {
+        "instance": 1136,
+        "name": "ctrl_ffwd_vel",
+        "min": "00000000",
+        "max": "7F7FFFFF",
+        "datatype": 18,
+        "numelements": 1,
+        "access": 3
+    },
+    {
+        "instance": 1280,
+        "name": "module_type",
+        "min": "00",
+        "max": "1B",
+        "datatype": 8,
+        "numelements": 1,
+        "access": 3
+    },
+    {
+        "instance": 1296,
+        "name": "set_vector_len",
+        "min": "0000",
+        "max": "FFFF",
+        "datatype": 5,
+        "numelements": 1,
+        "access": 3
+    },
+    {
+        "instance": 1304,
+        "name": "set_vector_vel",
+        "min": "8000",
+        "max": "7FFF",
+        "datatype": 2,
+        "numelements": 1,
+        "access": 3
+    },
+    {
+        "instance": 1312,
+        "name": "mb_cur_threshold",
+        "min": "3C23D70A",
+        "max": "7F7FFFFF",
+        "datatype": 18,
+        "numelements": 1,
+        "access": 3
+    },
+    {
+        "instance": 1320,
+        "name": "wp_lost_dst",
+        "min": "3DCCCCCD",
+        "max": "42480000",
+        "datatype": 18,
+        "numelements": 1,
+        "access": 3
+    },
+    {
+        "instance": 1328,
+        "name": "target_pos_win",
+        "min": "00000000",
+        "max": "7F7FFFFF",
+        "datatype": 18,
+        "numelements": 1,
+        "access": 3
+    },
+    {
+        "instance": 1336,
+        "name": "ctrl_extra_time",
+        "min": "00000000",
+        "max": "7F7FFFFF",
+        "datatype": 18,
+        "numelements": 1,
+        "access": 3
+    },
+    {
+        "instance": 1344,
+        "name": "wp_release_delta",
+        "min": "3F800000",
+        "max": "42480000",
+        "datatype": 18,
+        "numelements": 1,
+        "access": 3
+    },
+    {
+        "instance": 1352,
+        "name": "easing_time",
+        "min": "0000",
+        "max": "07D0",
+        "datatype": 5,
+        "numelements": 1,
+        "access": 3
+    },
+    {
+        "instance": 1368,
+        "name": "ref_dst",
+        "min": "00000000",
+        "max": "7F7FFFFF",
+        "datatype": 18,
+        "numelements": 1,
+        "access": 3
+    },
+    {
+        "instance": 1376,
+        "name": "mot_const_kt",
+        "min": "00000000",
+        "max": "7F7FFFFF",
+        "datatype": 18,
+        "numelements": 1,
+        "access": 3
+    },
+    {
+        "instance": 1384,
+        "name": "grp_calib_param",
+        "min": "FF7FFFFF",
+        "max": "7F7FFFFF",
+        "datatype": 18,
+        "numelements": 4,
+        "access": 3
+    },
+    {
+        "instance": 1400,
+        "name": "mb_dst_threshold",
+        "min": "38D1B717",
+        "max": "7F7FFFFF",
+        "datatype": 18,
+        "numelements": 1,
+        "access": 3
+    },
+    {
+        "instance": 1408,
+        "name": "grp_pos_margin",
+        "min": "3F800000",
+        "max": "41200000",
+        "datatype": 18,
+        "numelements": 1,
+        "access": 3
+    },
+    {
+        "instance": 1416,
+        "name": "max_phys_stroke",
+        "min": "3F800000",
+        "max": "43FA0000",
+        "datatype": 18,
+        "numelements": 1,
+        "access": 3
+    },
+    {
+        "instance": 1424,
+        "name": "ref_type",
+        "min": "00",
+        "max": "03",
+        "datatype": 8,
+        "numelements": 1,
+        "access": 3
+    },
+    {
+        "instance": 1432,
+        "name": "zvs_step_req",
+        "min": "00000000",
+        "max": "40C90FDB",
+        "datatype": 18,
+        "numelements": 1,
+        "access": 1
+    },
+    {
+        "instance": 1440,
+        "name": "zvs_step_done",
+        "min": "00000000",
+        "max": "40C90FDB",
+        "datatype": 18,
+        "numelements": 1,
+        "access": 1
+    },
+    {
+        "instance": 1448,
+        "name": "grp_prepos_delta",
+        "min": "3F800000",
+        "max": "42480000",
+        "datatype": 18,
+        "numelements": 1,
+        "access": 3
+    },
+    {
+        "instance": 1456,
+        "name": "mb_detect_time",
+        "min": "0050",
+        "max": "01F4",
+        "datatype": 5,
+        "numelements": 1,
+        "access": 3
+    },
+    {
+        "instance": 1536,
+        "name": "min_pos",
+        "min": "FF7FFFFF",
+        "max": "7F7FFFFF",
+        "datatype": 18,
+        "numelements": 1,
+        "access": 3
+    },
+    {
+        "instance": 1544,
+        "name": "max_pos",
+        "min": "FF7FFFFF",
+        "max": "7F7FFFFF",
+        "datatype": 18,
+        "numelements": 1,
+        "access": 3
+    },
+    {
+        "instance": 1552,
+        "name": "zero_pos_ofs",
+        "min": "C61C4000",
+        "max": "461C4000",
+        "datatype": 18,
+        "numelements": 1,
+        "access": 3
+    },
+    {
+        "instance": 1560,
+        "name": "max_mot_cur",
+        "min": "00000000",
+        "max": "7F7FFFFF",
+        "datatype": 18,
+        "numelements": 1,
+        "access": 3
+    },
+    {
+        "instance": 1568,
+        "name": "nom_mot_cur",
+        "min": "00000000",
+        "max": "7F7FFFFF",
+        "datatype": 18,
+        "numelements": 1,
+        "access": 3
+    },
+    {
+        "instance": 1576,
+        "name": "min_vel",
+        "min": "3F800000",
+        "max": "7F7FFFFF",
+        "datatype": 18,
+        "numelements": 1,
+        "access": 3
+    },
+    {
+        "instance": 1584,
+        "name": "max_vel",
+        "min": "41700000",
+        "max": "42E60000",
+        "datatype": 18,
+        "numelements": 1,
+        "access": 3
+    },
+    {
+        "instance": 1592,
+        "name": "min_acc",
+        "min": "42C80000",
+        "max": "7F7FFFFF",
+        "datatype": 18,
+        "numelements": 1,
+        "access": 3
+    },
+    {
+        "instance": 1600,
+        "name": "max_acc",
+        "min": "437A0000",
+        "max": "447A0000",
+        "datatype": 18,
+        "numelements": 1,
+        "access": 3
+    },
+    {
+        "instance": 1616,
+        "name": "max_grp_vel",
+        "min": "3F800000",
+        "max": "42480000",
+        "datatype": 18,
+        "numelements": 1,
+        "access": 3
+    },
+    {
+        "instance": 1624,
+        "name": "min_grp_force",
+        "min": "41700000",
+        "max": "43160000",
+        "datatype": 18,
+        "numelements": 1,
+        "access": 3
+    },
+    {
+        "instance": 1632,
+        "name": "max_grp_force",
+        "min": "42DC0000",
+        "max": "43960000",
+        "datatype": 18,
+        "numelements": 1,
+        "access": 3
+    },
+    {
+        "instance": 1664,
+        "name": "ds_sin_min_raw",
+        "min": "0000",
+        "max": "FFFF",
+        "datatype": 5,
+        "numelements": 1,
+        "access": 3
+    },
+    {
+        "instance": 1672,
+        "name": "ds_sin_max_raw",
+        "min": "0000",
+        "max": "FFFF",
+        "datatype": 5,
+        "numelements": 1,
+        "access": 3
+    },
+    {
+        "instance": 1680,
+        "name": "ds_cos_min_raw",
+        "min": "0000",
+        "max": "FFFF",
+        "datatype": 5,
+        "numelements": 1,
+        "access": 3
+    },
+    {
+        "instance": 1688,
+        "name": "ds_cos_max_raw",
+        "min": "0000",
+        "max": "FFFF",
+        "datatype": 5,
+        "numelements": 1,
+        "access": 3
+    },
+    {
+        "instance": 1696,
+        "name": "max_grp_force_sm",
+        "min": "00000000",
+        "max": "00000000",
+        "datatype": 18,
+        "numelements": 1,
+        "access": 3
+    },
+    {
+        "instance": 1704,
+        "name": "max_allow_force",
+        "min": "00000000",
+        "max": "00000000",
+        "datatype": 18,
+        "numelements": 1,
+        "access": 3
+    },
+    {
+        "instance": 1712,
+        "name": "min_pos_base",
+        "min": "00000000",
+        "max": "42A60000",
+        "datatype": 18,
+        "numelements": 1,
+        "access": 1
+    },
+    {
+        "instance": 1720,
+        "name": "max_pos_base",
+        "min": "00000000",
+        "max": "42A60000",
+        "datatype": 18,
+        "numelements": 1,
+        "access": 1
+    },
+    {
+        "instance": 2048,
+        "name": "min_err_mot_volt",
+        "min": "41980000",
+        "max": "42100000",
+        "datatype": 18,
+        "numelements": 1,
+        "access": 3
+    },
+    {
+        "instance": 2056,
+        "name": "max_err_mot_volt",
+        "min": "41980000",
+        "max": "42100000",
+        "datatype": 18,
+        "numelements": 1,
+        "access": 3
+    },
+    {
+        "instance": 2064,
+        "name": "min_err_lgc_volt",
+        "min": "40A00000",
+        "max": "42100000",
+        "datatype": 18,
+        "numelements": 1,
+        "access": 3
+    },
+    {
+        "instance": 2072,
+        "name": "max_err_lgc_volt",
+        "min": "40A00000",
+        "max": "42100000",
+        "datatype": 18,
+        "numelements": 1,
+        "access": 3
+    },
+    {
+        "instance": 2080,
+        "name": "min_err_lgc_temp",
+        "min": "C1A00000",
+        "max": "42B20000",
+        "datatype": 18,
+        "numelements": 1,
+        "access": 3
+    },
+    {
+        "instance": 2088,
+        "name": "max_err_lgc_temp",
+        "min": "C1980000",
+        "max": "42B40000",
+        "datatype": 18,
+        "numelements": 1,
+        "access": 3
+    },
+    {
+        "instance": 2096,
+        "name": "min_err_mot_temp",
+        "min": "C1A00000",
+        "max": "42EE0000",
+        "datatype": 18,
+        "numelements": 1,
+        "access": 3
+    },
+    {
+        "instance": 2104,
+        "name": "max_err_mot_temp",
+        "min": "C1980000",
+        "max": "43480000",
+        "datatype": 18,
+        "numelements": 1,
+        "access": 3
+    },
+    {
+        "instance": 2112,
+        "name": "meas_lgc_temp",
+        "min": "FF7FFFFF",
+        "max": "7F7FFFFF",
+        "datatype": 18,
+        "numelements": 1,
+        "access": 1
+    },
+    {
+        "instance": 2120,
+        "name": "meas_mot_temp",
+        "min": "FF7FFFFF",
+        "max": "7F7FFFFF",
+        "datatype": 18,
+        "numelements": 1,
+        "access": 1
+    },
+    {
+        "instance": 2128,
+        "name": "min_rec_lgc_temp",
+        "min": "C2200000",
+        "max": "42F00000",
+        "datatype": 18,
+        "numelements": 1,
+        "access": 3
+    },
+    {
+        "instance": 2136,
+        "name": "max_rec_lgc_temp",
+        "min": "FF7FFFFF",
+        "max": "7F7FFFFF",
+        "datatype": 18,
+        "numelements": 1,
+        "access": 3
+    },
+    {
+        "instance": 2144,
+        "name": "min_rec_mot_temp",
+        "min": "C2200000",
+        "max": "43480000",
+        "datatype": 18,
+        "numelements": 1,
+        "access": 3
+    },
+    {
+        "instance": 2152,
+        "name": "max_rec_mot_temp",
+        "min": "FF7FFFFF",
+        "max": "7F7FFFFF",
+        "datatype": 18,
+        "numelements": 1,
+        "access": 3
+    },
+    {
+        "instance": 2160,
+        "name": "meas_lgc_volt",
+        "min": "FF7FFFFF",
+        "max": "7F7FFFFF",
+        "datatype": 18,
+        "numelements": 1,
+        "access": 1
+    },
+    {
+        "instance": 2168,
+        "name": "meas_mot_volt",
+        "min": "FF7FFFFF",
+        "max": "7F7FFFFF",
+        "datatype": 18,
+        "numelements": 1,
+        "access": 1
+    },
+    {
+        "instance": 2176,
+        "name": "min_wrn_mot_volt",
+        "min": "41980000",
+        "max": "42100000",
+        "datatype": 18,
+        "numelements": 1,
+        "access": 3
+    },
+    {
+        "instance": 2184,
+        "name": "max_wrn_mot_volt",
+        "min": "41980000",
+        "max": "42100000",
+        "datatype": 18,
+        "numelements": 1,
+        "access": 3
+    },
+    {
+        "instance": 2192,
+        "name": "min_wrn_lgc_volt",
+        "min": "41300000",
+        "max": "42400000",
+        "datatype": 18,
+        "numelements": 1,
+        "access": 3
+    },
+    {
+        "instance": 2200,
+        "name": "max_wrn_lgc_volt",
+        "min": "41300000",
+        "max": "42400000",
+        "datatype": 18,
+        "numelements": 1,
+        "access": 3
+    },
+    {
+        "instance": 2208,
+        "name": "min_wrn_lgc_temp",
+        "min": "C1A00000",
+        "max": "42B20000",
+        "datatype": 18,
+        "numelements": 1,
+        "access": 3
+    },
+    {
+        "instance": 2216,
+        "name": "max_wrn_lgc_temp",
+        "min": "C1980000",
+        "max": "42B40000",
+        "datatype": 18,
+        "numelements": 1,
+        "access": 3
+    },
+    {
+        "instance": 2224,
+        "name": "min_wrn_mot_temp",
+        "min": "FF7FFFFF",
+        "max": "7F7FFFFF",
+        "datatype": 18,
+        "numelements": 1,
+        "access": 3
+    },
+    {
+        "instance": 2232,
+        "name": "max_wrn_mot_temp",
+        "min": "C1980000",
+        "max": "42F00000",
+        "datatype": 18,
+        "numelements": 1,
+        "access": 3
+    },
+    {
+        "instance": 2240,
+        "name": "mot_resistor",
+        "min": "00000000",
+        "max": "447A0000",
+        "datatype": 18,
+        "numelements": 1,
+        "access": 3
+    },
+    {
+        "instance": 2248,
+        "name": "mot_tp_volt_off",
+        "min": "C1C00000",
+        "max": "41C00000",
+        "datatype": 18,
+        "numelements": 1,
+        "access": 3
+    },
+    {
+        "instance": 4096,
+        "name": "serial_no_txt",
+        "min": null,
+        "max": null,
+        "datatype": 7,
+        "numelements": 16,
+        "access": 3
+    },
+    {
+        "instance": 4104,
+        "name": "order_no_txt",
+        "min": null,
+        "max": null,
+        "datatype": 7,
+        "numelements": 16,
+        "access": 3
+    },
+    {
+        "instance": 4112,
+        "name": "production_date",
+        "min": null,
+        "max": null,
+        "datatype": 7,
+        "numelements": 16,
+        "access": 3
+    },
+    {
+        "instance": 4120,
+        "name": "processor_id",
+        "min": "00000000",
+        "max": "FFFFFFFF",
+        "datatype": 6,
+        "numelements": 1,
+        "access": 1
+    },
+    {
+        "instance": 4128,
+        "name": "serial_no_num",
+        "min": "00000000",
+        "max": "FFFFFFFF",
+        "datatype": 6,
+        "numelements": 1,
+        "access": 3
+    },
+    {
+        "instance": 4352,
+        "name": "sw_build_date",
+        "min": null,
+        "max": null,
+        "datatype": 7,
+        "numelements": 12,
+        "access": 1
+    },
+    {
+        "instance": 4360,
+        "name": "sw_build_time",
+        "min": null,
+        "max": null,
+        "datatype": 7,
+        "numelements": 9,
+        "access": 1
+    },
+    {
+        "instance": 4368,
+        "name": "sw_version_num",
+        "min": "0000",
+        "max": "FFFF",
+        "datatype": 5,
+        "numelements": 1,
+        "access": 1
+    },
+    {
+        "instance": 4376,
+        "name": "sw_version_txt",
+        "min": null,
+        "max": null,
+        "datatype": 7,
+        "numelements": 22,
+        "access": 1
+    },
+    {
+        "instance": 4384,
+        "name": "comm_version_txt",
+        "min": null,
+        "max": null,
+        "datatype": 7,
+        "numelements": 12,
+        "access": 1
+    },
+    {
+        "instance": 4392,
+        "name": "build_info",
+        "min": null,
+        "max": null,
+        "datatype": {
+            "error": 2
+        },
+        "numelements": 21,
+        "access": {
+            "error": 2
+        }
+    },
+    {
+        "instance": 4400,
+        "name": "fieldbus_type",
+        "min": "00",
+        "max": "07",
+        "datatype": 8,
+        "numelements": 1,
+        "access": 1
+    },
+    {
+        "instance": 4408,
+        "name": "mac_addr",
+        "min": "00",
+        "max": "FF",
+        "datatype": 4,
+        "numelements": 6,
+        "access": 1
+    },
+    {
+        "instance": 4528,
+        "name": "compat_mode",
+        "min": "00",
+        "max": "01",
+        "datatype": 0,
+        "numelements": 1,
+        "access": 3
+    },
+    {
+        "instance": 4608,
+        "name": "actual_user",
+        "min": "00",
+        "max": "03",
+        "datatype": 8,
+        "numelements": 1,
+        "access": 1
+    },
+    {
+        "instance": 4616,
+        "name": "login",
+        "min": null,
+        "max": null,
+        "datatype": 7,
+        "numelements": 8,
+        "access": 2
+    },
+    {
+        "instance": 4624,
+        "name": "vary_service_pwd",
+        "min": null,
+        "max": null,
+        "datatype": 7,
+        "numelements": 8,
+        "access": 2
+    },
+    {
+        "instance": 4632,
+        "name": "vary_root_pwd",
+        "min": null,
+        "max": null,
+        "datatype": 7,
+        "numelements": 8,
+        "access": 2
+    },
+    {
+        "instance": 4864,
+        "name": "start_fw_flash",
+        "min": "00",
+        "max": "05",
+        "datatype": 8,
+        "numelements": 1,
+        "access": 2
+    },
+    {
+        "instance": 4872,
+        "name": "firmware_path",
+        "min": null,
+        "max": null,
+        "datatype": 7,
+        "numelements": 30,
+        "access": 1
+    },
+    {
+        "instance": 4888,
+        "name": "ref_angle",
+        "min": "C0C90FDB",
+        "max": "40C90FDB",
+        "datatype": 18,
+        "numelements": 1,
+        "access": 1
+    },
+    {
+        "instance": 4896,
+        "name": "reset_reasons",
+        "min": "000000000000000000000000000000000000000000000000",
+        "max": "FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF",
+        "datatype": {
+            "error": 2
+        },
+        "numelements": 6,
+        "access": {
+            "error": 2
+        }
+    },
+    {
+        "instance": 4904,
+        "name": "ref_pos",
+        "min": "FF7FFFFF",
+        "max": "7F7FFFFF",
+        "datatype": 18,
+        "numelements": 1,
+        "access": 1
+    },
+    {
+        "instance": 4912,
+        "name": "enable_softreset",
+        "min": "00",
+        "max": "01",
+        "datatype": 0,
+        "numelements": 1,
+        "access": 3
+    },
+    {
+        "instance": 4920,
+        "name": "ref_ofs",
+        "min": "FF7FFFFF",
+        "max": "7F7FFFFF",
+        "datatype": 18,
+        "numelements": 1,
+        "access": 1
+    },
+    {
+        "instance": 4928,
+        "name": "ref_vel",
+        "min": "3F800000",
+        "max": "7F7FFFFF",
+        "datatype": 18,
+        "numelements": 1,
+        "access": 3
+    },
+    {
+        "instance": 4936,
+        "name": "ref_acc",
+        "min": "42C80000",
+        "max": "447A0000",
+        "datatype": 18,
+        "numelements": 1,
+        "access": 3
+    },
+    {
+        "instance": 4992,
+        "name": "jog_acc",
+        "min": "42C80000",
+        "max": "447A0000",
+        "datatype": 18,
+        "numelements": 1,
+        "access": 3
+    },
+    {
+        "instance": 5112,
+        "name": "init_ended",
+        "min": "00",
+        "max": "01",
+        "datatype": 0,
+        "numelements": 1,
+        "access": 1
+    },
+    {
+        "instance": 5120,
+        "name": "system_uptime",
+        "min": "00000000",
+        "max": "FFFFFFFF",
+        "datatype": 6,
+        "numelements": 1,
+        "access": 1
+    },
+    {
+        "instance": 5128,
+        "name": "busy_h",
+        "min": "00000000",
+        "max": "FFFFFFFF",
+        "datatype": 6,
+        "numelements": 1,
+        "access": 1
+    },
+    {
+        "instance": 5136,
+        "name": "ctrl_active_h",
+        "min": "00000000",
+        "max": "FFFFFFFF",
+        "datatype": 6,
+        "numelements": 1,
+        "access": 1
+    },
+    {
+        "instance": 5144,
+        "name": "busy_h_s",
+        "min": "0000",
+        "max": "FFFF",
+        "datatype": 5,
+        "numelements": 1,
+        "access": 1
+    },
+    {
+        "instance": 5152,
+        "name": "ctrl_active_h_s",
+        "min": "FF7FFFFF",
+        "max": "7F7FFFFF",
+        "datatype": 18,
+        "numelements": 1,
+        "access": 1
+    },
+    {
+        "instance": 5160,
+        "name": "statistics",
+        "min": "00000000",
+        "max": "FFFFFFFF",
+        "datatype": 6,
+        "numelements": 24,
+        "access": 1
+    },
+    {
+        "instance": 5168,
+        "name": "summed_dst",
+        "min": "0000000000000000",
+        "max": "FFFFFFFFFFFFFFFF",
+        "datatype": 17,
+        "numelements": 1,
+        "access": 1
+    },
+    {
+        "instance": 5176,
+        "name": "zv_hall_sect",
+        "min": "0000",
+        "max": "0008",
+        "datatype": 5,
+        "numelements": 1,
+        "access": 3
+    },
+    {
+        "instance": 5192,
+        "name": "zvs_to_idx_ofs",
+        "min": "C0C90FDB",
+        "max": "40C90FDB",
+        "datatype": 18,
+        "numelements": 1,
+        "access": 3
+    },
+    {
+        "instance": 5400,
+        "name": "pos_sens_sin_raw",
+        "min": "0000",
+        "max": "FFFF",
+        "datatype": 5,
+        "numelements": 1,
+        "access": 1
+    },
+    {
+        "instance": 5408,
+        "name": "pos_sens_cos_raw",
+        "min": "0000",
+        "max": "FFFF",
+        "datatype": 5,
+        "numelements": 1,
+        "access": 1
+    },
+    {
+        "instance": 5416,
+        "name": "cur_u_comp",
+        "min": "00000000",
+        "max": "7F7FFFFF",
+        "datatype": 18,
+        "numelements": 1,
+        "access": 3
+    },
+    {
+        "instance": 5424,
+        "name": "cur_v_comp",
+        "min": "00000000",
+        "max": "7F7FFFFF",
+        "datatype": 18,
+        "numelements": 1,
+        "access": 3
+    },
+    {
+        "instance": 5432,
+        "name": "cur_w_comp",
+        "min": "00000000",
+        "max": "7F7FFFFF",
+        "datatype": 18,
+        "numelements": 1,
+        "access": 3
+    },
+    {
+        "instance": 5440,
+        "name": "max_angle_dev",
+        "min": "00000000",
+        "max": "40C9999A",
+        "datatype": 18,
+        "numelements": 1,
+        "access": 3
+    },
+    {
+        "instance": 5448,
+        "name": "max_mse_chk_viol",
+        "min": "0000",
+        "max": "FFFE",
+        "datatype": 5,
+        "numelements": 1,
+        "access": 3
+    },
+    {
+        "instance": 5456,
+        "name": "mse_ticks",
+        "min": "0000",
+        "max": "FFFF",
+        "datatype": 5,
+        "numelements": 1,
+        "access": 3
+    },
+    {
+        "instance": 5464,
+        "name": "mse_diff",
+        "min": "3727C5AC",
+        "max": "3F7FFF58",
+        "datatype": 18,
+        "numelements": 1,
+        "access": 3
+    },
+    {
+        "instance": 5472,
+        "name": "gse_zero_pos",
+        "min": "00000000",
+        "max": "00007FFF",
+        "datatype": 3,
+        "numelements": 1,
+        "access": 3
+    },
+    {
+        "instance": 5480,
+        "name": "gse_gear_ratio",
+        "min": "00000000",
+        "max": "7F7FFFFF",
+        "datatype": 18,
+        "numelements": 1,
+        "access": 3
+    },
+    {
+        "instance": 5496,
+        "name": "zero_pos_fix_dst",
+        "min": "00000000",
+        "max": "7F7FFFFF",
+        "datatype": 18,
+        "numelements": 1,
+        "access": 3
+    },
+    {
+        "instance": 5504,
+        "name": "gse_ticks",
+        "min": "0000",
+        "max": "FFFF",
+        "datatype": 5,
+        "numelements": 1,
+        "access": 3
+    },
+    {
+        "instance": 5520,
+        "name": "idx_lost_limit",
+        "min": "0000",
+        "max": "FFFF",
+        "datatype": 5,
+        "numelements": 1,
+        "access": 3
+    },
+    {
+        "instance": 5528,
+        "name": "idx_exs_limit",
+        "min": "0000",
+        "max": "FFFF",
+        "datatype": 5,
+        "numelements": 1,
+        "access": 3
+    },
+    {
+        "instance": 5536,
+        "name": "gs_to_ms_lag",
+        "min": "00000000",
+        "max": "7F7FFFFF",
+        "datatype": 18,
+        "numelements": 1,
+        "access": 3
+    },
+    {
+        "instance": 5632,
+        "name": "bt_cur",
+        "min": "3DCCCCCD",
+        "max": "402147AE",
+        "datatype": 18,
+        "numelements": 1,
+        "access": 3
+    },
+    {
+        "instance": 5640,
+        "name": "bt_duration",
+        "min": "01F4",
+        "max": "03E8",
+        "datatype": 5,
+        "numelements": 1,
+        "access": 3
+    },
+    {
+        "instance": 5648,
+        "name": "bt_result",
+        "min": "00",
+        "max": "01",
+        "datatype": 0,
+        "numelements": 1,
+        "access": 3
+    },
+    {
+        "instance": 5888,
+        "name": "hw_platform",
+        "min": "00000000",
+        "max": "FFFFFFFF",
+        "datatype": 6,
+        "numelements": 1,
+        "access": 1
+    },
+    {
+        "instance": 5928,
+        "name": "internal_params",
+        "min": "00000000000000000000000000000000000000000000000000000000000000000000000000",
+        "max": "FFFFFFFFFFFFFFFF01FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF",
+        "datatype": {
+            "error": 2
+        },
+        "numelements": 11,
+        "access": {
+            "error": 2
+        }
+    },
+    {
+        "instance": 5936,
+        "name": "mvm_int",
+        "min": "00000000",
+        "max": "FFFFFFFF",
+        "datatype": 6,
+        "numelements": 1,
+        "access": 1
+    },
+    {
+        "instance": 5952,
+        "name": "mech_efficiency",
+        "min": "3727C5AC",
+        "max": "3F800000",
+        "datatype": 18,
+        "numelements": 1,
+        "access": 3
+    },
+    {
+        "instance": 8488,
+        "name": "dbg_msg_req",
+        "min": "0000",
+        "max": "FFFF",
+        "datatype": 5,
+        "numelements": 1,
+        "access": 3
+    },
+    {
+        "instance": 8496,
+        "name": "dbg_msg_buffer",
+        "min": "0000",
+        "max": "FFFF",
+        "datatype": 5,
+        "numelements": 128,
+        "access": 1
+    }
+]

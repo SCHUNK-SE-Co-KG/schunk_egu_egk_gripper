@@ -1,0 +1,2178 @@
+{
+    "0x0118": [
+        {
+            "value": 0,
+            "string": "ERR_NONE"
+        },
+        {
+            "value": 1,
+            "string": ""
+        },
+        {
+            "value": 2,
+            "string": ""
+        },
+        {
+            "value": 3,
+            "string": "ERR_NO_RIGHTS"
+        },
+        {
+            "value": 4,
+            "string": "INF_UNKNOWN_CMD"
+        },
+        {
+            "value": 5,
+            "string": "INF_FAILED"
+        },
+        {
+            "value": 6,
+            "string": ""
+        },
+        {
+            "value": 7,
+            "string": ""
+        },
+        {
+            "value": 8,
+            "string": ""
+        },
+        {
+            "value": 9,
+            "string": ""
+        },
+        {
+            "value": 10,
+            "string": ""
+        },
+        {
+            "value": 11,
+            "string": ""
+        },
+        {
+            "value": 12,
+            "string": ""
+        },
+        {
+            "value": 13,
+            "string": ""
+        },
+        {
+            "value": 14,
+            "string": ""
+        },
+        {
+            "value": 15,
+            "string": ""
+        },
+        {
+            "value": 16,
+            "string": ""
+        },
+        {
+            "value": 17,
+            "string": ""
+        },
+        {
+            "value": 18,
+            "string": "INF_WRONG_TYPE"
+        },
+        {
+            "value": 19,
+            "string": ""
+        },
+        {
+            "value": 20,
+            "string": "INF_NO_AUTHORITY"
+        },
+        {
+            "value": 21,
+            "string": ""
+        },
+        {
+            "value": 22,
+            "string": ""
+        },
+        {
+            "value": 23,
+            "string": ""
+        },
+        {
+            "value": 24,
+            "string": ""
+        },
+        {
+            "value": 25,
+            "string": ""
+        },
+        {
+            "value": 26,
+            "string": ""
+        },
+        {
+            "value": 27,
+            "string": "INF_VAL_LIM_MAX"
+        },
+        {
+            "value": 28,
+            "string": "INF_VAL_LIM_MIN"
+        },
+        {
+            "value": 29,
+            "string": ""
+        },
+        {
+            "value": 30,
+            "string": ""
+        },
+        {
+            "value": 31,
+            "string": ""
+        },
+        {
+            "value": 32,
+            "string": ""
+        },
+        {
+            "value": 33,
+            "string": ""
+        },
+        {
+            "value": 34,
+            "string": ""
+        },
+        {
+            "value": 35,
+            "string": ""
+        },
+        {
+            "value": 36,
+            "string": ""
+        },
+        {
+            "value": 37,
+            "string": ""
+        },
+        {
+            "value": 38,
+            "string": ""
+        },
+        {
+            "value": 39,
+            "string": ""
+        },
+        {
+            "value": 40,
+            "string": "ERR_BT_FAILED"
+        },
+        {
+            "value": 41,
+            "string": ""
+        },
+        {
+            "value": 42,
+            "string": ""
+        },
+        {
+            "value": 43,
+            "string": ""
+        },
+        {
+            "value": 44,
+            "string": ""
+        },
+        {
+            "value": 45,
+            "string": ""
+        },
+        {
+            "value": 46,
+            "string": ""
+        },
+        {
+            "value": 47,
+            "string": ""
+        },
+        {
+            "value": 48,
+            "string": ""
+        },
+        {
+            "value": 49,
+            "string": ""
+        },
+        {
+            "value": 50,
+            "string": ""
+        },
+        {
+            "value": 51,
+            "string": ""
+        },
+        {
+            "value": 52,
+            "string": ""
+        },
+        {
+            "value": 53,
+            "string": ""
+        },
+        {
+            "value": 54,
+            "string": ""
+        },
+        {
+            "value": 55,
+            "string": ""
+        },
+        {
+            "value": 56,
+            "string": ""
+        },
+        {
+            "value": 57,
+            "string": ""
+        },
+        {
+            "value": 58,
+            "string": ""
+        },
+        {
+            "value": 59,
+            "string": ""
+        },
+        {
+            "value": 60,
+            "string": ""
+        },
+        {
+            "value": 61,
+            "string": ""
+        },
+        {
+            "value": 62,
+            "string": ""
+        },
+        {
+            "value": 63,
+            "string": ""
+        },
+        {
+            "value": 64,
+            "string": ""
+        },
+        {
+            "value": 65,
+            "string": ""
+        },
+        {
+            "value": 66,
+            "string": ""
+        },
+        {
+            "value": 67,
+            "string": ""
+        },
+        {
+            "value": 68,
+            "string": ""
+        },
+        {
+            "value": 69,
+            "string": ""
+        },
+        {
+            "value": 70,
+            "string": ""
+        },
+        {
+            "value": 71,
+            "string": ""
+        },
+        {
+            "value": 72,
+            "string": ""
+        },
+        {
+            "value": 73,
+            "string": ""
+        },
+        {
+            "value": 74,
+            "string": ""
+        },
+        {
+            "value": 75,
+            "string": ""
+        },
+        {
+            "value": 76,
+            "string": ""
+        },
+        {
+            "value": 77,
+            "string": ""
+        },
+        {
+            "value": 78,
+            "string": ""
+        },
+        {
+            "value": 79,
+            "string": ""
+        },
+        {
+            "value": 80,
+            "string": ""
+        },
+        {
+            "value": 81,
+            "string": ""
+        },
+        {
+            "value": 82,
+            "string": ""
+        },
+        {
+            "value": 83,
+            "string": ""
+        },
+        {
+            "value": 84,
+            "string": ""
+        },
+        {
+            "value": 85,
+            "string": ""
+        },
+        {
+            "value": 86,
+            "string": ""
+        },
+        {
+            "value": 87,
+            "string": ""
+        },
+        {
+            "value": 88,
+            "string": ""
+        },
+        {
+            "value": 89,
+            "string": ""
+        },
+        {
+            "value": 90,
+            "string": ""
+        },
+        {
+            "value": 91,
+            "string": ""
+        },
+        {
+            "value": 92,
+            "string": ""
+        },
+        {
+            "value": 93,
+            "string": ""
+        },
+        {
+            "value": 94,
+            "string": ""
+        },
+        {
+            "value": 95,
+            "string": ""
+        },
+        {
+            "value": 96,
+            "string": ""
+        },
+        {
+            "value": 97,
+            "string": ""
+        },
+        {
+            "value": 98,
+            "string": ""
+        },
+        {
+            "value": 99,
+            "string": ""
+        },
+        {
+            "value": 100,
+            "string": ""
+        },
+        {
+            "value": 101,
+            "string": ""
+        },
+        {
+            "value": 102,
+            "string": ""
+        },
+        {
+            "value": 103,
+            "string": ""
+        },
+        {
+            "value": 104,
+            "string": ""
+        },
+        {
+            "value": 105,
+            "string": ""
+        },
+        {
+            "value": 106,
+            "string": ""
+        },
+        {
+            "value": 107,
+            "string": ""
+        },
+        {
+            "value": 108,
+            "string": "ERR_MOT_TEMP_LO"
+        },
+        {
+            "value": 109,
+            "string": "ERR_MOT_TEMP_HI"
+        },
+        {
+            "value": 110,
+            "string": ""
+        },
+        {
+            "value": 111,
+            "string": ""
+        },
+        {
+            "value": 112,
+            "string": "ERR_LGC_TEMP_LO"
+        },
+        {
+            "value": 113,
+            "string": "ERR_LGC_TEMP_HI"
+        },
+        {
+            "value": 114,
+            "string": "ERR_LGC_VOLT_LO"
+        },
+        {
+            "value": 115,
+            "string": "ERR_LGC_VOLT_HI"
+        },
+        {
+            "value": 116,
+            "string": "ERR_MOT_VOLT_LO"
+        },
+        {
+            "value": 117,
+            "string": "ERR_MOT_VOLT_HI"
+        },
+        {
+            "value": 118,
+            "string": ""
+        },
+        {
+            "value": 119,
+            "string": ""
+        },
+        {
+            "value": 120,
+            "string": ""
+        },
+        {
+            "value": 121,
+            "string": ""
+        },
+        {
+            "value": 122,
+            "string": ""
+        },
+        {
+            "value": 123,
+            "string": ""
+        },
+        {
+            "value": 124,
+            "string": "ERR_REBOOT"
+        },
+        {
+            "value": 125,
+            "string": ""
+        },
+        {
+            "value": 126,
+            "string": "ERR_POWER_STAGE"
+        },
+        {
+            "value": 127,
+            "string": ""
+        },
+        {
+            "value": 128,
+            "string": ""
+        },
+        {
+            "value": 129,
+            "string": ""
+        },
+        {
+            "value": 130,
+            "string": ""
+        },
+        {
+            "value": 131,
+            "string": ""
+        },
+        {
+            "value": 132,
+            "string": ""
+        },
+        {
+            "value": 133,
+            "string": ""
+        },
+        {
+            "value": 134,
+            "string": ""
+        },
+        {
+            "value": 135,
+            "string": ""
+        },
+        {
+            "value": 136,
+            "string": ""
+        },
+        {
+            "value": 137,
+            "string": "ERR_ZV_NOT_FOUND"
+        },
+        {
+            "value": 138,
+            "string": "ERR_ENC_PHASE"
+        },
+        {
+            "value": 139,
+            "string": "ERR_ENC_SIN_LO"
+        },
+        {
+            "value": 140,
+            "string": "ERR_ENC_SIN_HI"
+        },
+        {
+            "value": 141,
+            "string": "ERR_ENC_COS_LO"
+        },
+        {
+            "value": 142,
+            "string": "ERR_ENC_COS_HI"
+        },
+        {
+            "value": 143,
+            "string": "ERR_ENC_SHORTCUT"
+        },
+        {
+            "value": 144,
+            "string": "WRN_LGC_TEMP_LO"
+        },
+        {
+            "value": 145,
+            "string": "WRN_LGC_TEMP_HI"
+        },
+        {
+            "value": 146,
+            "string": "WRN_MOT_TEMP_LO"
+        },
+        {
+            "value": 147,
+            "string": "WRN_MOT_TEMP_HI"
+        },
+        {
+            "value": 148,
+            "string": "WRN_NOT_FEASIBLE"
+        },
+        {
+            "value": 149,
+            "string": "WRN_POS_LIMIT"
+        },
+        {
+            "value": 150,
+            "string": "WRN_LGC_VOLT_LO"
+        },
+        {
+            "value": 151,
+            "string": "WRN_LGC_VOLT_HI"
+        },
+        {
+            "value": 152,
+            "string": "WRN_MOT_VOLT_LO"
+        },
+        {
+            "value": 153,
+            "string": "WRN_MOT_VOLT_HI"
+        },
+        {
+            "value": 154,
+            "string": ""
+        },
+        {
+            "value": 155,
+            "string": "WRN_FLASH_FAILED"
+        },
+        {
+            "value": 156,
+            "string": "WRN_ERASE_FAILED"
+        },
+        {
+            "value": 157,
+            "string": "WRN_FACT_FAILED"
+        },
+        {
+            "value": 158,
+            "string": "WRN_AUTH_FAILED"
+        },
+        {
+            "value": 159,
+            "string": "WRN_SD_NOT_PREP"
+        },
+        {
+            "value": 160,
+            "string": ""
+        },
+        {
+            "value": 161,
+            "string": "WRN_NO_PART"
+        },
+        {
+            "value": 162,
+            "string": "WRN_BCKUP_RSTORE"
+        },
+        {
+            "value": 163,
+            "string": ""
+        },
+        {
+            "value": 164,
+            "string": ""
+        },
+        {
+            "value": 165,
+            "string": ""
+        },
+        {
+            "value": 166,
+            "string": ""
+        },
+        {
+            "value": 167,
+            "string": ""
+        },
+        {
+            "value": 168,
+            "string": ""
+        },
+        {
+            "value": 169,
+            "string": ""
+        },
+        {
+            "value": 170,
+            "string": ""
+        },
+        {
+            "value": 171,
+            "string": ""
+        },
+        {
+            "value": 172,
+            "string": ""
+        },
+        {
+            "value": 173,
+            "string": ""
+        },
+        {
+            "value": 174,
+            "string": ""
+        },
+        {
+            "value": 175,
+            "string": ""
+        },
+        {
+            "value": 176,
+            "string": ""
+        },
+        {
+            "value": 177,
+            "string": ""
+        },
+        {
+            "value": 178,
+            "string": ""
+        },
+        {
+            "value": 179,
+            "string": ""
+        },
+        {
+            "value": 180,
+            "string": "ERR_ENC_PULSES"
+        },
+        {
+            "value": 181,
+            "string": "ERR_ENC_NO_INDEX"
+        },
+        {
+            "value": 182,
+            "string": "ERR_ENC_MN_INDEX"
+        },
+        {
+            "value": 183,
+            "string": "ERR_ENC_HALL_ILL"
+        },
+        {
+            "value": 184,
+            "string": "ERR_ENC_NO_HALL"
+        },
+        {
+            "value": 185,
+            "string": "ERR_ENC_ABS_FAIL"
+        },
+        {
+            "value": 186,
+            "string": "ERR_CHP_TIMEOUT"
+        },
+        {
+            "value": 187,
+            "string": "ERR_CHP_FAILED"
+        },
+        {
+            "value": 188,
+            "string": ""
+        },
+        {
+            "value": 189,
+            "string": ""
+        },
+        {
+            "value": 190,
+            "string": ""
+        },
+        {
+            "value": 191,
+            "string": ""
+        },
+        {
+            "value": 192,
+            "string": ""
+        },
+        {
+            "value": 193,
+            "string": ""
+        },
+        {
+            "value": 194,
+            "string": ""
+        },
+        {
+            "value": 195,
+            "string": ""
+        },
+        {
+            "value": 196,
+            "string": ""
+        },
+        {
+            "value": 197,
+            "string": ""
+        },
+        {
+            "value": 198,
+            "string": ""
+        },
+        {
+            "value": 199,
+            "string": ""
+        },
+        {
+            "value": 200,
+            "string": ""
+        },
+        {
+            "value": 201,
+            "string": ""
+        },
+        {
+            "value": 202,
+            "string": ""
+        },
+        {
+            "value": 203,
+            "string": ""
+        },
+        {
+            "value": 204,
+            "string": ""
+        },
+        {
+            "value": 205,
+            "string": ""
+        },
+        {
+            "value": 206,
+            "string": ""
+        },
+        {
+            "value": 207,
+            "string": ""
+        },
+        {
+            "value": 208,
+            "string": ""
+        },
+        {
+            "value": 209,
+            "string": ""
+        },
+        {
+            "value": 210,
+            "string": ""
+        },
+        {
+            "value": 211,
+            "string": ""
+        },
+        {
+            "value": 212,
+            "string": "ERR_INVAL_PHRASE"
+        },
+        {
+            "value": 213,
+            "string": "ERR_SOFT_LOW"
+        },
+        {
+            "value": 214,
+            "string": "ERR_SOFT_HIGH"
+        },
+        {
+            "value": 215,
+            "string": ""
+        },
+        {
+            "value": 216,
+            "string": ""
+        },
+        {
+            "value": 217,
+            "string": "ERR_FAST_STOP"
+        },
+        {
+            "value": 218,
+            "string": ""
+        },
+        {
+            "value": 219,
+            "string": ""
+        },
+        {
+            "value": 220,
+            "string": ""
+        },
+        {
+            "value": 221,
+            "string": ""
+        },
+        {
+            "value": 222,
+            "string": "ERR_CURRENT"
+        },
+        {
+            "value": 223,
+            "string": "ERR_I2T"
+        },
+        {
+            "value": 224,
+            "string": ""
+        },
+        {
+            "value": 225,
+            "string": "ERR_INTERNAL"
+        },
+        {
+            "value": 226,
+            "string": ""
+        },
+        {
+            "value": 227,
+            "string": ""
+        },
+        {
+            "value": 228,
+            "string": "ERR_TOO_FAST"
+        },
+        {
+            "value": 229,
+            "string": ""
+        },
+        {
+            "value": 230,
+            "string": ""
+        },
+        {
+            "value": 231,
+            "string": "ERR_FLASH_FAILED"
+        },
+        {
+            "value": 232,
+            "string": ""
+        },
+        {
+            "value": 233,
+            "string": ""
+        },
+        {
+            "value": 234,
+            "string": ""
+        },
+        {
+            "value": 235,
+            "string": ""
+        },
+        {
+            "value": 236,
+            "string": ""
+        },
+        {
+            "value": 237,
+            "string": ""
+        },
+        {
+            "value": 238,
+            "string": ""
+        },
+        {
+            "value": 239,
+            "string": "ERR_COMM_LOST"
+        },
+        {
+            "value": 240,
+            "string": "ERR_REF_ABORT_TO"
+        },
+        {
+            "value": 241,
+            "string": "ERR_MOV_ABORT_TO"
+        },
+        {
+            "value": 242,
+            "string": "ERR_NO_REF"
+        },
+        {
+            "value": 243,
+            "string": ""
+        },
+        {
+            "value": 244,
+            "string": "ERR_MOVE_BLOCKED"
+        },
+        {
+            "value": 245,
+            "string": "ERR_UNKNOWN_HW"
+        },
+        {
+            "value": 246,
+            "string": "ERR_BLOCK_FAILED"
+        },
+        {
+            "value": 247,
+            "string": "ERR_NO_COMM"
+        },
+        {
+            "value": 248,
+            "string": "ERR_WRONG_HW"
+        },
+        {
+            "value": 249,
+            "string": "ERR_WRONG_MODULE"
+        },
+        {
+            "value": 250,
+            "string": "ERR_SD_FAILED"
+        },
+        {
+            "value": 251,
+            "string": "ERR_FLASH_LOST"
+        },
+        {
+            "value": 252,
+            "string": "ERR_SW_COMM"
+        }
+    ],
+    "0x0120": [
+        {
+            "value": 0,
+            "string": "ERR_NONE"
+        },
+        {
+            "value": 1,
+            "string": ""
+        },
+        {
+            "value": 2,
+            "string": ""
+        },
+        {
+            "value": 3,
+            "string": "ERR_NO_RIGHTS"
+        },
+        {
+            "value": 4,
+            "string": "INF_UNKNOWN_CMD"
+        },
+        {
+            "value": 5,
+            "string": "INF_FAILED"
+        },
+        {
+            "value": 6,
+            "string": ""
+        },
+        {
+            "value": 7,
+            "string": ""
+        },
+        {
+            "value": 8,
+            "string": ""
+        },
+        {
+            "value": 9,
+            "string": ""
+        },
+        {
+            "value": 10,
+            "string": ""
+        },
+        {
+            "value": 11,
+            "string": ""
+        },
+        {
+            "value": 12,
+            "string": ""
+        },
+        {
+            "value": 13,
+            "string": ""
+        },
+        {
+            "value": 14,
+            "string": ""
+        },
+        {
+            "value": 15,
+            "string": ""
+        },
+        {
+            "value": 16,
+            "string": ""
+        },
+        {
+            "value": 17,
+            "string": ""
+        },
+        {
+            "value": 18,
+            "string": "INF_WRONG_TYPE"
+        },
+        {
+            "value": 19,
+            "string": ""
+        },
+        {
+            "value": 20,
+            "string": "INF_NO_AUTHORITY"
+        },
+        {
+            "value": 21,
+            "string": ""
+        },
+        {
+            "value": 22,
+            "string": ""
+        },
+        {
+            "value": 23,
+            "string": ""
+        },
+        {
+            "value": 24,
+            "string": ""
+        },
+        {
+            "value": 25,
+            "string": ""
+        },
+        {
+            "value": 26,
+            "string": ""
+        },
+        {
+            "value": 27,
+            "string": "INF_VAL_LIM_MAX"
+        },
+        {
+            "value": 28,
+            "string": "INF_VAL_LIM_MIN"
+        },
+        {
+            "value": 29,
+            "string": ""
+        },
+        {
+            "value": 30,
+            "string": ""
+        },
+        {
+            "value": 31,
+            "string": ""
+        },
+        {
+            "value": 32,
+            "string": ""
+        },
+        {
+            "value": 33,
+            "string": ""
+        },
+        {
+            "value": 34,
+            "string": ""
+        },
+        {
+            "value": 35,
+            "string": ""
+        },
+        {
+            "value": 36,
+            "string": ""
+        },
+        {
+            "value": 37,
+            "string": ""
+        },
+        {
+            "value": 38,
+            "string": ""
+        },
+        {
+            "value": 39,
+            "string": ""
+        },
+        {
+            "value": 40,
+            "string": "ERR_BT_FAILED"
+        },
+        {
+            "value": 41,
+            "string": ""
+        },
+        {
+            "value": 42,
+            "string": ""
+        },
+        {
+            "value": 43,
+            "string": ""
+        },
+        {
+            "value": 44,
+            "string": ""
+        },
+        {
+            "value": 45,
+            "string": ""
+        },
+        {
+            "value": 46,
+            "string": ""
+        },
+        {
+            "value": 47,
+            "string": ""
+        },
+        {
+            "value": 48,
+            "string": ""
+        },
+        {
+            "value": 49,
+            "string": ""
+        },
+        {
+            "value": 50,
+            "string": ""
+        },
+        {
+            "value": 51,
+            "string": ""
+        },
+        {
+            "value": 52,
+            "string": ""
+        },
+        {
+            "value": 53,
+            "string": ""
+        },
+        {
+            "value": 54,
+            "string": ""
+        },
+        {
+            "value": 55,
+            "string": ""
+        },
+        {
+            "value": 56,
+            "string": ""
+        },
+        {
+            "value": 57,
+            "string": ""
+        },
+        {
+            "value": 58,
+            "string": ""
+        },
+        {
+            "value": 59,
+            "string": ""
+        },
+        {
+            "value": 60,
+            "string": ""
+        },
+        {
+            "value": 61,
+            "string": ""
+        },
+        {
+            "value": 62,
+            "string": ""
+        },
+        {
+            "value": 63,
+            "string": ""
+        },
+        {
+            "value": 64,
+            "string": ""
+        },
+        {
+            "value": 65,
+            "string": ""
+        },
+        {
+            "value": 66,
+            "string": ""
+        },
+        {
+            "value": 67,
+            "string": ""
+        },
+        {
+            "value": 68,
+            "string": ""
+        },
+        {
+            "value": 69,
+            "string": ""
+        },
+        {
+            "value": 70,
+            "string": ""
+        },
+        {
+            "value": 71,
+            "string": ""
+        },
+        {
+            "value": 72,
+            "string": ""
+        },
+        {
+            "value": 73,
+            "string": ""
+        },
+        {
+            "value": 74,
+            "string": ""
+        },
+        {
+            "value": 75,
+            "string": ""
+        },
+        {
+            "value": 76,
+            "string": ""
+        },
+        {
+            "value": 77,
+            "string": ""
+        },
+        {
+            "value": 78,
+            "string": ""
+        },
+        {
+            "value": 79,
+            "string": ""
+        },
+        {
+            "value": 80,
+            "string": ""
+        },
+        {
+            "value": 81,
+            "string": ""
+        },
+        {
+            "value": 82,
+            "string": ""
+        },
+        {
+            "value": 83,
+            "string": ""
+        },
+        {
+            "value": 84,
+            "string": ""
+        },
+        {
+            "value": 85,
+            "string": ""
+        },
+        {
+            "value": 86,
+            "string": ""
+        },
+        {
+            "value": 87,
+            "string": ""
+        },
+        {
+            "value": 88,
+            "string": ""
+        },
+        {
+            "value": 89,
+            "string": ""
+        },
+        {
+            "value": 90,
+            "string": ""
+        },
+        {
+            "value": 91,
+            "string": ""
+        },
+        {
+            "value": 92,
+            "string": ""
+        },
+        {
+            "value": 93,
+            "string": ""
+        },
+        {
+            "value": 94,
+            "string": ""
+        },
+        {
+            "value": 95,
+            "string": ""
+        },
+        {
+            "value": 96,
+            "string": ""
+        },
+        {
+            "value": 97,
+            "string": ""
+        },
+        {
+            "value": 98,
+            "string": ""
+        },
+        {
+            "value": 99,
+            "string": ""
+        },
+        {
+            "value": 100,
+            "string": ""
+        },
+        {
+            "value": 101,
+            "string": ""
+        },
+        {
+            "value": 102,
+            "string": ""
+        },
+        {
+            "value": 103,
+            "string": ""
+        },
+        {
+            "value": 104,
+            "string": ""
+        },
+        {
+            "value": 105,
+            "string": ""
+        },
+        {
+            "value": 106,
+            "string": ""
+        },
+        {
+            "value": 107,
+            "string": ""
+        },
+        {
+            "value": 108,
+            "string": "ERR_MOT_TEMP_LO"
+        },
+        {
+            "value": 109,
+            "string": "ERR_MOT_TEMP_HI"
+        },
+        {
+            "value": 110,
+            "string": ""
+        },
+        {
+            "value": 111,
+            "string": ""
+        },
+        {
+            "value": 112,
+            "string": "ERR_LGC_TEMP_LO"
+        },
+        {
+            "value": 113,
+            "string": "ERR_LGC_TEMP_HI"
+        },
+        {
+            "value": 114,
+            "string": "ERR_LGC_VOLT_LO"
+        },
+        {
+            "value": 115,
+            "string": "ERR_LGC_VOLT_HI"
+        },
+        {
+            "value": 116,
+            "string": "ERR_MOT_VOLT_LO"
+        },
+        {
+            "value": 117,
+            "string": "ERR_MOT_VOLT_HI"
+        },
+        {
+            "value": 118,
+            "string": ""
+        },
+        {
+            "value": 119,
+            "string": ""
+        },
+        {
+            "value": 120,
+            "string": ""
+        },
+        {
+            "value": 121,
+            "string": ""
+        },
+        {
+            "value": 122,
+            "string": ""
+        },
+        {
+            "value": 123,
+            "string": ""
+        },
+        {
+            "value": 124,
+            "string": "ERR_REBOOT"
+        },
+        {
+            "value": 125,
+            "string": ""
+        },
+        {
+            "value": 126,
+            "string": "ERR_POWER_STAGE"
+        },
+        {
+            "value": 127,
+            "string": ""
+        },
+        {
+            "value": 128,
+            "string": ""
+        },
+        {
+            "value": 129,
+            "string": ""
+        },
+        {
+            "value": 130,
+            "string": ""
+        },
+        {
+            "value": 131,
+            "string": ""
+        },
+        {
+            "value": 132,
+            "string": ""
+        },
+        {
+            "value": 133,
+            "string": ""
+        },
+        {
+            "value": 134,
+            "string": ""
+        },
+        {
+            "value": 135,
+            "string": ""
+        },
+        {
+            "value": 136,
+            "string": ""
+        },
+        {
+            "value": 137,
+            "string": "ERR_ZV_NOT_FOUND"
+        },
+        {
+            "value": 138,
+            "string": "ERR_ENC_PHASE"
+        },
+        {
+            "value": 139,
+            "string": "ERR_ENC_SIN_LO"
+        },
+        {
+            "value": 140,
+            "string": "ERR_ENC_SIN_HI"
+        },
+        {
+            "value": 141,
+            "string": "ERR_ENC_COS_LO"
+        },
+        {
+            "value": 142,
+            "string": "ERR_ENC_COS_HI"
+        },
+        {
+            "value": 143,
+            "string": "ERR_ENC_SHORTCUT"
+        },
+        {
+            "value": 144,
+            "string": "WRN_LGC_TEMP_LO"
+        },
+        {
+            "value": 145,
+            "string": "WRN_LGC_TEMP_HI"
+        },
+        {
+            "value": 146,
+            "string": "WRN_MOT_TEMP_LO"
+        },
+        {
+            "value": 147,
+            "string": "WRN_MOT_TEMP_HI"
+        },
+        {
+            "value": 148,
+            "string": "WRN_NOT_FEASIBLE"
+        },
+        {
+            "value": 149,
+            "string": "WRN_POS_LIMIT"
+        },
+        {
+            "value": 150,
+            "string": "WRN_LGC_VOLT_LO"
+        },
+        {
+            "value": 151,
+            "string": "WRN_LGC_VOLT_HI"
+        },
+        {
+            "value": 152,
+            "string": "WRN_MOT_VOLT_LO"
+        },
+        {
+            "value": 153,
+            "string": "WRN_MOT_VOLT_HI"
+        },
+        {
+            "value": 154,
+            "string": ""
+        },
+        {
+            "value": 155,
+            "string": "WRN_FLASH_FAILED"
+        },
+        {
+            "value": 156,
+            "string": "WRN_ERASE_FAILED"
+        },
+        {
+            "value": 157,
+            "string": "WRN_FACT_FAILED"
+        },
+        {
+            "value": 158,
+            "string": "WRN_AUTH_FAILED"
+        },
+        {
+            "value": 159,
+            "string": "WRN_SD_NOT_PREP"
+        },
+        {
+            "value": 160,
+            "string": ""
+        },
+        {
+            "value": 161,
+            "string": "WRN_NO_PART"
+        },
+        {
+            "value": 162,
+            "string": "WRN_BCKUP_RSTORE"
+        },
+        {
+            "value": 163,
+            "string": ""
+        },
+        {
+            "value": 164,
+            "string": ""
+        },
+        {
+            "value": 165,
+            "string": ""
+        },
+        {
+            "value": 166,
+            "string": ""
+        },
+        {
+            "value": 167,
+            "string": ""
+        },
+        {
+            "value": 168,
+            "string": ""
+        },
+        {
+            "value": 169,
+            "string": ""
+        },
+        {
+            "value": 170,
+            "string": ""
+        },
+        {
+            "value": 171,
+            "string": ""
+        },
+        {
+            "value": 172,
+            "string": ""
+        },
+        {
+            "value": 173,
+            "string": ""
+        },
+        {
+            "value": 174,
+            "string": ""
+        },
+        {
+            "value": 175,
+            "string": ""
+        },
+        {
+            "value": 176,
+            "string": ""
+        },
+        {
+            "value": 177,
+            "string": ""
+        },
+        {
+            "value": 178,
+            "string": ""
+        },
+        {
+            "value": 179,
+            "string": ""
+        },
+        {
+            "value": 180,
+            "string": "ERR_ENC_PULSES"
+        },
+        {
+            "value": 181,
+            "string": "ERR_ENC_NO_INDEX"
+        },
+        {
+            "value": 182,
+            "string": "ERR_ENC_MN_INDEX"
+        },
+        {
+            "value": 183,
+            "string": "ERR_ENC_HALL_ILL"
+        },
+        {
+            "value": 184,
+            "string": "ERR_ENC_NO_HALL"
+        },
+        {
+            "value": 185,
+            "string": "ERR_ENC_ABS_FAIL"
+        },
+        {
+            "value": 186,
+            "string": "ERR_CHP_TIMEOUT"
+        },
+        {
+            "value": 187,
+            "string": "ERR_CHP_FAILED"
+        },
+        {
+            "value": 188,
+            "string": ""
+        },
+        {
+            "value": 189,
+            "string": ""
+        },
+        {
+            "value": 190,
+            "string": ""
+        },
+        {
+            "value": 191,
+            "string": ""
+        },
+        {
+            "value": 192,
+            "string": ""
+        },
+        {
+            "value": 193,
+            "string": ""
+        },
+        {
+            "value": 194,
+            "string": ""
+        },
+        {
+            "value": 195,
+            "string": ""
+        },
+        {
+            "value": 196,
+            "string": ""
+        },
+        {
+            "value": 197,
+            "string": ""
+        },
+        {
+            "value": 198,
+            "string": ""
+        },
+        {
+            "value": 199,
+            "string": ""
+        },
+        {
+            "value": 200,
+            "string": ""
+        },
+        {
+            "value": 201,
+            "string": ""
+        },
+        {
+            "value": 202,
+            "string": ""
+        },
+        {
+            "value": 203,
+            "string": ""
+        },
+        {
+            "value": 204,
+            "string": ""
+        },
+        {
+            "value": 205,
+            "string": ""
+        },
+        {
+            "value": 206,
+            "string": ""
+        },
+        {
+            "value": 207,
+            "string": ""
+        },
+        {
+            "value": 208,
+            "string": ""
+        },
+        {
+            "value": 209,
+            "string": ""
+        },
+        {
+            "value": 210,
+            "string": ""
+        },
+        {
+            "value": 211,
+            "string": ""
+        },
+        {
+            "value": 212,
+            "string": "ERR_INVAL_PHRASE"
+        },
+        {
+            "value": 213,
+            "string": "ERR_SOFT_LOW"
+        },
+        {
+            "value": 214,
+            "string": "ERR_SOFT_HIGH"
+        },
+        {
+            "value": 215,
+            "string": ""
+        },
+        {
+            "value": 216,
+            "string": ""
+        },
+        {
+            "value": 217,
+            "string": "ERR_FAST_STOP"
+        },
+        {
+            "value": 218,
+            "string": ""
+        },
+        {
+            "value": 219,
+            "string": ""
+        },
+        {
+            "value": 220,
+            "string": ""
+        },
+        {
+            "value": 221,
+            "string": ""
+        },
+        {
+            "value": 222,
+            "string": "ERR_CURRENT"
+        },
+        {
+            "value": 223,
+            "string": "ERR_I2T"
+        },
+        {
+            "value": 224,
+            "string": ""
+        },
+        {
+            "value": 225,
+            "string": "ERR_INTERNAL"
+        },
+        {
+            "value": 226,
+            "string": ""
+        },
+        {
+            "value": 227,
+            "string": ""
+        },
+        {
+            "value": 228,
+            "string": "ERR_TOO_FAST"
+        },
+        {
+            "value": 229,
+            "string": ""
+        },
+        {
+            "value": 230,
+            "string": ""
+        },
+        {
+            "value": 231,
+            "string": "ERR_FLASH_FAILED"
+        },
+        {
+            "value": 232,
+            "string": ""
+        },
+        {
+            "value": 233,
+            "string": ""
+        },
+        {
+            "value": 234,
+            "string": ""
+        },
+        {
+            "value": 235,
+            "string": ""
+        },
+        {
+            "value": 236,
+            "string": ""
+        },
+        {
+            "value": 237,
+            "string": ""
+        },
+        {
+            "value": 238,
+            "string": ""
+        },
+        {
+            "value": 239,
+            "string": "ERR_COMM_LOST"
+        },
+        {
+            "value": 240,
+            "string": "ERR_REF_ABORT_TO"
+        },
+        {
+            "value": 241,
+            "string": "ERR_MOV_ABORT_TO"
+        },
+        {
+            "value": 242,
+            "string": "ERR_NO_REF"
+        },
+        {
+            "value": 243,
+            "string": ""
+        },
+        {
+            "value": 244,
+            "string": "ERR_MOVE_BLOCKED"
+        },
+        {
+            "value": 245,
+            "string": "ERR_UNKNOWN_HW"
+        },
+        {
+            "value": 246,
+            "string": "ERR_BLOCK_FAILED"
+        },
+        {
+            "value": 247,
+            "string": "ERR_NO_COMM"
+        },
+        {
+            "value": 248,
+            "string": "ERR_WRONG_HW"
+        },
+        {
+            "value": 249,
+            "string": "ERR_WRONG_MODULE"
+        },
+        {
+            "value": 250,
+            "string": "ERR_SD_FAILED"
+        },
+        {
+            "value": 251,
+            "string": "ERR_FLASH_LOST"
+        },
+        {
+            "value": 252,
+            "string": "ERR_SW_COMM"
+        }
+    ],
+    "0x0500": [
+        {
+            "value": 0,
+            "string": "EGI_40"
+        },
+        {
+            "value": 1,
+            "string": "EGI_80"
+        },
+        {
+            "value": 2,
+            "string": "EGL2_90"
+        },
+        {
+            "value": 3,
+            "string": "UG4_DIO_80"
+        },
+        {
+            "value": 4,
+            "string": "EGL_C"
+        },
+        {
+            "value": 5,
+            "string": "EGH"
+        },
+        {
+            "value": 6,
+            "string": "EGU_50_N_B"
+        },
+        {
+            "value": 7,
+            "string": "EGU_60_N_B"
+        },
+        {
+            "value": 8,
+            "string": "EGU_70_N_B"
+        },
+        {
+            "value": 9,
+            "string": "EGU_80_N_B"
+        },
+        {
+            "value": 10,
+            "string": "EGU_50_M_B"
+        },
+        {
+            "value": 11,
+            "string": "EGU_60_M_B"
+        },
+        {
+            "value": 12,
+            "string": "EGU_70_M_B"
+        },
+        {
+            "value": 13,
+            "string": "EGU_80_M_B"
+        },
+        {
+            "value": 14,
+            "string": "EGK_25_N_B"
+        },
+        {
+            "value": 15,
+            "string": "EGK_40_N_B"
+        },
+        {
+            "value": 16,
+            "string": "EGK_50_N_B"
+        },
+        {
+            "value": 17,
+            "string": "EGK_25_M_B"
+        },
+        {
+            "value": 18,
+            "string": "EGK_40_M_B"
+        },
+        {
+            "value": 19,
+            "string": "EGK_50_M_B"
+        },
+        {
+            "value": 20,
+            "string": "EGU_50_N_SD"
+        },
+        {
+            "value": 21,
+            "string": "EGU_60_N_SD"
+        },
+        {
+            "value": 22,
+            "string": "EGU_70_N_SD"
+        },
+        {
+            "value": 23,
+            "string": "EGU_80_N_SD"
+        },
+        {
+            "value": 24,
+            "string": "EGU_50_M_SD"
+        },
+        {
+            "value": 25,
+            "string": "EGU_60_M_SD"
+        },
+        {
+            "value": 26,
+            "string": "EGU_70_M_SD"
+        },
+        {
+            "value": 27,
+            "string": "EGU_80_M_SD"
+        }
+    ],
+    "0x1130": [
+        {
+            "value": 0,
+            "string": "UNKNOWN"
+        },
+        {
+            "value": 1,
+            "string": "PROFINET"
+        },
+        {
+            "value": 2,
+            "string": "EtherNet/IP (TM)"
+        },
+        {
+            "value": 3,
+            "string": "EtherCAT"
+        },
+        {
+            "value": 4,
+            "string": "Modbus TCP"
+        },
+        {
+            "value": 5,
+            "string": "Common Ethernet"
+        },
+        {
+            "value": 6,
+            "string": "IOLink"
+        },
+        {
+            "value": 7,
+            "string": "Modbus RTU"
+        }
+    ]
+}

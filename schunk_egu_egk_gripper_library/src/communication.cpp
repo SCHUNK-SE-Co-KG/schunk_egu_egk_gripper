@@ -37,12 +37,11 @@ size_t writeCallback(void* contents, size_t size, size_t nmemb, void* userp)
 }
 
 //Initialize the plcs and Addresses
-AnybusCom::AnybusCom(const std::string &ip) : ip(ip)
+AnybusCom::AnybusCom(const std::string &ip, int port) : ip(ip), port(port)
 {
-        initAddresses();                  //Init addresses for post and get
-
+        initAddresses();  // for post and get
         curl = curl_easy_init();
-
+        curl_easy_setopt(curl, CURLOPT_PORT, port);
 }
 
 //Split a hexadecimal String, which represents an Array into its parts (HERE THE DATATYPE IS ALWAYS 4 Bytes)
@@ -173,20 +172,12 @@ void AnybusCom::postParameter(std::string inst, std::string value)
 //Inits used Addresses with the ip
 void AnybusCom::initAddresses()
 {
-    data_address = "http:///adi/data.json?";
-    update_address = "http:///adi/update.json";
-    enum_address = "http:///adi/enum.json?";
-    info_address = "http:///adi/info.json";
-    metadata_address = "http:///adi/metadata.json?";
-
     if(ip.size() >= 100) ip = "0.0.0.0";
-
-    data_address.insert(7, ip);
-    update_address.insert(7, ip);
-    enum_address.insert(7,ip);
-    info_address.insert(7,ip);
-    metadata_address.insert(7,ip);
-
+    data_address = "http://" + ip + ":" + std::to_string(port) + "/adi/data.json?";
+    update_address = "http://" + ip + ":" + std::to_string(port) + "/adi/update.json";
+    enum_address = "http://" + ip + ":" + std::to_string(port) + "/adi/enum.json?";
+    info_address = "http://" + ip + ":" + std::to_string(port) + "/adi/info.json";
+    metadata_address = "http://" + ip + ":" + std::to_string(port) + "/adi/metadata.json?";
 }
 
 //Translates the received string of double_word to an integer[4] an saves it in plc_sync_input
@@ -272,6 +263,7 @@ void AnybusCom::getEnums(const char inst[7], const uint16_t &enumNum)
         curl_easy_setopt(curl, CURLOPT_HTTPGET, 1);
         curl_easy_setopt(curl, CURLOPT_WRITEDATA, &response);
         curl_easy_setopt(curl, CURLOPT_TIMEOUT, 1L);
+        curl_easy_setopt(curl, CURLOPT_PORT, port);
 
         res = curl_easy_perform(curl);
 

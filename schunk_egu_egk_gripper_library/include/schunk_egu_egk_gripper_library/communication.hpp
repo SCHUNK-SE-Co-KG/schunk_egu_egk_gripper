@@ -171,6 +171,7 @@ class AnybusCom
         void initAddresses();
 
         std::string ip;                                                                             //IP to the connected gripper
+        int port = 80;                                                                              //TCP/IP Port of the gripper
 
         uint8_t endian_format;                                                                      //Flag for big/little Endian
         bool not_double_word;                                                                       //Flag if double word is requested (double words are always big Endian)
@@ -243,7 +244,7 @@ class AnybusCom
 
         void performCurlRequest(std::string post);
 
-        AnybusCom(const std::string &ip);
+        AnybusCom(const std::string &ip, int port);
         ~AnybusCom();
     };
 //Get something with Instance
@@ -266,6 +267,7 @@ inline void AnybusCom::getWithInstance(const char inst[7], paramtype *param, con
         curl_easy_setopt(curl, CURLOPT_HTTPGET, 1);
         curl_easy_setopt(curl, CURLOPT_WRITEDATA, &response);
         curl_easy_setopt(curl, CURLOPT_TIMEOUT, 1L);
+        curl_easy_setopt(curl, CURLOPT_PORT, port);
         res = curl_easy_perform(curl);
 
         if (res != CURLE_OK)
@@ -302,6 +304,7 @@ inline void AnybusCom::getWithOffset(const std::string &offset, const size_t & c
             curl_easy_setopt(curl,CURLOPT_WRITEFUNCTION, writeCallback);
             curl_easy_setopt(curl, CURLOPT_WRITEDATA, &response);
             curl_easy_setopt(curl, CURLOPT_TIMEOUT, 1);
+            curl_easy_setopt(curl, CURLOPT_PORT, port);
 
             res = curl_easy_perform(curl);
 

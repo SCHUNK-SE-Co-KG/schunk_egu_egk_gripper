@@ -1,0 +1,13 @@
+<?xml version="1.0"?>
+<?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
+<package format="3">
+  <name>schunk_egu_egk_gripper_dummy</name>
+  <version>0.0.0</version>
+  <description>A minimalist dummy for simulating the gripper's communication</description>
+  <maintainer email="stefan.scherzinger@de.schunk.com">Stefan Scherzinger</maintainer>
+  <license>GPL-3.0-or-later</license>
+
+  <export>
+    <build_type>ament_python</build_type>
+  </export>
+</package>
