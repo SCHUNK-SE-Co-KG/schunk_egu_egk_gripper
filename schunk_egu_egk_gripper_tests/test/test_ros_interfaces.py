@@ -3,6 +3,10 @@ import pytest
 from rclpy.node import Node
 import time
 from test.conftest import launch_description
+from test.helpers import TopicGetsPublished
+from sensor_msgs.msg import JointState
+from schunk_egu_egk_gripper_interfaces.msg import State  # type: ignore[attr-defined]
+from diagnostic_msgs.msg import DiagnosticArray
 
 
 def check_each_in(elements: list, node_method: str) -> None:
@@ -57,3 +61,17 @@ def test_driver_advertices_all_relevant_actions(
     ]
     action_list = [a + "/_action/status" for a in action_list]
     check_each_in(action_list, "get_topic_names_and_types")
+
+
+@pytest.mark.launch(fixture=launch_description)
+def test_driver_publishes_on_all_advertised_topics(
+    launch_context, isolated, gripper_dummy
+):
+    timeout = 3
+    joint_states = TopicGetsPublished("/joint_states", JointState)
+    state = TopicGetsPublished("/state", State)
+    diagnostics = TopicGetsPublished("/diagnostics", DiagnosticArray)
+
+    assert joint_states.event.wait(timeout)
+    assert state.event.wait(timeout)
+    assert diagnostics.event.wait(timeout)
