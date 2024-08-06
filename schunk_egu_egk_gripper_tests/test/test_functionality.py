@@ -9,7 +9,7 @@ from schunk_egu_egk_gripper_interfaces.action import (  # type: ignore[attr-defi
 from schunk_egu_egk_gripper_interfaces.srv import (  # type: ignore[attr-defined]
     Acknowledge,
 )
-from test.helpers import get_current_state
+from test.helpers import get_current_state, ServiceReturnsResult
 
 
 @pytest.mark.launch(fixture=launch_description)
@@ -19,13 +19,10 @@ def test_driver_starts_in_ready_state(launch_context, isolated, gripper_dummy):
 
 @pytest.mark.launch(fixture=launch_description)
 def test_driver_is_ready_after_acknowledge(launch_context, isolated, gripper_dummy):
-    node = Node("test")
-    activate_srv = node.create_client(Acknowledge, "/acknowledge")
-    while not activate_srv.wait_for_service(1.0):
-        pass
-    future = activate_srv.call_async(Acknowledge.Request())
-    rclpy.spin_until_future_complete(node, future)
-    assert future.result().success is True
+    timeout = 3
+    service = ServiceReturnsResult("/acknowledge", Acknowledge, Acknowledge.Request())
+    service.event.wait(timeout)
+    assert service.result.success is True
 
 
 @pytest.mark.launch(fixture=launch_description)
