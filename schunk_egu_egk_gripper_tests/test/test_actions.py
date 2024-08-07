@@ -1,33 +1,35 @@
 import pytest
-import rclpy
-from rclpy.node import Node
 from test.conftest import launch_description
+from test.helpers import check_each_in
+import rclpy
+import time
+from rclpy.node import Node
 from rclpy.action import ActionClient
 from schunk_egu_egk_gripper_interfaces.action import (  # type: ignore[attr-defined]
     MoveToAbsolutePosition,
 )
-from schunk_egu_egk_gripper_interfaces.srv import (  # type: ignore[attr-defined]
-    Acknowledge,
-)
-from test.helpers import get_current_state, ServiceReturnsResult
 
 
 @pytest.mark.launch(fixture=launch_description)
-def test_driver_starts_in_ready_state(launch_context, isolated, gripper_dummy):
-    assert get_current_state(variable="ready_for_operation") is True
-
-
-@pytest.mark.launch(fixture=launch_description)
-def test_driver_is_ready_after_acknowledge(launch_context, isolated, gripper_dummy):
-    timeout = 3
-    service = ServiceReturnsResult("/acknowledge", Acknowledge, Acknowledge.Request())
-    service.event.wait(timeout)
-    assert service.result.success is True
+def test_driver_advertices_all_relevant_actions(
+    launch_context, isolated, gripper_dummy
+):
+    action_list = [
+        "/grip",
+        "/grip_with_position",
+        "/gripper_control",
+        "/move_to_absolute_position",
+        "/move_to_relative_position",
+        "/release_workpiece",
+    ]
+    action_list = [a + "/_action/status" for a in action_list]
+    check_each_in(action_list, "get_topic_names_and_types")
 
 
 @pytest.mark.launch(fixture=launch_description)
 def test_driver_moves_to_absolute_position(launch_context, isolated, gripper_dummy):
     node = Node("move_test")
+    time.sleep(2)
 
     client = ActionClient(node, MoveToAbsolutePosition, "/move_to_absolute_position")
     client.wait_for_server()

@@ -4,6 +4,7 @@ from typing import Any
 from schunk_egu_egk_gripper_interfaces.msg import State  # type: ignore[attr-defined]
 import uuid
 from rclpy.executors import MultiThreadedExecutor
+import time
 
 
 class TopicGetsPublished(Node):
@@ -51,3 +52,13 @@ class ServiceReturnsResult(Node):
         executor.spin_until_future_complete(self.future)
         self.result = self.future.result()
         self.event.set()
+
+
+def check_each_in(elements: list, node_method: str) -> None:
+    node = Node("test")
+    until_ready = 2.0  # sec
+    time.sleep(until_ready)
+    existing = getattr(node, node_method)()
+    advertised = [i[0] for i in existing]
+    for element in elements:
+        assert element in advertised
