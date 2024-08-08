@@ -4,7 +4,7 @@ from test.helpers import check_each_in
 
 
 @pytest.mark.launch(fixture=launch_description)
-def test_driver_advertices_all_relevant_topics(launch_context, isolated, gripper_dummy):
+def test_driver_advertices_all_relevant_topics(running_driver):
     topic_list = [
         "/diagnostics",
         "/joint_states",

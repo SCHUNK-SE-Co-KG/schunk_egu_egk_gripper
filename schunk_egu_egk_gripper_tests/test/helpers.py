@@ -39,8 +39,7 @@ class ServiceReturnsResult(Node):
         super().__init__(self.node_name)
         self.event = Event()
         srv = self.create_client(type, service)
-        while not srv.wait_for_service(1.0):
-            ...
+        srv.wait_for_service(1.0)
         self.future = srv.call_async(msg)
         self.result = None
         self.thread = Thread(target=self.spin)

@@ -8,9 +8,7 @@ from test.helpers import ServiceReturnsResult
 
 
 @pytest.mark.launch(fixture=launch_description)
-def test_driver_advertices_all_relevant_services(
-    launch_context, isolated, gripper_dummy
-):
+def test_driver_advertices_all_relevant_services(running_driver):
     service_list = [
         "/acknowledge",
         "/brake_test",
@@ -26,8 +24,7 @@ def test_driver_advertices_all_relevant_services(
 
 
 @pytest.mark.launch(fixture=launch_description)
-def test_driver_is_ready_after_acknowledge(launch_context, isolated, gripper_dummy):
-    timeout = 3
+def test_driver_is_ready_after_acknowledge(running_driver):
     service = ServiceReturnsResult("/acknowledge", Acknowledge, Acknowledge.Request())
-    service.event.wait(timeout)
+    service.event.wait(timeout=1)
     assert service.result.success is True
