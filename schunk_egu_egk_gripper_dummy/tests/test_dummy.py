@@ -44,7 +44,7 @@ def test_dummy_starts_in_error_state():
 
 def test_dummy_is_ready_after_acknowledge():
     dummy = Dummy()
-    control_double_word = "04000000"
+    control_double_word = "04000000"  # bit 2
     set_position = "00000000"
     set_speed = "00000000"
     gripping_force = "00000000"
@@ -59,12 +59,27 @@ def test_dummy_is_ready_after_acknowledge():
     assert dummy.get_status_diagnostics() == "0"
 
 
+def test_dummy_always_toggles_command_received_bit():
+    dummy = Dummy()
+    before = dummy.get_status_bit(bit=5)  # command received toggle
+    control_double_word = "00000000"
+    set_position = "00000000"
+    set_speed = "00000000"
+    gripping_force = "00000000"
+    command = {
+        "inst": dummy.plc_output,
+        "value": control_double_word + set_position + set_speed + gripping_force,
+    }
+    dummy.post(command)
+    after = dummy.get_status_bit(bit=5)
+    assert after != before
+
+
 def test_dummy_moves_to_absolute_position():
     dummy = Dummy()
     target_pos = 12.345
     target_speed = 50.3
-
-    control_double_word = "00200000"
+    control_double_word = "00200000"  # bit 13
     set_position = bytes(struct.pack("f", target_pos)).hex().upper()
     set_speed = bytes(struct.pack("f", target_speed)).hex().upper()
     gripping_force = "00000000"
@@ -72,14 +87,25 @@ def test_dummy_moves_to_absolute_position():
         "inst": dummy.plc_output,
         "value": control_double_word + set_position + set_speed + gripping_force,
     }
-    before = dummy.get_status_bit(bit=5)  # command received toggle
 
     # Motion
     dummy.post(command)
 
     # Done
     assert pytest.approx(dummy.get_actual_position()) == target_pos
-    after = dummy.get_status_bit(bit=5)
-    assert after != before
     assert dummy.get_status_bit(bit=13) == 1  # position reached
+    assert dummy.get_status_bit(bit=4) == 1  # command successfully processed
+
+
+def test_dummy_performs_break_test():
+    dummy = Dummy()
+    control_double_word = "00000040"  # Bit 30
+    set_position = "00000000"
+    set_speed = "00000000"
+    gripping_force = "00000000"
+    command = {
+        "inst": dummy.plc_output,
+        "value": control_double_word + set_position + set_speed + gripping_force,
+    }
+    dummy.post(command)
     assert dummy.get_status_bit(bit=4) == 1  # command successfully processed

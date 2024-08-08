@@ -3,6 +3,7 @@ from test.conftest import launch_description
 from test.helpers import check_each_in
 from schunk_egu_egk_gripper_interfaces.srv import (  # type: ignore[attr-defined]
     Acknowledge,
+    BrakeTest,
 )
 from test.helpers import ServiceReturnsResult
 
@@ -28,3 +29,10 @@ def test_driver_is_ready_after_acknowledge(running_driver):
     service = ServiceReturnsResult("/acknowledge", Acknowledge, Acknowledge.Request())
     service.event.wait(timeout=1)
     assert service.result.success is True
+
+
+@pytest.mark.launch(fixture=launch_description)
+def test_driver_supports_break_test(running_driver):
+    service = ServiceReturnsResult("/brake_test", BrakeTest, BrakeTest.Request())
+    service.event.wait(timeout=1)
+    assert service.result.brake_test_successful is True

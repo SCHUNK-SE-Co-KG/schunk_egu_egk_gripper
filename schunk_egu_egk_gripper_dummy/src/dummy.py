@@ -246,6 +246,8 @@ class Dummy(object):
         return struct.unpack("f", bytes.fromhex(read_speed))[0]
 
     def process_control_bits(self) -> None:
+        # Command received toggle
+        self.toggle_status_bit(bit=5)
 
         # Acknowledge
         if self.get_control_bit(2) == 1:
@@ -254,9 +256,12 @@ class Dummy(object):
             self.set_status_error("00")
             self.set_status_diagnostics("00")
 
+        # Brake test
+        if self.get_control_bit(30) == 1:
+            self.set_status_bit(bit=4, value=True)
+
         # Move to absolute position
         if self.get_control_bit(13) == 1:
-            self.toggle_status_bit(5)
             self.move(
                 target_pos=self.get_target_position(),
                 target_speed=self.get_target_speed(),
