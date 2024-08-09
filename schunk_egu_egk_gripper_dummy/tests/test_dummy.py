@@ -44,15 +44,8 @@ def test_dummy_starts_in_error_state():
 
 def test_dummy_is_ready_after_acknowledge():
     dummy = Dummy()
-    control_double_word = "04000000"  # bit 2
-    set_position = "00000000"
-    set_speed = "00000000"
-    gripping_force = "00000000"
-    command = {
-        "inst": dummy.plc_output,
-        "value": control_double_word + set_position + set_speed + gripping_force,
-    }
-    dummy.post(command)
+    dummy.set_control_bit(bit=2, value=True)
+    dummy.process_control_bits()
     assert dummy.get_status_bit(0) == 1  # ready
     assert dummy.get_status_bit(7) == 0  # no error
     assert dummy.get_status_error() == "0"
@@ -62,15 +55,7 @@ def test_dummy_is_ready_after_acknowledge():
 def test_dummy_always_toggles_command_received_bit():
     dummy = Dummy()
     before = dummy.get_status_bit(bit=5)  # command received toggle
-    control_double_word = "00000000"
-    set_position = "00000000"
-    set_speed = "00000000"
-    gripping_force = "00000000"
-    command = {
-        "inst": dummy.plc_output,
-        "value": control_double_word + set_position + set_speed + gripping_force,
-    }
-    dummy.post(command)
+    dummy.process_control_bits()
     after = dummy.get_status_bit(bit=5)
     assert after != before
 
@@ -99,13 +84,14 @@ def test_dummy_moves_to_absolute_position():
 
 def test_dummy_performs_break_test():
     dummy = Dummy()
-    control_double_word = "00000040"  # Bit 30
-    set_position = "00000000"
-    set_speed = "00000000"
-    gripping_force = "00000000"
-    command = {
-        "inst": dummy.plc_output,
-        "value": control_double_word + set_position + set_speed + gripping_force,
-    }
-    dummy.post(command)
+    dummy.set_control_bit(bit=30, value=True)
+    dummy.process_control_bits()
     assert dummy.get_status_bit(bit=4) == 1  # command successfully processed
+
+
+def test_dummy_performs_fast_stop():
+    dummy = Dummy()
+    dummy.set_control_bit(bit=0, value=False)
+    dummy.process_control_bits()
+    assert dummy.get_status_bit(bit=7) == 1  # error
+    assert dummy.get_status_diagnostics() == "D9"  # ERR_FAST_STOP

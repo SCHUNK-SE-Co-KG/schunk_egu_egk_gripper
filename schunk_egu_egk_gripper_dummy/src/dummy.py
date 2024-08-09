@@ -223,6 +223,18 @@ class Dummy(object):
         byte_index, bit_index = divmod(bit, 8)
         return 1 if self.plc_output_buffer[byte_index] & (1 << bit_index) != 0 else 0
 
+    def set_control_bit(self, bit: int, value: bool) -> bool:
+        if bit < 0 or bit > 31:
+            return False
+        if bit in self.reserved_control_bits:
+            return False
+        byte_index, bit_index = divmod(bit, 8)
+        if value:
+            self.plc_output_buffer[byte_index] |= 1 << bit_index
+        else:
+            self.plc_output_buffer[byte_index] &= ~(1 << bit_index)
+        return True
+
     def get_target_position(self) -> float:
         return struct.unpack("f", self.plc_output_buffer[4:8])[0]
 
@@ -259,6 +271,11 @@ class Dummy(object):
         # Brake test
         if self.get_control_bit(30) == 1:
             self.set_status_bit(bit=4, value=True)
+
+        # Fast stop
+        if self.get_control_bit(0) == 0:  # fail-safe behavior
+            self.set_status_bit(bit=7, value=True)
+            self.set_status_diagnostics("D9")
 
         # Move to absolute position
         if self.get_control_bit(13) == 1:

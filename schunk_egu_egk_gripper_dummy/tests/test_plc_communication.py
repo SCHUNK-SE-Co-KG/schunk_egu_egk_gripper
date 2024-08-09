@@ -81,11 +81,13 @@ def test_dummy_rejects_writing_invalid_status_diagnostics():
         assert not dummy.set_status_diagnostics(code)
 
 
-def test_dummy_supports_reading_bits_in_plc_control():
+def test_dummy_supports_reading_and_writing_bits_in_plc_control():
     dummy = Dummy()
     for bit in dummy.valid_control_bits:
+        dummy.set_control_bit(bit=bit, value=True)
         result = dummy.get_control_bit(bit=bit)
         assert isinstance(result, int)  # successful calls get the bit's value
+        assert result == 1
 
 
 def test_dummy_rejects_reading_reserved_control_bits():
@@ -93,6 +95,13 @@ def test_dummy_rejects_reading_reserved_control_bits():
     for bit in dummy.reserved_control_bits:
         assert isinstance(dummy.get_control_bit(bit), bool)  # call fails
         assert not dummy.get_control_bit(bit)
+
+
+def test_dummy_rejects_writing_reserved_control_bits():
+    dummy = Dummy()
+    invalid_bits = [-1, 999]
+    for bit in invalid_bits + dummy.reserved_control_bits:
+        assert not dummy.set_control_bit(bit, True)
 
 
 def test_dummy_supports_toggling_status_bits():
