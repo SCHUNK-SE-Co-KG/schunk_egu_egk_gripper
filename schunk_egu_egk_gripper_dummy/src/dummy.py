@@ -223,6 +223,18 @@ class Dummy(object):
         byte_index, bit_index = divmod(bit, 8)
         return 1 if self.plc_output_buffer[byte_index] & (1 << bit_index) != 0 else 0
 
+    def set_control_bit(self, bit: int, value: bool) -> bool:
+        if bit < 0 or bit > 31:
+            return False
+        if bit in self.reserved_control_bits:
+            return False
+        byte_index, bit_index = divmod(bit, 8)
+        if value:
+            self.plc_output_buffer[byte_index] |= 1 << bit_index
+        else:
+            self.plc_output_buffer[byte_index] &= ~(1 << bit_index)
+        return True
+
     def get_target_position(self) -> float:
         return struct.unpack("f", self.plc_output_buffer[4:8])[0]
 
@@ -246,6 +258,14 @@ class Dummy(object):
         return struct.unpack("f", bytes.fromhex(read_speed))[0]
 
     def process_control_bits(self) -> None:
+        """
+        See the gripper's firmware documentation for EtherNet/IP [1]:
+        https://stb.cloud.schunk.com/media/IM0046706.PDF
+
+        """
+
+        # Command received toggle
+        self.toggle_status_bit(bit=5)
 
         # Acknowledge
         if self.get_control_bit(2) == 1:
@@ -254,9 +274,31 @@ class Dummy(object):
             self.set_status_error("00")
             self.set_status_diagnostics("00")
 
+        # Brake test
+        if self.get_control_bit(30) == 1:
+            self.set_status_bit(bit=4, value=True)
+
+        # Fast stop
+        if self.get_control_bit(0) == 0:  # fail-safe behavior
+            self.set_status_bit(bit=7, value=True)
+            self.set_status_diagnostics("D9")
+
+        # Controlled stop
+        if self.get_control_bit(1) == 1:
+            self.set_status_bit(bit=13, value=True)
+            self.set_status_bit(bit=4, value=True)
+
+        # Manual release
+        if self.get_control_bit(5) == 1:
+            if self.get_status_bit(7) == 1:
+                self.set_status_bit(bit=8, value=True)
+
+        # Shutdown
+        if self.get_control_bit(3) == 1:
+            self.set_status_bit(bit=2, value=True)
+
         # Move to absolute position
         if self.get_control_bit(13) == 1:
-            self.toggle_status_bit(5)
             self.move(
                 target_pos=self.get_target_position(),
                 target_speed=self.get_target_speed(),
