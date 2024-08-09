@@ -19,7 +19,6 @@ def test_driver_advertices_all_relevant_services(running_driver):
         "/fast_stop",
         "/gripper_info",
         "/prepare_for_shutdown",
-        "/reconnect",
         "/release_for_manual_movement",
         "/softreset",
         "/stop",

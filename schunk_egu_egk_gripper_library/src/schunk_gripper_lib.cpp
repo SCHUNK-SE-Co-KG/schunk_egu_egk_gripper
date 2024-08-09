@@ -319,50 +319,7 @@ void Gripper::acknowledge()
     getWithInstance<uint32_t>(PLC_SYNC_INPUT_INST);
     plc_sync_output[0] &= mask;
 }
-//change the ip-address
-bool Gripper::changeIp(const std::string &new_ip)
-{
-   if(new_ip.size() > 100) return false;
 
-   std::string old_ip = ip;
-   ip = new_ip;
-   std::string old_model = model;
-   initAddresses();
-   //Control if it is the same gripper
-   try
-   {
-      startGripper();
-
-      ip_changed_with_all_param = true;
-
-      return true;
-   }
-   catch(const char* res)
-   {
-      ip_changed_with_all_param = false;
-      std::cout << "No Gripper found. New IP: " <<  ip << std::endl;
-      initAddresses();
-      return true;
-   }
-   catch(const nlohmann::json::parse_error &e)
-   {
-      ip_changed_with_all_param = true;
-      ip = old_ip;
-      std::cout << "message: " << e.what()  << "\nexception id: " << e.id << std::endl;
-      std::cout << "Setting to old IP: " << ip << std::endl;
-      initAddresses();
-      return false;
-   }
-   catch(const std::exception &e)
-   {
-      ip_changed_with_all_param = true;
-      ip = old_ip;
-      std::cout << "Wrong data found. Setting to old IP: " << ip << std::endl;
-      initAddresses();
-      return false;
-   }
-
-}
 //send action directly after current (cyclic-) http or immediately
 void Gripper::sendAction()
 {

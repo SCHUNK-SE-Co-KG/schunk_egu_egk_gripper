@@ -163,7 +163,6 @@ void SchunkGripperNode::advertiseServices()
     parameter_get_service = this->create_service<ParameterGet>("parameter_get", std::bind(&SchunkGripperNode::parameter_get_srv,this,std::placeholders::_1,std::placeholders::_2), rmw_qos_profile_services_default, services_group);
     parameter_set_service= this->create_service<ParameterSet>("parameter_set", std::bind(&SchunkGripperNode::parameter_set_srv,this,std::placeholders::_1,std::placeholders::_2), rmw_qos_profile_services_default, services_group);
     info_service = this->create_service<GripperInfo>("gripper_info", std::bind(&SchunkGripperNode::info_srv,this,std::placeholders::_1,std::placeholders::_2), rmw_qos_profile_services_default, rest);
-    change_ip_service = this->create_service<ChangeIp>("reconnect",  std::bind(&SchunkGripperNode::change_ip_srv,this,std::placeholders::_1,std::placeholders::_2), rmw_qos_profile_services_default, services_group);
 
 }
 //Advertise Actions
@@ -1218,48 +1217,7 @@ void SchunkGripperNode::brake_test_srv(const std::shared_ptr<BrakeTest::Request>
     }
 
 }
-//Ip change service, if the ip should change during runtime of the program
-void SchunkGripperNode::change_ip_srv(const std::shared_ptr<ChangeIp::Request> req, std::shared_ptr<ChangeIp::Response> res)
-{
-    try
-    {
-        std::lock_guard<std::recursive_mutex> lock(lock_mutex);
-        res->success = changeIp(req->new_ip);
 
-        if(res->success == false)
-        {
-            connection_error = "No gripper found. Using old IP";
-            gripper_updater->force_update();
-            return;
-        }
-
-        if(res->success == true)
-        {
-            this->set_parameter(rclcpp::Parameter("IP", req->new_ip));
-        }
-
-        if(start_connection == false && ip_changed_with_all_param == true)
-        {
-            advertiseConnectionRelevant();
-            start_connection = true;
-        }
-
-        if(ip_changed_with_all_param == true)
-        {
-            this->set_parameter(rclcpp::Parameter("model", model));
-
-            if(connection_error == "OK")
-            {
-                reconnect();
-            }
-        }
-    }
-    catch(...)
-    {
-        RCLCPP_ERROR(this->get_logger(), "Handshake failed!");
-    }
-
-}
 //Stop service callback
 void SchunkGripperNode::stop_srv(const std::shared_ptr<Stop::Request>, std::shared_ptr<Stop::Response> res)
 {

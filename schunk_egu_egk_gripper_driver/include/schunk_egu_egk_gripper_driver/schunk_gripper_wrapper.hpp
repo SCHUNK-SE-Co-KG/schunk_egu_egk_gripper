@@ -47,7 +47,6 @@
 #include "schunk_egu_egk_gripper_interfaces/action/release_workpiece.hpp"
 #include "schunk_egu_egk_gripper_interfaces/srv/release_for_manual_movement.hpp"
 #include "schunk_egu_egk_gripper_interfaces/srv/gripper_info.hpp"
-#include "schunk_egu_egk_gripper_interfaces/srv/change_ip.hpp"
 #include "schunk_egu_egk_gripper_interfaces/action/grip.hpp"
 #include "schunk_egu_egk_gripper_interfaces/srv/parameter_get.hpp"
 #include "schunk_egu_egk_gripper_interfaces/srv/parameter_set.hpp"
@@ -70,7 +69,6 @@ class SchunkGripperNode :  public rclcpp::Node, public Gripper
     using Softreset = schunk_egu_egk_gripper_interfaces::srv::Softreset;
     using PrepareForShutdown = schunk_egu_egk_gripper_interfaces::srv::PrepareForShutdown;
     using GripperInfo= schunk_egu_egk_gripper_interfaces::srv::GripperInfo;
-    using ChangeIp = schunk_egu_egk_gripper_interfaces::srv::ChangeIp;
     using ParameterGet = schunk_egu_egk_gripper_interfaces::srv::ParameterGet;
     using ParameterSet = schunk_egu_egk_gripper_interfaces::srv::ParameterSet;
 
@@ -145,7 +143,6 @@ class SchunkGripperNode :  public rclcpp::Node, public Gripper
     void fast_stop_srv(const std::shared_ptr<FastStop::Request>, std::shared_ptr<FastStop::Response>);
     void parameter_get_srv(const std::shared_ptr<ParameterGet::Request>, std::shared_ptr<ParameterGet::Response>);
     void parameter_set_srv(const std::shared_ptr<ParameterSet::Request>, std::shared_ptr<ParameterSet::Response>);
-    void change_ip_srv(const std::shared_ptr<ChangeIp::Request>, std::shared_ptr<ChangeIp::Response>);
     void releaseForManualMov_srv(const std::shared_ptr<ReleaseForManualMovement::Request>, std::shared_ptr<ReleaseForManualMovement::Response>);
     void softreset_srv(const std::shared_ptr<Softreset::Request>, std::shared_ptr<Softreset::Response>);
     void prepare_for_shutdown_srv(const std::shared_ptr<PrepareForShutdown::Request>, std::shared_ptr<PrepareForShutdown::Response>);
@@ -224,7 +221,6 @@ class SchunkGripperNode :  public rclcpp::Node, public Gripper
     rclcpp::Service<Softreset>::SharedPtr              softreset_service;
     rclcpp::Service<PrepareForShutdown>::SharedPtr     prepare_for_shutdown_service;
     rclcpp::Service<GripperInfo>::SharedPtr            info_service;
-    rclcpp::Service<ChangeIp>::SharedPtr               change_ip_service;
 };
 
 #endif
