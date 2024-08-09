@@ -7,6 +7,7 @@ from schunk_egu_egk_gripper_interfaces.srv import (  # type: ignore[attr-defined
     FastStop,
     Stop,
     ReleaseForManualMovement,
+    GripperInfo,
 )
 from test.helpers import ServiceReturnsResult
 
@@ -45,6 +46,14 @@ def test_driver_supports_fast_stop(running_driver):
     service = ServiceReturnsResult("/fast_stop", FastStop, FastStop.Request())
     service.event.wait(timeout=1)
     assert service.result.success is True
+
+
+@pytest.mark.launch(fixture=launch_description)
+def test_driver_supports_gripper_info(running_driver):
+    service = ServiceReturnsResult("/gripper_info", GripperInfo, GripperInfo.Request())
+    service.event.wait(timeout=1)
+    assert service.result.success is True
+    assert service.result.info != ""
 
 
 @pytest.mark.launch(fixture=launch_description)

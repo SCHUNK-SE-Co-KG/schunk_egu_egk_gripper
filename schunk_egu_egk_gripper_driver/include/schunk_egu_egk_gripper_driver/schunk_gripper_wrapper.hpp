@@ -146,7 +146,7 @@ class SchunkGripperNode :  public rclcpp::Node, public Gripper
     void releaseForManualMov_srv(const std::shared_ptr<ReleaseForManualMovement::Request>, std::shared_ptr<ReleaseForManualMovement::Response>);
     void softreset_srv(const std::shared_ptr<Softreset::Request>, std::shared_ptr<Softreset::Response>);
     void prepare_for_shutdown_srv(const std::shared_ptr<PrepareForShutdown::Request>, std::shared_ptr<PrepareForShutdown::Response>);
-    void info_srv(const std::shared_ptr<GripperInfo::Request>, std::shared_ptr<GripperInfo::Response>);
+    void info_srv(const std::shared_ptr<GripperInfo::Request>, std::shared_ptr<GripperInfo::Response> res);
 
     //Action-basic-functions
     template<typename GoalType, typename ResType>
@@ -195,7 +195,6 @@ class SchunkGripperNode :  public rclcpp::Node, public Gripper
     rclcpp::CallbackGroup::SharedPtr messages_group;
     rclcpp::CallbackGroup::SharedPtr services_group;
     rclcpp::CallbackGroup::SharedPtr actions_group;
-    rclcpp::CallbackGroup::SharedPtr rest;
 
     public:
 
