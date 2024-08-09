@@ -258,6 +258,12 @@ class Dummy(object):
         return struct.unpack("f", bytes.fromhex(read_speed))[0]
 
     def process_control_bits(self) -> None:
+        """
+        See the gripper's firmware documentation for EtherNet/IP [1]:
+        https://stb.cloud.schunk.com/media/IM0046706.PDF
+
+        """
+
         # Command received toggle
         self.toggle_status_bit(bit=5)
 
@@ -281,6 +287,11 @@ class Dummy(object):
         if self.get_control_bit(1) == 1:
             self.set_status_bit(bit=13, value=True)
             self.set_status_bit(bit=4, value=True)
+
+        # Manual release
+        if self.get_control_bit(5) == 1:
+            if self.get_status_bit(7) == 1:
+                self.set_status_bit(bit=8, value=True)
 
         # Move to absolute position
         if self.get_control_bit(13) == 1:

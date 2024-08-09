@@ -103,3 +103,21 @@ def test_dummy_performs_controlled_stop():
     dummy.process_control_bits()
     assert dummy.get_status_bit(bit=13) == 1  # position reached
     assert dummy.get_status_bit(bit=4) == 1  # command successfully processed
+
+
+def test_dummy_supports_manual_release():
+    dummy = Dummy()
+
+    # Reject when not in error state
+    dummy.set_status_bit(bit=7, value=False)  # clear error
+    dummy.set_status_diagnostics("00")
+    dummy.set_control_bit(bit=5, value=True)  # release
+    dummy.process_control_bits()
+    assert dummy.get_status_bit(bit=8) == 0  # not released
+
+    # Accept when in error state
+    dummy.set_control_bit(bit=0, value=False)  # trigger fast stop
+    dummy.process_control_bits()
+    dummy.set_control_bit(bit=5, value=True)  # release
+    dummy.process_control_bits()
+    assert dummy.get_status_bit(bit=8) == 1  # released for manual movement
