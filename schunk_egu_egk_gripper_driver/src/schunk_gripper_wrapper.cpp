@@ -1195,7 +1195,7 @@ void SchunkGripperNode::brake_test_srv(const std::shared_ptr<BrakeTest::Request>
         }
         if((gripperBitInput(SUCCESS) == true) && (handshake != gripperBitInput(COMMAND_RECEIVED_TOGGLE)))
         {
-            res->brake_test_successful = true;
+            res->success = true;
             res->error_code = error_str;
             RCLCPP_INFO(this->get_logger(),"Brake test successful!");
         }
@@ -1204,7 +1204,7 @@ void SchunkGripperNode::brake_test_srv(const std::shared_ptr<BrakeTest::Request>
             runGets();
             gripper_updater->force_update();
             res->error_code = error_str;
-            res->brake_test_successful = false;
+            res->success = false;
             RCLCPP_INFO(this->get_logger(),"Brake test failed!");
 
         }
@@ -1213,7 +1213,7 @@ void SchunkGripperNode::brake_test_srv(const std::shared_ptr<BrakeTest::Request>
     {
         connection_error = server_response;
         res->error_code = server_response;
-        res->brake_test_successful = false;
+        res->success = false;
         RCLCPP_ERROR(this->get_logger(), "Failed Connection! %s", connection_error.c_str());
     }
 
@@ -1224,16 +1224,16 @@ void SchunkGripperNode::change_ip_srv(const std::shared_ptr<ChangeIp::Request> r
     try
     {
         std::lock_guard<std::recursive_mutex> lock(lock_mutex);
-        res->ip_changed = changeIp(req->new_ip);
+        res->success = changeIp(req->new_ip);
 
-        if(res->ip_changed == false)
+        if(res->success == false)
         {
             connection_error = "No gripper found. Using old IP";
             gripper_updater->force_update();
             return;
         }
 
-        if(res->ip_changed == true)
+        if(res->success == true)
         {
             this->set_parameter(rclcpp::Parameter("IP", req->new_ip));
         }
@@ -1290,12 +1290,12 @@ void SchunkGripperNode::stop_srv(const std::shared_ptr<Stop::Request>, std::shar
 
     if((gripperBitInput(SUCCESS) == 1) && (handshake != gripperBitInput(COMMAND_RECEIVED_TOGGLE)))
     {
-        res->stopped = 1;
+        res->success = true;
         RCLCPP_WARN(this->get_logger(),"Stopped!");
     }
     else
     {
-        res->stopped = 0;
+        res->success = false;
         last_command = 0;
     }
 
@@ -1323,12 +1323,12 @@ void SchunkGripperNode::fast_stop_srv(const std::shared_ptr<FastStop::Request>, 
 
         if(gripperBitInput(GRIPPER_ERROR))
         {
-            res->fast_stopped = 1;
+            res->success = true;
             RCLCPP_WARN(this->get_logger(),"Fast stopped!");
         }
         else
         {
-            res->fast_stopped = 0;
+            res->success = false;
             RCLCPP_WARN(this->get_logger(),"Fast stop failed!");
         }
     }
@@ -1336,7 +1336,7 @@ void SchunkGripperNode::fast_stop_srv(const std::shared_ptr<FastStop::Request>, 
     {
         connection_error = server_err;
         RCLCPP_ERROR(this->get_logger(), "Failed Connection! %s", connection_error.c_str());
-        res->fast_stopped = 0;
+        res->success = false;
         RCLCPP_WARN(this->get_logger(), "Fast stop failed!");
     }
     gripper_updater->force_update();
@@ -1388,12 +1388,12 @@ void SchunkGripperNode::softreset_srv(const std::shared_ptr<Softreset::Request>,
     if(connection_once_lost == true && rclcpp::ok() && connection_error == "OK")
     {
         RCLCPP_INFO(this->get_logger(), "Softreset succeeded!");
-        res->reset_success = true;
+        res->success = true;
     }
     else
     {
         RCLCPP_INFO(this->get_logger(), "Softreset failed!");
-        res->reset_success = false;
+        res->success = false;
     }
     lock.unlock();
     gripper_updater->force_update();
@@ -1428,12 +1428,12 @@ void SchunkGripperNode::prepare_for_shutdown_srv(const std::shared_ptr<PrepareFo
     if((gripperBitInput(READY_FOR_SHUTDOWN) == true) && (handshake != gripperBitInput(COMMAND_RECEIVED_TOGGLE)) )
     {
         RCLCPP_WARN(this->get_logger(),"READY FOR SHUTDOWN");
-        res->prepared_for_shutdown = true;
+        res->success = true;
     }
     else
     {
         RCLCPP_INFO(this->get_logger(),"COMMAND FAILED");
-        res->prepared_for_shutdown = false;
+        res->success = false;
     }
 
     gripper_updater->force_update();
@@ -1493,12 +1493,12 @@ void SchunkGripperNode::releaseForManualMov_srv(const std::shared_ptr<ReleaseFor
     {
         RCLCPP_WARN(this->get_logger(),"YOU CAN TAKE THE WORKPIECE!\n");
         RCLCPP_WARN(this->get_logger(),"If you want to end this mode, perform a fast stop and acknowledge!");
-        res->released_for_manual_movement = true;
+        res->success = true;
     }
     else
     {
         RCLCPP_WARN(this->get_logger(),"COMMAND FAILED");
-        res->released_for_manual_movement = false;
+        res->success = false;
     }
     gripper_updater->force_update();
 }

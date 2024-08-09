@@ -234,7 +234,7 @@ void moveRelativeAndStop(rclcpp_action::Client<MoveToRelativePosition>::SharedPt
 
     auto stop_req = std::make_shared<Stop::Request>();
     auto resp = stop_client->async_send_request(stop_req);
-    bool stopped = resp.get()->stopped;
+    bool stopped = resp.get()->success;
 
     RCLCPP_INFO(rclcpp::get_logger("schunk_gripper_example"), "%s", stopped ? "Stopped!" : "Not stopped!");
     auto res = move_rel_client->async_get_result(goal_handle.get());
