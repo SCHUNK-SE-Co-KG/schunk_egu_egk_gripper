@@ -5,6 +5,7 @@ from schunk_egu_egk_gripper_interfaces.srv import (  # type: ignore[attr-defined
     Acknowledge,
     BrakeTest,
     FastStop,
+    Stop,
 )
 from test.helpers import ServiceReturnsResult
 
@@ -42,5 +43,12 @@ def test_driver_supports_break_test(running_driver):
 @pytest.mark.launch(fixture=launch_description)
 def test_driver_supports_fast_stop(running_driver):
     service = ServiceReturnsResult("/fast_stop", FastStop, FastStop.Request())
+    service.event.wait(timeout=1)
+    assert service.result.success is True
+
+
+@pytest.mark.launch(fixture=launch_description)
+def test_driver_supports_stop(running_driver):
+    service = ServiceReturnsResult("/stop", Stop, Stop.Request())
     service.event.wait(timeout=1)
     assert service.result.success is True

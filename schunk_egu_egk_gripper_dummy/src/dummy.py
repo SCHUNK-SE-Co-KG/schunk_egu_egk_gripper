@@ -277,6 +277,11 @@ class Dummy(object):
             self.set_status_bit(bit=7, value=True)
             self.set_status_diagnostics("D9")
 
+        # Controlled stop
+        if self.get_control_bit(1) == 1:
+            self.set_status_bit(bit=13, value=True)
+            self.set_status_bit(bit=4, value=True)
+
         # Move to absolute position
         if self.get_control_bit(13) == 1:
             self.move(
