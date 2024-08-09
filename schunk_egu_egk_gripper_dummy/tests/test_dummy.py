@@ -121,3 +121,10 @@ def test_dummy_supports_manual_release():
     dummy.set_control_bit(bit=5, value=True)  # release
     dummy.process_control_bits()
     assert dummy.get_status_bit(bit=8) == 1  # released for manual movement
+
+
+def test_dummy_supports_prepare_for_shutdown():
+    dummy = Dummy()
+    dummy.set_control_bit(bit=3, value=True)
+    dummy.process_control_bits()
+    assert dummy.get_status_bit(bit=2) == 1  # ready for shutdown

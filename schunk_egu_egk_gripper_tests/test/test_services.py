@@ -8,6 +8,7 @@ from schunk_egu_egk_gripper_interfaces.srv import (  # type: ignore[attr-defined
     Stop,
     ReleaseForManualMovement,
     GripperInfo,
+    PrepareForShutdown,
 )
 from test.helpers import ServiceReturnsResult
 
@@ -54,6 +55,15 @@ def test_driver_supports_gripper_info(running_driver):
     service.event.wait(timeout=1)
     assert service.result.success is True
     assert service.result.info != ""
+
+
+@pytest.mark.launch(fixture=launch_description)
+def test_driver_supports_prepare_for_shutdown(running_driver):
+    service = ServiceReturnsResult(
+        "/prepare_for_shutdown", PrepareForShutdown, PrepareForShutdown.Request()
+    )
+    service.event.wait(timeout=1)
+    assert service.result.success is True
 
 
 @pytest.mark.launch(fixture=launch_description)

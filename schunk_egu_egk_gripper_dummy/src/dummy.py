@@ -293,6 +293,10 @@ class Dummy(object):
             if self.get_status_bit(7) == 1:
                 self.set_status_bit(bit=8, value=True)
 
+        # Shutdown
+        if self.get_control_bit(3) == 1:
+            self.set_status_bit(bit=2, value=True)
+
         # Move to absolute position
         if self.get_control_bit(13) == 1:
             self.move(
