@@ -128,3 +128,14 @@ def test_dummy_supports_prepare_for_shutdown():
     dummy.set_control_bit(bit=3, value=True)
     dummy.process_control_bits()
     assert dummy.get_status_bit(bit=2) == 1  # ready for shutdown
+
+
+def test_dummy_supports_release_workpiece():
+    dummy = Dummy()
+    dummy.set_control_bit(bit=11, value=True)
+    dummy.process_control_bits()
+    assert dummy.get_status_bit(bit=4) == 1  # command successfully processed
+    assert dummy.get_status_bit(bit=13) == 1  # position reached
+    assert dummy.get_status_bit(bit=14) == 0  # pre-grip started
+    assert dummy.get_status_bit(bit=12) == 0  # workpiece gripped
+    assert dummy.get_status_bit(bit=17) == 0  # wrong workpiece gripped

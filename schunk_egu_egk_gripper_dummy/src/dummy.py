@@ -297,6 +297,13 @@ class Dummy(object):
         if self.get_control_bit(3) == 1:
             self.set_status_bit(bit=2, value=True)
 
+        # Release workpiece
+        if self.get_control_bit(bit=11) == 1:
+            self.set_status_bit(bit=4, value=True)
+            self.set_status_bit(bit=13, value=True)
+            self.set_status_bit(bit=14, value=False)
+            self.set_status_bit(bit=12, value=False)
+            self.set_status_bit(bit=17, value=False)
         # Move to absolute position
         if self.get_control_bit(13) == 1:
             self.move(

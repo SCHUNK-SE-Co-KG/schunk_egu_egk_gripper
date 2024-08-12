@@ -5,6 +5,7 @@ from schunk_egu_egk_gripper_interfaces.msg import State  # type: ignore[attr-def
 import uuid
 from rclpy.executors import MultiThreadedExecutor
 import time
+from rclpy.action import ActionClient
 
 
 class TopicGetsPublished(Node):
@@ -50,6 +51,31 @@ class ServiceReturnsResult(Node):
         executor.add_node(self)
         executor.spin_until_future_complete(self.future)
         self.result = self.future.result()
+        self.event.set()
+
+
+class ActionReturnsResult(Node):
+    def __init__(self, action: str, type: Any, goal: Any):
+        self.node_name = "call_action" + str(uuid.uuid4()).replace("-", "")
+        super().__init__(self.node_name)
+        self.event = Event()
+
+        client = ActionClient(self, type, action)
+        client.wait_for_server(1.0)
+
+        self.goal_future = client.send_goal_async(goal)
+        self.result = None
+        self.thread = Thread(target=self.spin)
+        self.thread.start()
+
+    def spin(self) -> None:
+        executor = MultiThreadedExecutor()
+        executor.add_node(self)
+        executor.spin_until_future_complete(self.goal_future)
+        goal_handle = self.goal_future.result()
+        result_future = goal_handle.get_result_async()
+        executor.spin_until_future_complete(result_future)
+        self.result = result_future.result().result
         self.event.set()
 
 
