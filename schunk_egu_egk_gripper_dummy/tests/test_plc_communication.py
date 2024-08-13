@@ -165,3 +165,10 @@ def test_dummy_supports_reading_actual_speed():
     speed = 66.5
     dummy.set_actual_speed(speed)
     assert pytest.approx(dummy.get_actual_speed()) == speed
+
+
+def test_dummy_supports_reading_and_writing_system_uptime():
+    dummy = Dummy()
+    uptime = 1234  # secs
+    dummy.set_system_uptime(uptime)
+    assert dummy.get_system_uptime() == uptime

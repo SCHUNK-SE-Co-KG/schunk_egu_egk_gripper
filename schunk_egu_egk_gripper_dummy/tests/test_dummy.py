@@ -1,6 +1,7 @@
 from src.dummy import Dummy
 import pytest
 import struct
+import time
 
 # [1]: https://stb.cloud.schunk.com/media/IM0046706.PDF
 
@@ -139,3 +140,19 @@ def test_dummy_supports_release_workpiece():
     assert dummy.get_status_bit(bit=14) == 0  # pre-grip started
     assert dummy.get_status_bit(bit=12) == 0  # workpiece gripped
     assert dummy.get_status_bit(bit=17) == 0  # wrong workpiece gripped
+
+
+def test_dummy_supports_softreset():
+    dummy = Dummy()
+    dummy.start()  # fake some system uptime
+    initial = dummy.get_system_uptime()
+    time.sleep(1.5)
+    later = dummy.get_system_uptime()
+    time.sleep(1.5)
+    dummy.set_control_bit(bit=4, value=True)
+    dummy.process_control_bits()
+    after_reset = dummy.get_system_uptime()
+    dummy.stop()
+
+    assert initial < later
+    assert after_reset < later  # restart resets the uptime

@@ -1300,59 +1300,40 @@ void SchunkGripperNode::fast_stop_srv(const std::shared_ptr<FastStop::Request>, 
 void SchunkGripperNode::softreset_srv(const std::shared_ptr<Softreset::Request>, std::shared_ptr<Softreset::Response> res)
 {
     std::unique_lock<std::recursive_mutex> lock(lock_mutex, std::defer_lock);
+    getParameter(SYSTEM_UPTIME_INST, 1, UINT32_DATA);
+    const auto uptime_before_reset = uint32_vector[0];
+    auto uptime = uptime_before_reset;
+
+    // Detect soft resets by checking the system uptime.
+    auto system_reset = [&](){
+        try {
+            getParameter(SYSTEM_UPTIME_INST, 1, UINT32_DATA);
+            uptime = uint32_vector[0];
+        }
+        catch(const char* error){}
+        return (uptime < uptime_before_reset) ? true : false;
+        };
+
     try
     {
         RCLCPP_INFO(this->get_logger(),"SOFTRESET");
-
         std::unique_lock<std::mutex> lock_service(lock_service_post);
-
         set_command = SOFT_RESET;
-
-
         sendService(lock);
         lock_service.unlock();
     }
-    catch(const char* res){}
-
-    bool connection_once_lost = false;
-
-    if(handshake != gripperBitInput(COMMAND_RECEIVED_TOGGLE))
-    {
-        for(int i = 0; rclcpp::ok() && i <= 1000 && check(); i++)
-        {
-            try
-            {
-                runGets();               //if connection is back, don't catch
-                if(connection_once_lost == true)
-                {
-                    connection_error = "OK";
-                    break;
-                }
-            }
-            catch(const char* res)
-            {
-                connection_error = res;
-                std::chrono::milliseconds sleep_time(10);
-                std::this_thread::sleep_for(sleep_time);
-                connection_once_lost = true;
-            }
-        }
-    }
-    else RCLCPP_WARN(this->get_logger(), "Handshake failed!");
-
-    if(connection_once_lost == true && rclcpp::ok() && connection_error == "OK")
-    {
-        RCLCPP_INFO(this->get_logger(), "Softreset succeeded!");
-        res->success = true;
-    }
-    else
-    {
+    catch(const char* error){
         RCLCPP_INFO(this->get_logger(), "Softreset failed!");
         res->success = false;
     }
+
+    while (!system_reset())
+    {
+        runGets();
+    }
+    res->success = true;
     lock.unlock();
     gripper_updater->force_update();
-
 }
 //Prepare for shutdown service callback
 void SchunkGripperNode::prepare_for_shutdown_srv(const std::shared_ptr<PrepareForShutdown::Request>, std::shared_ptr<PrepareForShutdown::Response> res)

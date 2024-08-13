@@ -113,6 +113,8 @@
 #define SW_BUILD_DATE_INST "0x1100"
 #define SW_BUILD_TIME_INST "0x1108"
 #define SW_VERSION_TXT_INST "0x1118"
+#define SYSTEM_UPTIME_INST "0x1400"
+
 //Datatypes in JSON
 #define BOOL_DATA 0
 #define INT32_DATA 3

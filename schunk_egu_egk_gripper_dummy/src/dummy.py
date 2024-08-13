@@ -38,6 +38,7 @@ class LinearMotion(object):
 
 class Dummy(object):
     def __init__(self):
+        self.starttime = time.time()
         self.thread = Thread(target=self._run)
         self.running = False
         self.done = False
@@ -48,6 +49,7 @@ class Dummy(object):
         self.plc_output = "0x0048"
         self.actual_position = "0x0230"
         self.actual_speed = "0x0238"
+        self.system_uptime = "0x1400"
         self.error_byte = 12
         self.diagnostics_byte = 15
         self.valid_status_bits = list(range(0, 10)) + [11, 12, 13, 14, 16, 17, 31]
@@ -87,6 +89,8 @@ class Dummy(object):
 
     def _run(self) -> None:
         while not self.done:
+            elapsed = time.time() - self.starttime
+            self.set_system_uptime(int(elapsed))
             time.sleep(1)
         print("Done")
 
@@ -257,6 +261,13 @@ class Dummy(object):
         read_speed = self.data[self.actual_speed][0]
         return struct.unpack("f", bytes.fromhex(read_speed))[0]
 
+    def set_system_uptime(self, uptime: int) -> None:
+        self.data[self.system_uptime] = [bytes(struct.pack("i", uptime)).hex().upper()]
+
+    def get_system_uptime(self) -> int:
+        uptime = self.data[self.system_uptime][0]
+        return struct.unpack("i", bytes.fromhex(uptime))[0]
+
     def process_control_bits(self) -> None:
         """
         See the gripper's firmware documentation for EtherNet/IP [1]:
@@ -304,6 +315,11 @@ class Dummy(object):
             self.set_status_bit(bit=14, value=False)
             self.set_status_bit(bit=12, value=False)
             self.set_status_bit(bit=17, value=False)
+
+        # Soft reset
+        if self.get_control_bit(bit=4) == 1:
+            self.set_system_uptime(0)
+
         # Move to absolute position
         if self.get_control_bit(13) == 1:
             self.move(

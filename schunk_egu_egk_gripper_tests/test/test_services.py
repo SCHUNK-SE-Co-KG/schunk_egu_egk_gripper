@@ -9,6 +9,7 @@ from schunk_egu_egk_gripper_interfaces.srv import (  # type: ignore[attr-defined
     ReleaseForManualMovement,
     GripperInfo,
     PrepareForShutdown,
+    Softreset,
 )
 from test.helpers import ServiceReturnsResult
 
@@ -73,6 +74,13 @@ def test_driver_supports_release_for_manual_movement(running_driver):
         ReleaseForManualMovement,
         ReleaseForManualMovement.Request(),
     )
+    service.event.wait(timeout=1)
+    assert service.result.success is True
+
+
+@pytest.mark.launch(fixture=launch_description)
+def test_driver_supports_softreset(running_driver):
+    service = ServiceReturnsResult("/softreset", Softreset, Softreset.Request())
     service.event.wait(timeout=1)
     assert service.result.success is True
 
