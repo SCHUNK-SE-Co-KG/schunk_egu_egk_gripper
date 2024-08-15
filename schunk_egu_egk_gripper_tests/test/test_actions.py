@@ -24,11 +24,14 @@ def test_driver_advertices_all_relevant_actions(running_driver):
 @pytest.mark.launch(fixture=launch_description)
 def test_driver_moves_to_absolute_position(running_driver):
     goal = MoveToAbsolutePosition.Goal()
+    goal.absolute_position = 43.55
+    goal.velocity_of_movement = 55.66
     action = ActionReturnsResult(
         "/move_to_absolute_position", MoveToAbsolutePosition, goal
     )
     action.event.wait(timeout=1)
     assert action.result.position_reached
+    assert pytest.approx(action.result.absolute_position) == goal.absolute_position
 
 
 @pytest.mark.launch(fixture=launch_description)

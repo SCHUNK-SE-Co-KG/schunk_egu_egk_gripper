@@ -144,7 +144,10 @@ class Dummy(object):
             if offset + count >= len(self.metadata):
                 return result
             for i in range(count):
-                result.append(self.metadata[offset + i])
+                id = self.metadata[offset + i]["instance"]
+                inst = hex(id)[2:].upper().zfill(4)
+                inst = "0x" + inst
+                result.append(self.data[inst][0])
             return result
 
         if "inst" in query and "count" in query:
@@ -240,10 +243,12 @@ class Dummy(object):
         return True
 
     def get_target_position(self) -> float:
-        return struct.unpack("f", self.plc_output_buffer[4:8])[0]
+        return struct.unpack("i", self.plc_output_buffer[4:8])[0] / 1000.0  # um to mm
 
     def get_target_speed(self) -> float:
-        return struct.unpack("f", self.plc_output_buffer[8:12])[0]
+        return (
+            struct.unpack("i", self.plc_output_buffer[8:12])[0] / 1000.0
+        )  # um/s to mm/s
 
     def set_actual_position(self, position: float) -> None:
         self.data[self.actual_position] = [
@@ -321,7 +326,7 @@ class Dummy(object):
             self.set_system_uptime(0)
 
         # Move to absolute position
-        if self.get_control_bit(13) == 1:
+        if self.get_control_bit(bit=13) == 1:
             self.move(
                 target_pos=self.get_target_position(),
                 target_speed=self.get_target_speed(),

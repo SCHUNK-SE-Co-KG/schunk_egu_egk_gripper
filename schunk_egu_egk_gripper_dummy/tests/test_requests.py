@@ -30,7 +30,19 @@ def test_dummy_survives_invalid_enum_requests():
 def test_dummy_responds_correctly_to_data_offset_requests():
     dummy = Dummy()
     query = {"offset": 15, "count": 3}
-    expected = [dummy.metadata[15], dummy.metadata[16], dummy.metadata[17]]
+
+    def get_hex(number: int) -> str:
+        plain = hex(number)[2:].upper().zfill(4)
+        return "0x" + plain
+
+    inst1 = get_hex(dummy.metadata[15]["instance"])
+    inst2 = get_hex(dummy.metadata[16]["instance"])
+    inst3 = get_hex(dummy.metadata[17]["instance"])
+    data1 = dummy.data[inst1][0]
+    data2 = dummy.data[inst2][0]
+    data3 = dummy.data[inst3][0]
+
+    expected = [data1, data2, data3]
     assert dummy.get_data(query) == expected
 
 

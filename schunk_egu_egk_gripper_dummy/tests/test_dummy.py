@@ -63,11 +63,11 @@ def test_dummy_always_toggles_command_received_bit():
 
 def test_dummy_moves_to_absolute_position():
     dummy = Dummy()
-    target_pos = 12.345
-    target_speed = 50.3
+    target_pos = 12345  # mu
+    target_speed = 50300  # mu / s
     control_double_word = "00200000"  # bit 13
-    set_position = bytes(struct.pack("f", target_pos)).hex().upper()
-    set_speed = bytes(struct.pack("f", target_speed)).hex().upper()
+    set_position = bytes(struct.pack("i", target_pos)).hex().upper()
+    set_speed = bytes(struct.pack("i", target_speed)).hex().upper()
     gripping_force = "00000000"
     command = {
         "inst": dummy.plc_output,
@@ -78,9 +78,25 @@ def test_dummy_moves_to_absolute_position():
     dummy.post(command)
 
     # Done
-    assert pytest.approx(dummy.get_actual_position()) == target_pos
+    assert dummy.get_actual_position() == pytest.approx(target_pos / 1000.0)
     assert dummy.get_status_bit(bit=13) == 1  # position reached
     assert dummy.get_status_bit(bit=4) == 1  # command successfully processed
+
+
+def test_dummy_updates_internal_state_when_moving():
+    dummy = Dummy()
+    query = {"offset": 15, "count": 3}  # actual position, speed, and current
+    before = dummy.get_data(query)
+
+    # Move
+    target_pos = 10.34
+    target_speed = 15.0
+    assert pytest.approx(dummy.get_actual_position()) != target_pos
+    dummy.move(target_pos=target_pos, target_speed=target_speed)
+    assert pytest.approx(dummy.get_actual_position()) == target_pos
+
+    after = dummy.get_data(query)
+    assert before != after
 
 
 def test_dummy_performs_break_test():

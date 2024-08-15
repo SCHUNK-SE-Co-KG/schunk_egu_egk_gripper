@@ -123,16 +123,16 @@ def test_dummy_rejects_toggling_reserved_status_bits():
 
 def test_dummy_supports_reading_target_position():
     dummy = Dummy()
-    target_pos = 0.0123
-    dummy.plc_output_buffer[4:8] = bytes(struct.pack("f", target_pos))
-    assert pytest.approx(dummy.get_target_position()) == target_pos
+    target_pos = 12300  # um
+    dummy.plc_output_buffer[4:8] = bytes(struct.pack("i", target_pos))
+    assert pytest.approx(dummy.get_target_position()) == target_pos / 1000.0
 
 
 def test_dummy_supports_reading_target_speed():
     dummy = Dummy()
-    target_speed = 55.3
-    dummy.plc_output_buffer[8:12] = bytes(struct.pack("f", target_speed))
-    assert pytest.approx(dummy.get_target_speed()) == target_speed
+    target_speed = 55300
+    dummy.plc_output_buffer[8:12] = bytes(struct.pack("i", target_speed))
+    assert pytest.approx(dummy.get_target_speed()) == target_speed / 1000.0
 
 
 def test_dummy_supports_writing_actual_position():
