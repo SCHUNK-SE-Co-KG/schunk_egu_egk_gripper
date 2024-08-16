@@ -75,6 +75,7 @@ class Dummy(object):
 
         self.plc_input_buffer = bytearray(bytes.fromhex(self.data[self.plc_input][0]))
         self.plc_output_buffer = bytearray(bytes.fromhex(self.data[self.plc_output][0]))
+        self.initial_state = [self.plc_input_buffer.hex().upper()]
 
     def start(self) -> None:
         if self.running:
@@ -103,7 +104,7 @@ class Dummy(object):
         )
         start = time.time()
         actual_pos, actual_speed = motion.sample(0)
-        while abs(actual_pos) < abs(target_pos):
+        while abs(target_pos - actual_pos) > 0.001:  # mm
             t = time.time() - start
             actual_pos, actual_speed = motion.sample(t)
             self.set_actual_position(actual_pos)
@@ -279,6 +280,10 @@ class Dummy(object):
         https://stb.cloud.schunk.com/media/IM0046706.PDF
 
         """
+        # Reset success of previous commands
+        self.set_status_bit(bit=4, value=False)
+        self.set_status_bit(bit=8, value=False)
+        self.set_status_bit(bit=13, value=False)
 
         # Command received toggle
         self.toggle_status_bit(bit=5)
@@ -324,11 +329,25 @@ class Dummy(object):
         # Soft reset
         if self.get_control_bit(bit=4) == 1:
             self.set_system_uptime(0)
+            self.data[self.plc_input] = self.initial_state
 
         # Move to absolute position
         if self.get_control_bit(bit=13) == 1:
             self.move(
                 target_pos=self.get_target_position(),
+                target_speed=self.get_target_speed(),
+            )
+            self.set_status_bit(bit=13, value=True)
+            self.set_status_bit(bit=4, value=True)
+
+        # Move to relative position
+        if self.get_control_bit(bit=14) == 1:
+            target_pos = (
+                self.get_actual_position()
+                + self.get_target_position()  # interpret relative
+            )
+            self.move(
+                target_pos=target_pos,
                 target_speed=self.get_target_speed(),
             )
             self.set_status_bit(bit=13, value=True)

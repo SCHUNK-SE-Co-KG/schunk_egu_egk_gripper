@@ -1,8 +1,9 @@
 import pytest
 from test.conftest import launch_description
-from test.helpers import check_each_in, ActionReturnsResult
+from test.helpers import check_each_in, ActionReturnsResult, get_current_state
 from schunk_egu_egk_gripper_interfaces.action import (  # type: ignore[attr-defined]
     MoveToAbsolutePosition,
+    MoveToRelativePosition,
     ReleaseWorkpiece,
 )
 
@@ -23,20 +24,40 @@ def test_driver_advertices_all_relevant_actions(running_driver):
 
 @pytest.mark.launch(fixture=launch_description)
 def test_driver_moves_to_absolute_position(running_driver):
-    goal = MoveToAbsolutePosition.Goal()
-    goal.absolute_position = 43.55
-    goal.velocity_of_movement = 55.66
+    test_positions = [43.55, 17.02, 38.55, 103.7]
+    test_speeds = [55.66, 10.5, 40.0, 88.8]
+    for test_pos, test_speed in zip(test_positions, test_speeds):
+        goal = MoveToAbsolutePosition.Goal()
+        goal.absolute_position = test_pos
+        goal.velocity_of_movement = test_speed
+        action = ActionReturnsResult(
+            "/move_to_absolute_position", MoveToAbsolutePosition, goal
+        )
+        action.event.wait()
+        assert action.result.position_reached
+        assert pytest.approx(action.result.absolute_position) == goal.absolute_position
+
+
+@pytest.mark.launch(fixture=launch_description)
+def test_driver_moves_to_relative_position(running_driver):
+    initial_pos = get_current_state(variable="actual_position")
+    goal = MoveToRelativePosition.Goal()
+    goal.signed_relative_position = -10.03
+    goal.velocity_of_movement = 15.0
     action = ActionReturnsResult(
-        "/move_to_absolute_position", MoveToAbsolutePosition, goal
+        "/move_to_relative_position", MoveToRelativePosition, goal
     )
-    action.event.wait(timeout=1)
+    action.event.wait()
     assert action.result.position_reached
-    assert pytest.approx(action.result.absolute_position) == goal.absolute_position
+    assert (
+        pytest.approx(action.result.absolute_position)
+        == initial_pos + goal.signed_relative_position
+    )
 
 
 @pytest.mark.launch(fixture=launch_description)
 def test_driver_releases_workpieces(running_driver):
     goal = ReleaseWorkpiece.Goal()
     action = ActionReturnsResult("/release_workpiece", ReleaseWorkpiece, goal)
-    action.event.wait(timeout=1)
+    action.event.wait()
     assert action.result.released_workpiece

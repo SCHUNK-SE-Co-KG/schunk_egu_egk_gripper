@@ -63,9 +63,29 @@ def test_dummy_always_toggles_command_received_bit():
 
 def test_dummy_moves_to_absolute_position():
     dummy = Dummy()
-    target_pos = 12345  # mu
-    target_speed = 50300  # mu / s
-    control_double_word = "00200000"  # bit 13
+    target_positions = [12345, 10555, 77000, 1500]  # mu
+    target_speeds = [50300, 40000, 10500, 20999]  # mu / s
+    for target_pos, target_speed in zip(target_positions, target_speeds):
+        control_double_word = "00200000"  # bit 13
+        set_position = bytes(struct.pack("i", target_pos)).hex().upper()
+        set_speed = bytes(struct.pack("i", target_speed)).hex().upper()
+        gripping_force = "00000000"
+        command = {
+            "inst": dummy.plc_output,
+            "value": control_double_word + set_position + set_speed + gripping_force,
+        }
+
+        dummy.post(command)
+        assert dummy.get_actual_position() == pytest.approx(target_pos / 1000.0)
+        assert dummy.get_status_bit(bit=13) == 1  # position reached
+        assert dummy.get_status_bit(bit=4) == 1  # command successfully processed
+
+
+def test_dummy_moves_to_relative_position():
+    dummy = Dummy()
+    target_pos = -5000  # mu
+    target_speed = 12000  # mu / s
+    control_double_word = "00400000"  # bit 14
     set_position = bytes(struct.pack("i", target_pos)).hex().upper()
     set_speed = bytes(struct.pack("i", target_speed)).hex().upper()
     gripping_force = "00000000"
@@ -73,12 +93,11 @@ def test_dummy_moves_to_absolute_position():
         "inst": dummy.plc_output,
         "value": control_double_word + set_position + set_speed + gripping_force,
     }
-
-    # Motion
+    before = dummy.get_actual_position()
     dummy.post(command)
-
-    # Done
-    assert dummy.get_actual_position() == pytest.approx(target_pos / 1000.0)
+    after = dummy.get_actual_position()
+    assert after < before  # we are decreasing
+    assert after == pytest.approx(before + target_pos / 1000.0)
     assert dummy.get_status_bit(bit=13) == 1  # position reached
     assert dummy.get_status_bit(bit=4) == 1  # command successfully processed
 

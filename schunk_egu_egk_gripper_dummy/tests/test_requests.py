@@ -110,3 +110,14 @@ def test_dummy_rejects_invalid_post_requests():
     invalid_inst = "0x9999"
     data = {"inst": invalid_inst, "value": valid_data}
     assert client.post("/adi/update.json", data=data).json() == {"result": 1}
+
+
+def test_dummy_resets_success_status_bits_with_new_post_requests():
+    dummy = Dummy()
+    dummy.set_status_bit(bit=13, value=True)  # position reached
+    dummy.set_status_bit(bit=4, value=True)  # command successful
+    empty_command = "01" + "".zfill(30)  # only fast stop active
+    data = {"inst": dummy.plc_output, "value": empty_command}
+    dummy.post(data)
+    assert dummy.get_status_bit(bit=13) == 0
+    assert dummy.get_status_bit(bit=4) == 0
