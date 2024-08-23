@@ -191,3 +191,13 @@ def test_dummy_supports_softreset():
 
     assert initial < later
     assert after_reset < later  # restart resets the uptime
+
+
+def test_dummy_supports_grip():
+    dummy = Dummy()
+    dummy.set_control_bit(bit=12, value=True)  # grip workpiece
+    dummy.process_control_bits()
+    assert dummy.get_status_bit(bit=12) == 1  # workpiece gripped
+    assert dummy.get_status_bit(bit=4) == 1  # command successfully processed
+    assert dummy.get_status_bit(bit=16) == 0  # workpiece lost
+    assert dummy.get_status_bit(bit=11) == 0  # no workpiece detected

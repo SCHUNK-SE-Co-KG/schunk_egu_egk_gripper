@@ -283,6 +283,7 @@ class Dummy(object):
         # Reset success of previous commands
         self.set_status_bit(bit=4, value=False)
         self.set_status_bit(bit=8, value=False)
+        self.set_status_bit(bit=12, value=False)
         self.set_status_bit(bit=13, value=False)
 
         # Command received toggle
@@ -352,3 +353,10 @@ class Dummy(object):
             )
             self.set_status_bit(bit=13, value=True)
             self.set_status_bit(bit=4, value=True)
+
+        # Grip workpiece
+        if self.get_control_bit(bit=12) == 1:
+            self.set_status_bit(bit=12, value=True)
+            self.set_status_bit(bit=4, value=True)
+            self.set_status_bit(bit=11, value=False)
+            self.set_status_bit(bit=16, value=False)
