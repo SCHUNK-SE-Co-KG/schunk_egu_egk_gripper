@@ -358,5 +358,9 @@ class Dummy(object):
         if self.get_control_bit(bit=12) == 1:
             self.set_status_bit(bit=12, value=True)
             self.set_status_bit(bit=4, value=True)
-            self.set_status_bit(bit=11, value=False)
-            self.set_status_bit(bit=16, value=False)
+
+        # Grip workpiece at position
+        if self.get_control_bit(bit=16) == 1:
+            self.set_status_bit(bit=12, value=True)
+            self.set_status_bit(bit=4, value=True)
+            self.set_status_bit(bit=31, value=True)

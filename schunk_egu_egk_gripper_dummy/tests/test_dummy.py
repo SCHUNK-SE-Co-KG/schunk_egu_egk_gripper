@@ -199,5 +199,12 @@ def test_dummy_supports_grip():
     dummy.process_control_bits()
     assert dummy.get_status_bit(bit=12) == 1  # workpiece gripped
     assert dummy.get_status_bit(bit=4) == 1  # command successfully processed
-    assert dummy.get_status_bit(bit=16) == 0  # workpiece lost
-    assert dummy.get_status_bit(bit=11) == 0  # no workpiece detected
+
+
+def test_dummy_supports_grip_at_position():
+    dummy = Dummy()
+    dummy.set_control_bit(bit=16, value=True)  # grip workpiece at expected position
+    dummy.process_control_bits()
+    assert dummy.get_status_bit(bit=12) == 1  # workpiece gripped
+    assert dummy.get_status_bit(bit=4) == 1  # command successfully processed
+    assert dummy.get_status_bit(bit=31) == 1  # GPE activated

@@ -3,6 +3,7 @@ from test.conftest import launch_description
 from test.helpers import check_each_in, ActionReturnsResult, get_current_state
 from schunk_egu_egk_gripper_interfaces.action import (  # type: ignore[attr-defined]
     GripWithVelocity,
+    GripWithPositionAndVelocity,
     MoveToAbsolutePosition,
     MoveToRelativePosition,
     ReleaseWorkpiece,
@@ -32,6 +33,24 @@ def test_driver_grips(running_driver):
     goal.velocity_of_movement = 11.0
     goal.grip_direction = False  # close
     action = ActionReturnsResult("/grip", GripWithVelocity, goal)
+    action.event.wait()
+    assert action.result.workpiece_gripped
+    assert action.result.no_workpiece_detected is False
+    assert action.result.workpiece_lost is False
+
+
+@pytest.mark.launch(fixture=launch_description)
+def test_driver_grips_with_position(running_driver):
+    goal = (
+        GripWithPositionAndVelocity.Goal()
+    )  # Our dummy is an EGK, which uses an additional velocity
+    goal.absolute_position = 18.88
+    goal.gripping_force = 65.0  # % of max force
+    goal.velocity_of_movement = 13.0
+    goal.grip_direction = False  # close
+    action = ActionReturnsResult(
+        "/grip_with_position", GripWithPositionAndVelocity, goal
+    )
     action.event.wait()
     assert action.result.workpiece_gripped
     assert action.result.no_workpiece_detected is False
