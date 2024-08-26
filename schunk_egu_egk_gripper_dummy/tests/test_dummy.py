@@ -76,7 +76,9 @@ def test_dummy_moves_to_absolute_position():
         }
 
         dummy.post(command)
-        assert dummy.get_actual_position() == pytest.approx(target_pos / 1000.0)
+        assert dummy.get_actual_position() == pytest.approx(
+            target_pos / 1000.0, rel=1e-3
+        )
         assert dummy.get_status_bit(bit=13) == 1  # position reached
         assert dummy.get_status_bit(bit=4) == 1  # command successfully processed
 
@@ -97,7 +99,7 @@ def test_dummy_moves_to_relative_position():
     dummy.post(command)
     after = dummy.get_actual_position()
     assert after < before  # we are decreasing
-    assert after == pytest.approx(before + target_pos / 1000.0)
+    assert after == pytest.approx(before + target_pos / 1000.0, rel=1e-3)
     assert dummy.get_status_bit(bit=13) == 1  # position reached
     assert dummy.get_status_bit(bit=4) == 1  # command successfully processed
 

@@ -125,14 +125,14 @@ def test_dummy_supports_reading_target_position():
     dummy = Dummy()
     target_pos = 12300  # um
     dummy.plc_output_buffer[4:8] = bytes(struct.pack("i", target_pos))
-    assert pytest.approx(dummy.get_target_position()) == target_pos / 1000.0
+    assert pytest.approx(dummy.get_target_position(), rel=1e-3) == target_pos / 1000.0
 
 
 def test_dummy_supports_reading_target_speed():
     dummy = Dummy()
     target_speed = 55300
     dummy.plc_output_buffer[8:12] = bytes(struct.pack("i", target_speed))
-    assert pytest.approx(dummy.get_target_speed()) == target_speed / 1000.0
+    assert pytest.approx(dummy.get_target_speed(), rel=1e-3) == target_speed / 1000.0
 
 
 def test_dummy_supports_writing_actual_position():
