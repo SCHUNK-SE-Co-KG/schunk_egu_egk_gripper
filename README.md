@@ -15,6 +15,9 @@
     <img src="https://github.com/SCHUNK-SE-Co-KG/schunk_egu_egk_gripper/actions/workflows/industrial_ci_iron_action.yml/badge.svg" alt="build badge iron">
   </a>
   <a href="https://github.com/SCHUNK-SE-Co-KG/schunk_egu_egk_gripper/actions">
+    <img src="https://github.com/SCHUNK-SE-Co-KG/schunk_egu_egk_gripper/actions/workflows/industrial_ci_jazzy_action.yml/badge.svg" alt="build badge jazzy">
+  </a>
+  <a href="https://github.com/SCHUNK-SE-Co-KG/schunk_egu_egk_gripper/actions">
     <img src="https://github.com/SCHUNK-SE-Co-KG/schunk_egu_egk_gripper/actions/workflows/industrial_ci_rolling_action.yml/badge.svg" alt="build badge rolling">
   </a>
 </p>
