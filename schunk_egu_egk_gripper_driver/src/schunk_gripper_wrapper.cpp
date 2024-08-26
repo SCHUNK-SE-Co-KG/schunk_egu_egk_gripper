@@ -55,13 +55,10 @@ SchunkGripperNode::SchunkGripperNode(const rclcpp::NodeOptions &options) :
     services_group = this->create_callback_group(rclcpp::CallbackGroupType::MutuallyExclusive);
 
  //   actions_group  = this->create_callback_group(rclcpp::CallbackGroupType::Reentrant);
- //   rest  = this->create_callback_group(rclcpp::CallbackGroupType::MutuallyExclusive);
 
     rclcpp::PublisherOptions option_messages;
     option_messages.callback_group = messages_group;
 
-    rclcpp::SubscriptionOptions option;
-    option.callback_group = rest;
     //ParameterDescription read_only
     rcl_interfaces::msg::ParameterDescriptor paramDesc;
     paramDesc.read_only = true;
@@ -162,8 +159,7 @@ void SchunkGripperNode::advertiseServices()
     fast_stop_service = this->create_service<FastStop>("fast_stop", std::bind(&SchunkGripperNode::fast_stop_srv,this,std::placeholders::_1,std::placeholders::_2), rmw_qos_profile_services_default, services_group);
     parameter_get_service = this->create_service<ParameterGet>("parameter_get", std::bind(&SchunkGripperNode::parameter_get_srv,this,std::placeholders::_1,std::placeholders::_2), rmw_qos_profile_services_default, services_group);
     parameter_set_service= this->create_service<ParameterSet>("parameter_set", std::bind(&SchunkGripperNode::parameter_set_srv,this,std::placeholders::_1,std::placeholders::_2), rmw_qos_profile_services_default, services_group);
-    info_service = this->create_service<GripperInfo>("gripper_info", std::bind(&SchunkGripperNode::info_srv,this,std::placeholders::_1,std::placeholders::_2), rmw_qos_profile_services_default, rest);
-    change_ip_service = this->create_service<ChangeIp>("reconnect",  std::bind(&SchunkGripperNode::change_ip_srv,this,std::placeholders::_1,std::placeholders::_2), rmw_qos_profile_services_default, services_group);
+    info_service = this->create_service<GripperInfo>("gripper_info", std::bind(&SchunkGripperNode::info_srv,this,std::placeholders::_1,std::placeholders::_2), rmw_qos_profile_services_default, services_group);
 
 }
 //Advertise Actions
@@ -1195,7 +1191,7 @@ void SchunkGripperNode::brake_test_srv(const std::shared_ptr<BrakeTest::Request>
         }
         if((gripperBitInput(SUCCESS) == true) && (handshake != gripperBitInput(COMMAND_RECEIVED_TOGGLE)))
         {
-            res->brake_test_successful = true;
+            res->success = true;
             res->error_code = error_str;
             RCLCPP_INFO(this->get_logger(),"Brake test successful!");
         }
@@ -1204,7 +1200,7 @@ void SchunkGripperNode::brake_test_srv(const std::shared_ptr<BrakeTest::Request>
             runGets();
             gripper_updater->force_update();
             res->error_code = error_str;
-            res->brake_test_successful = false;
+            res->success = false;
             RCLCPP_INFO(this->get_logger(),"Brake test failed!");
 
         }
@@ -1213,53 +1209,12 @@ void SchunkGripperNode::brake_test_srv(const std::shared_ptr<BrakeTest::Request>
     {
         connection_error = server_response;
         res->error_code = server_response;
-        res->brake_test_successful = false;
+        res->success = false;
         RCLCPP_ERROR(this->get_logger(), "Failed Connection! %s", connection_error.c_str());
     }
 
 }
-//Ip change service, if the ip should change during runtime of the program
-void SchunkGripperNode::change_ip_srv(const std::shared_ptr<ChangeIp::Request> req, std::shared_ptr<ChangeIp::Response> res)
-{
-    try
-    {
-        std::lock_guard<std::recursive_mutex> lock(lock_mutex);
-        res->ip_changed = changeIp(req->new_ip);
 
-        if(res->ip_changed == false)
-        {
-            connection_error = "No gripper found. Using old IP";
-            gripper_updater->force_update();
-            return;
-        }
-
-        if(res->ip_changed == true)
-        {
-            this->set_parameter(rclcpp::Parameter("IP", req->new_ip));
-        }
-
-        if(start_connection == false && ip_changed_with_all_param == true)
-        {
-            advertiseConnectionRelevant();
-            start_connection = true;
-        }
-
-        if(ip_changed_with_all_param == true)
-        {
-            this->set_parameter(rclcpp::Parameter("model", model));
-
-            if(connection_error == "OK")
-            {
-                reconnect();
-            }
-        }
-    }
-    catch(...)
-    {
-        RCLCPP_ERROR(this->get_logger(), "Handshake failed!");
-    }
-
-}
 //Stop service callback
 void SchunkGripperNode::stop_srv(const std::shared_ptr<Stop::Request>, std::shared_ptr<Stop::Response> res)
 {
@@ -1290,12 +1245,12 @@ void SchunkGripperNode::stop_srv(const std::shared_ptr<Stop::Request>, std::shar
 
     if((gripperBitInput(SUCCESS) == 1) && (handshake != gripperBitInput(COMMAND_RECEIVED_TOGGLE)))
     {
-        res->stopped = 1;
+        res->success = true;
         RCLCPP_WARN(this->get_logger(),"Stopped!");
     }
     else
     {
-        res->stopped = 0;
+        res->success = false;
         last_command = 0;
     }
 
@@ -1323,12 +1278,12 @@ void SchunkGripperNode::fast_stop_srv(const std::shared_ptr<FastStop::Request>, 
 
         if(gripperBitInput(GRIPPER_ERROR))
         {
-            res->fast_stopped = 1;
+            res->success = true;
             RCLCPP_WARN(this->get_logger(),"Fast stopped!");
         }
         else
         {
-            res->fast_stopped = 0;
+            res->success = false;
             RCLCPP_WARN(this->get_logger(),"Fast stop failed!");
         }
     }
@@ -1336,7 +1291,7 @@ void SchunkGripperNode::fast_stop_srv(const std::shared_ptr<FastStop::Request>, 
     {
         connection_error = server_err;
         RCLCPP_ERROR(this->get_logger(), "Failed Connection! %s", connection_error.c_str());
-        res->fast_stopped = 0;
+        res->success = false;
         RCLCPP_WARN(this->get_logger(), "Fast stop failed!");
     }
     gripper_updater->force_update();
@@ -1345,59 +1300,40 @@ void SchunkGripperNode::fast_stop_srv(const std::shared_ptr<FastStop::Request>, 
 void SchunkGripperNode::softreset_srv(const std::shared_ptr<Softreset::Request>, std::shared_ptr<Softreset::Response> res)
 {
     std::unique_lock<std::recursive_mutex> lock(lock_mutex, std::defer_lock);
+    getParameter(SYSTEM_UPTIME_INST, 1, UINT32_DATA);
+    const auto uptime_before_reset = uint32_vector[0];
+    auto uptime = uptime_before_reset;
+
+    // Detect soft resets by checking the system uptime.
+    auto system_reset = [&](){
+        try {
+            getParameter(SYSTEM_UPTIME_INST, 1, UINT32_DATA);
+            uptime = uint32_vector[0];
+        }
+        catch(const char* error){}
+        return (uptime < uptime_before_reset) ? true : false;
+        };
+
     try
     {
         RCLCPP_INFO(this->get_logger(),"SOFTRESET");
-
         std::unique_lock<std::mutex> lock_service(lock_service_post);
-
         set_command = SOFT_RESET;
-
-
         sendService(lock);
         lock_service.unlock();
     }
-    catch(const char* res){}
-
-    bool connection_once_lost = false;
-
-    if(handshake != gripperBitInput(COMMAND_RECEIVED_TOGGLE))
-    {
-        for(int i = 0; rclcpp::ok() && i <= 1000 && check(); i++)
-        {
-            try
-            {
-                runGets();               //if connection is back, don't catch
-                if(connection_once_lost == true)
-                {
-                    connection_error = "OK";
-                    break;
-                }
-            }
-            catch(const char* res)
-            {
-                connection_error = res;
-                std::chrono::milliseconds sleep_time(10);
-                std::this_thread::sleep_for(sleep_time);
-                connection_once_lost = true;
-            }
-        }
-    }
-    else RCLCPP_WARN(this->get_logger(), "Handshake failed!");
-
-    if(connection_once_lost == true && rclcpp::ok() && connection_error == "OK")
-    {
-        RCLCPP_INFO(this->get_logger(), "Softreset succeeded!");
-        res->reset_success = true;
-    }
-    else
-    {
+    catch(const char* error){
         RCLCPP_INFO(this->get_logger(), "Softreset failed!");
-        res->reset_success = false;
+        res->success = false;
     }
+
+    while (!system_reset())
+    {
+        runGets();
+    }
+    res->success = true;
     lock.unlock();
     gripper_updater->force_update();
-
 }
 //Prepare for shutdown service callback
 void SchunkGripperNode::prepare_for_shutdown_srv(const std::shared_ptr<PrepareForShutdown::Request>, std::shared_ptr<PrepareForShutdown::Response> res)
@@ -1428,12 +1364,12 @@ void SchunkGripperNode::prepare_for_shutdown_srv(const std::shared_ptr<PrepareFo
     if((gripperBitInput(READY_FOR_SHUTDOWN) == true) && (handshake != gripperBitInput(COMMAND_RECEIVED_TOGGLE)) )
     {
         RCLCPP_WARN(this->get_logger(),"READY FOR SHUTDOWN");
-        res->prepared_for_shutdown = true;
+        res->success = true;
     }
     else
     {
         RCLCPP_INFO(this->get_logger(),"COMMAND FAILED");
-        res->prepared_for_shutdown = false;
+        res->success = false;
     }
 
     gripper_updater->force_update();
@@ -1493,30 +1429,33 @@ void SchunkGripperNode::releaseForManualMov_srv(const std::shared_ptr<ReleaseFor
     {
         RCLCPP_WARN(this->get_logger(),"YOU CAN TAKE THE WORKPIECE!\n");
         RCLCPP_WARN(this->get_logger(),"If you want to end this mode, perform a fast stop and acknowledge!");
-        res->released_for_manual_movement = true;
+        res->success = true;
     }
     else
     {
         RCLCPP_WARN(this->get_logger(),"COMMAND FAILED");
-        res->released_for_manual_movement = false;
+        res->success = false;
     }
     gripper_updater->force_update();
 }
 //Get infos of the gripper service
-void SchunkGripperNode::info_srv(const std::shared_ptr<GripperInfo::Request>, std::shared_ptr<GripperInfo::Response>)
+void SchunkGripperNode::info_srv(const std::shared_ptr<GripperInfo::Request>, std::shared_ptr<GripperInfo::Response> res)
 {
+    auto info_stream = std::stringstream();
     const std::lock_guard<std::recursive_mutex> lock(lock_mutex);
     try
     {
-        if(wrong_version) RCLCPP_WARN_STREAM(this->get_logger(),"Using not suitable software-version. Some informations may be misleading");
-
+        if(wrong_version)
+        {
+            info_stream << "Using not suitable software-version. Some informations may be misleading";
+        }
         std::vector<std::string> char_strings;
         uint32_t data;
         uint16_t data2;
         float data3;
 
-        RCLCPP_INFO_STREAM(this->get_logger(),"\n\n\nGRIPPER TYPE: " << model.c_str()
-                        << "\nIP: " << ip  << std::endl);
+        info_stream << "\n\n\nGRIPPER TYPE: " << model.c_str()
+                    << "\nIP: " << ip  << std::endl;
 
         getEnums(FIELDBUS_TYPE_INST,fieldbus_type);
         getParameter(MAC_ADDR_INST, 6, CHAR_DATA);
@@ -1524,10 +1463,9 @@ void SchunkGripperNode::info_srv(const std::shared_ptr<GripperInfo::Request>, st
 
         for(size_t i = 0; i < 6; i++){mac[i] = static_cast<int16_t>(static_cast<unsigned char>(char_vector.at(i)));}
 
-        RCLCPP_INFO_STREAM(this->get_logger(),
-                               "\nFieldbustype:  " << json_data["string"]
+        info_stream << "\nFieldbustype:  " << json_data["string"]
                                << "\nMac-address: " << std::hex << mac[0] << ":" << mac[1] << ":" << mac[2] << ":" << mac[3] << ":"
-                               << mac[4] << ":" << mac[5] << std::endl);
+                               << mac[4] << ":" << mac[5] << std::endl;
 
 
         //Get the char-Parameter and save them as strings in char_strings
@@ -1545,64 +1483,64 @@ void SchunkGripperNode::info_srv(const std::shared_ptr<GripperInfo::Request>, st
         getWithInstance(SERIAL_NO_NUM_INST, &data);
         getWithInstance<uint16_t>(SW_VERSION_NUM_INST, &data2);
 
-        RCLCPP_INFO_STREAM(this->get_logger(),"\nSerial number text:  " << char_strings[0]
+        info_stream << "\nSerial number text:  " << char_strings[0]
                                             <<"\nOrder number text:  " <<  char_strings[1]
                                             <<"\nDevice serial number encoded: " << data
                                             <<"\nMain software build date:  " << char_strings[2]
                                             <<"\nMain software build time:  " << char_strings[3]
                                             <<"\nMain software version short:  " << data2
                                             <<"\nMain software version:  " << char_strings[4]
-                                            <<"\nCommunication software version:  " << comm_version << std::endl);
+                                            <<"\nCommunication software version:  " << comm_version << std::endl;
 
         getWithInstance<uint32_t>(UPTIME_INST, &data);
-        RCLCPP_INFO_STREAM(this->get_logger(),"\nSystem uptime: " << data << " s" << std::endl);
+        info_stream << "\nSystem uptime: " << data << " s" << std::endl;
 
         getWithInstance<float>(DEAD_LOAD_KG_INST, &data3);
-        RCLCPP_INFO_STREAM(this->get_logger(),"\nNet mass of the Gripper: " << data3 << " kg" << std::endl);
+        info_stream << "\nNet mass of the Gripper: " << data3 << " kg" << std::endl;
 
         getParameter(TOOL_CENT_POINT_INST, 6, FLOAT_DATA);
-        RCLCPP_INFO_STREAM(this->get_logger(),"\nTool center point 6D-Frame: \n"
+        info_stream << "\nTool center point 6D-Frame: \n"
         << float_vector[0] << " mm  " << float_vector[1] << " mm  " << float_vector[2] << " mm\n"
-        << float_vector[3] << "  " << float_vector[4] << "  " << float_vector[5] << std::endl);
+        << float_vector[3] << "  " << float_vector[4] << "  " << float_vector[5] << std::endl;
 
         getParameter(CENT_OF_MASS_INST, 6, FLOAT_DATA);
-        RCLCPP_INFO_STREAM(this->get_logger(), "\nCenter of Mass 6D-frame: \n"
+        info_stream <<  "\nCenter of Mass 6D-frame: \n"
         << float_vector[0] << " mm  " << float_vector[1] << " mm  " << float_vector[2] << " mm\n"
-        << float_vector[3] << " kg*m^2  " << float_vector[4] << " kg*m^2  "<< float_vector[5] << " kg*m^2"<< std::endl);
+        << float_vector[3] << " kg*m^2  " << float_vector[4] << " kg*m^2  "<< float_vector[5] << " kg*m^2"<< std::endl;
 
-        RCLCPP_INFO_STREAM(this->get_logger(),"\nMin. absolute position: " << min_pos << " mm\n"
+        info_stream << "\nMin. absolute position: " << min_pos << " mm\n"
         << "Max. absolute position: " << max_pos << " mm\n"
-        << "Zero_pos_offset: " << zero_pos_ofs << " mm" << std::endl);
+        << "Zero_pos_offset: " << zero_pos_ofs << " mm" << std::endl;
 
-        RCLCPP_INFO_STREAM(this->get_logger(),"\nMin. velocity_of_movement: " << min_vel << " mm/s\n"
-        << "Max. velocity_of_movement: " << max_vel << " mm/s" <<std::endl);
+        info_stream << "\nMin. velocity_of_movement: " << min_vel << " mm/s\n"
+        << "Max. velocity_of_movement: " << max_vel << " mm/s" <<std::endl;
 
-        RCLCPP_INFO_STREAM(this->get_logger(),"\nMax. grip velocity_of_movement: "<< max_grp_vel << " mm/s\n"
+        info_stream << "\nMax. grip velocity_of_movement: "<< max_grp_vel << " mm/s\n"
         << "Min. grip force: "   << min_grip_force << " N\n"
-        << "Max. grip force: "   << max_grip_force << " N" << std::endl);
+        << "Max. grip force: "   << max_grip_force << " N" << std::endl;
 
         if(model.find("EGU") != std::string::npos)
         {
-        RCLCPP_INFO_STREAM(this->get_logger(),"\nMax allowed grip force StrongGrip: " << max_allow_force  << " N  " << std::endl);
+        info_stream << "\nMax allowed grip force StrongGrip: " << max_allow_force  << " N  " << std::endl;
         }
 
         getWithInstance<float>(USED_CUR_LIMIT_INST, &data3);
-        RCLCPP_INFO_STREAM(this->get_logger(),"\nUsed current limit: " << data3 << " A" << std::endl);
+        info_stream << "\nUsed current limit: " << data3 << " A" << std::endl;
         getWithInstance<float>(MAX_PHYS_STROKE_INST, &data3);
-        RCLCPP_INFO_STREAM(this->get_logger(),"Max. physical stroke: " << data3 << " mm" << std::endl);
+        info_stream << "Max. physical stroke: " << data3 << " mm" << std::endl;
         getWithOffset(MIN_ERR_MOT_VOLT_OFFSET, 6, float_vector);
-        RCLCPP_INFO_STREAM(this->get_logger(),"\nMin. error motor voltage: " << float_vector[0] << " V\n"
+        info_stream << "\nMin. error motor voltage: " << float_vector[0] << " V\n"
                     <<    "Max. error motor voltage: " << float_vector[1] << " V\n"
                     <<    "Min. error logic voltage: " << float_vector[2] << " V\n"
                     <<    "Max. error logic voltage: " << float_vector[3] << " V\n"
                     <<    "Min. error logic temperature: " << float_vector[4] << " C\n"
-                    <<    "Max. error logic temperature: " << float_vector[5] << " C" << std::endl);
+                    <<    "Max. error logic temperature: " << float_vector[5] << " C" << std::endl;
 
         getWithInstance<float>(MEAS_LGC_TEMP_INST, &data3);
-        RCLCPP_INFO_STREAM(this->get_logger(), "Measured logic temperature: " << data3 << " C" << std::endl);
+        info_stream <<  "Measured logic temperature: " << data3 << " C" << std::endl;
 
         getWithOffset(MEAS_LGC_VOLT_OFFSET, 8, float_vector);
-        RCLCPP_INFO_STREAM(this->get_logger(),
+        info_stream <<
                           "\nMeasured logic voltage: " << float_vector[0] <<  " V\n"
                     <<    "Measured motor voltage: " << float_vector[1] <<     " V\n"
                     <<    "Min. warning motor voltage: " << float_vector[2] << " V\n"
@@ -1610,16 +1548,20 @@ void SchunkGripperNode::info_srv(const std::shared_ptr<GripperInfo::Request>, st
                     <<    "Min. warning logic voltage: " << float_vector[4] << " V\n"
                     <<    "Max. warning logic voltage: " << float_vector[5] << " V\n"
                     <<    "Min. warning logic temperature: " << float_vector[6] << " C\n"
-                    <<    "Max. warning logic temperature: " << float_vector[7] << " C" << std::endl);
+                    <<    "Max. warning logic temperature: " << float_vector[7] << " C" << std::endl;
 
+        res->info = info_stream.str();
+        res->success = true;
     }
-    catch(const char* res)
+    catch(const char* error)
     {
-    connection_error = res;
-    RCLCPP_ERROR(this->get_logger(), "Failed Connection! %s", connection_error.c_str());
+        connection_error = error;
+        res->success = false;
+        RCLCPP_ERROR(this->get_logger(), "Failed Connection! %s", connection_error.c_str());
     }
     catch(const std::exception &e)
     {
+        res->success = false;
         RCLCPP_ERROR(this->get_logger(), "%s", e.what());
     }
 }

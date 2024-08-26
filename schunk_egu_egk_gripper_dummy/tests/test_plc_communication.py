@@ -81,11 +81,13 @@ def test_dummy_rejects_writing_invalid_status_diagnostics():
         assert not dummy.set_status_diagnostics(code)
 
 
-def test_dummy_supports_reading_bits_in_plc_control():
+def test_dummy_supports_reading_and_writing_bits_in_plc_control():
     dummy = Dummy()
     for bit in dummy.valid_control_bits:
+        dummy.set_control_bit(bit=bit, value=True)
         result = dummy.get_control_bit(bit=bit)
         assert isinstance(result, int)  # successful calls get the bit's value
+        assert result == 1
 
 
 def test_dummy_rejects_reading_reserved_control_bits():
@@ -93,6 +95,13 @@ def test_dummy_rejects_reading_reserved_control_bits():
     for bit in dummy.reserved_control_bits:
         assert isinstance(dummy.get_control_bit(bit), bool)  # call fails
         assert not dummy.get_control_bit(bit)
+
+
+def test_dummy_rejects_writing_reserved_control_bits():
+    dummy = Dummy()
+    invalid_bits = [-1, 999]
+    for bit in invalid_bits + dummy.reserved_control_bits:
+        assert not dummy.set_control_bit(bit, True)
 
 
 def test_dummy_supports_toggling_status_bits():
@@ -114,16 +123,16 @@ def test_dummy_rejects_toggling_reserved_status_bits():
 
 def test_dummy_supports_reading_target_position():
     dummy = Dummy()
-    target_pos = 0.0123
-    dummy.plc_output_buffer[4:8] = bytes(struct.pack("f", target_pos))
-    assert pytest.approx(dummy.get_target_position()) == target_pos
+    target_pos = 12300  # um
+    dummy.plc_output_buffer[4:8] = bytes(struct.pack("i", target_pos))
+    assert pytest.approx(dummy.get_target_position(), rel=1e-3) == target_pos / 1000.0
 
 
 def test_dummy_supports_reading_target_speed():
     dummy = Dummy()
-    target_speed = 55.3
-    dummy.plc_output_buffer[8:12] = bytes(struct.pack("f", target_speed))
-    assert pytest.approx(dummy.get_target_speed()) == target_speed
+    target_speed = 55300
+    dummy.plc_output_buffer[8:12] = bytes(struct.pack("i", target_speed))
+    assert pytest.approx(dummy.get_target_speed(), rel=1e-3) == target_speed / 1000.0
 
 
 def test_dummy_supports_writing_actual_position():
@@ -156,3 +165,10 @@ def test_dummy_supports_reading_actual_speed():
     speed = 66.5
     dummy.set_actual_speed(speed)
     assert pytest.approx(dummy.get_actual_speed()) == speed
+
+
+def test_dummy_supports_reading_and_writing_system_uptime():
+    dummy = Dummy()
+    uptime = 1234  # secs
+    dummy.set_system_uptime(uptime)
+    assert dummy.get_system_uptime() == uptime

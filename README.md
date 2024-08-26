@@ -15,6 +15,9 @@
     <img src="https://github.com/SCHUNK-SE-Co-KG/schunk_egu_egk_gripper/actions/workflows/industrial_ci_iron_action.yml/badge.svg" alt="build badge iron">
   </a>
   <a href="https://github.com/SCHUNK-SE-Co-KG/schunk_egu_egk_gripper/actions">
+    <img src="https://github.com/SCHUNK-SE-Co-KG/schunk_egu_egk_gripper/actions/workflows/industrial_ci_jazzy_action.yml/badge.svg" alt="build badge jazzy">
+  </a>
+  <a href="https://github.com/SCHUNK-SE-Co-KG/schunk_egu_egk_gripper/actions">
     <img src="https://github.com/SCHUNK-SE-Co-KG/schunk_egu_egk_gripper/actions/workflows/industrial_ci_rolling_action.yml/badge.svg" alt="build badge rolling">
   </a>
 </p>
@@ -82,7 +85,7 @@ a) Using a component manager – this process is also outlined in the launch fil
 
 b) Within your custom executable, coupled with a (multithreaded-)executor.
 
-If you prefer starting the node in your main function, ensure that you include `Schunk::schunk_egu_egk_gripper_driver` in CMake's `target_link_libraries()`. Additionally, always specify the IP address, setting the parameter overrides "IP" to your designated IP. Alternatively, create the `SchunkGripperNode`-Component and utilize the `reconnect` service, specifying your IP.
+If you prefer starting the node in your main function, ensure that you include `Schunk::schunk_egu_egk_gripper_driver` in CMake's `target_link_libraries()`. Additionally, always specify the IP address, setting the parameter overrides "IP" to your designated IP.
 
 ## Actions
 All functionalities of the gripper, including movement, are treated as actions. This implies that when gripping, moving, or releasing a workpiece, you need to send a goal and can receive a result or feedback. Releasing a workpiece is the only action where you send an empty goal:
@@ -108,10 +111,8 @@ Services are functionalities that do not involve movement or occur so rapidly th
 - `softreset`
 - `parameter_get`
 - `parameter_set`
-- `reconnect`
 - `release_for_manual_movement`
 - `prepare_for_shutdown`
-- `gripper_info`
 
 **Important:** During a soft reset, no topics will be published. This will last for approximately 7 seconds. Afterward, all publications resume, and you can modify parameters.
 
@@ -120,10 +121,6 @@ Services are functionalities that do not involve movement or occur so rapidly th
 **Important:** To exit from `release_for_manual_movement`, you need to activate `fast_stop` and `acknowledge`.
 
 All other services can be used whenever you like. (**Note:** Fast stop is an abort of movement, so it always provokes an error).
-
-`gripper_info` publishes some information about the gripper on the terminal screen.
-
-`reconnect` is the only method for altering the IP address during runtime. If nothing is connected to the IP address or a gripper is connected, it undergoes a change. If something else is linked to this IP, errors will occur, and the old address will be retained in such cases. Exercise caution when using this service!
 
 With `parameter_get` and `parameter_set` you can read and set all allowed Parameter of the gripper. For getting and setting you need always the parameter instance. After that
 

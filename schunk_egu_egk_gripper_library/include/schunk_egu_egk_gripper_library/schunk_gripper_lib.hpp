@@ -56,7 +56,6 @@ class Gripper : protected AnybusCom
    bool gripperBitOutput(const uint32_t&) const;   //retrieve individual bits from the control double word
 
    void acknowledge();                             //acknowledge
-   bool changeIp(const std::string &);             //changeIP
 
    bool ip_changed_with_all_param;                 //IP and parameter changed
 

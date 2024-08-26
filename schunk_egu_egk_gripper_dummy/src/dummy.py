@@ -38,6 +38,7 @@ class LinearMotion(object):
 
 class Dummy(object):
     def __init__(self):
+        self.starttime = time.time()
         self.thread = Thread(target=self._run)
         self.running = False
         self.done = False
@@ -48,6 +49,7 @@ class Dummy(object):
         self.plc_output = "0x0048"
         self.actual_position = "0x0230"
         self.actual_speed = "0x0238"
+        self.system_uptime = "0x1400"
         self.error_byte = 12
         self.diagnostics_byte = 15
         self.valid_status_bits = list(range(0, 10)) + [11, 12, 13, 14, 16, 17, 31]
@@ -73,6 +75,7 @@ class Dummy(object):
 
         self.plc_input_buffer = bytearray(bytes.fromhex(self.data[self.plc_input][0]))
         self.plc_output_buffer = bytearray(bytes.fromhex(self.data[self.plc_output][0]))
+        self.initial_state = [self.plc_input_buffer.hex().upper()]
 
     def start(self) -> None:
         if self.running:
@@ -87,6 +90,8 @@ class Dummy(object):
 
     def _run(self) -> None:
         while not self.done:
+            elapsed = time.time() - self.starttime
+            self.set_system_uptime(int(elapsed))
             time.sleep(1)
         print("Done")
 
@@ -99,7 +104,7 @@ class Dummy(object):
         )
         start = time.time()
         actual_pos, actual_speed = motion.sample(0)
-        while abs(actual_pos) < abs(target_pos):
+        while abs(target_pos - actual_pos) > 0.001:  # mm
             t = time.time() - start
             actual_pos, actual_speed = motion.sample(t)
             self.set_actual_position(actual_pos)
@@ -140,7 +145,10 @@ class Dummy(object):
             if offset + count >= len(self.metadata):
                 return result
             for i in range(count):
-                result.append(self.metadata[offset + i])
+                id = self.metadata[offset + i]["instance"]
+                inst = hex(id)[2:].upper().zfill(4)
+                inst = "0x" + inst
+                result.append(self.data[inst][0])
             return result
 
         if "inst" in query and "count" in query:
@@ -223,11 +231,25 @@ class Dummy(object):
         byte_index, bit_index = divmod(bit, 8)
         return 1 if self.plc_output_buffer[byte_index] & (1 << bit_index) != 0 else 0
 
+    def set_control_bit(self, bit: int, value: bool) -> bool:
+        if bit < 0 or bit > 31:
+            return False
+        if bit in self.reserved_control_bits:
+            return False
+        byte_index, bit_index = divmod(bit, 8)
+        if value:
+            self.plc_output_buffer[byte_index] |= 1 << bit_index
+        else:
+            self.plc_output_buffer[byte_index] &= ~(1 << bit_index)
+        return True
+
     def get_target_position(self) -> float:
-        return struct.unpack("f", self.plc_output_buffer[4:8])[0]
+        return struct.unpack("i", self.plc_output_buffer[4:8])[0] / 1000.0  # um to mm
 
     def get_target_speed(self) -> float:
-        return struct.unpack("f", self.plc_output_buffer[8:12])[0]
+        return (
+            struct.unpack("i", self.plc_output_buffer[8:12])[0] / 1000.0
+        )  # um/s to mm/s
 
     def set_actual_position(self, position: float) -> None:
         self.data[self.actual_position] = [
@@ -245,7 +267,27 @@ class Dummy(object):
         read_speed = self.data[self.actual_speed][0]
         return struct.unpack("f", bytes.fromhex(read_speed))[0]
 
+    def set_system_uptime(self, uptime: int) -> None:
+        self.data[self.system_uptime] = [bytes(struct.pack("i", uptime)).hex().upper()]
+
+    def get_system_uptime(self) -> int:
+        uptime = self.data[self.system_uptime][0]
+        return struct.unpack("i", bytes.fromhex(uptime))[0]
+
     def process_control_bits(self) -> None:
+        """
+        See the gripper's firmware documentation for EtherNet/IP [1]:
+        https://stb.cloud.schunk.com/media/IM0046706.PDF
+
+        """
+        # Reset success of previous commands
+        self.set_status_bit(bit=4, value=False)
+        self.set_status_bit(bit=8, value=False)
+        self.set_status_bit(bit=12, value=False)
+        self.set_status_bit(bit=13, value=False)
+
+        # Command received toggle
+        self.toggle_status_bit(bit=5)
 
         # Acknowledge
         if self.get_control_bit(2) == 1:
@@ -254,12 +296,71 @@ class Dummy(object):
             self.set_status_error("00")
             self.set_status_diagnostics("00")
 
+        # Brake test
+        if self.get_control_bit(30) == 1:
+            self.set_status_bit(bit=4, value=True)
+
+        # Fast stop
+        if self.get_control_bit(0) == 0:  # fail-safe behavior
+            self.set_status_bit(bit=7, value=True)
+            self.set_status_diagnostics("D9")
+
+        # Controlled stop
+        if self.get_control_bit(1) == 1:
+            self.set_status_bit(bit=13, value=True)
+            self.set_status_bit(bit=4, value=True)
+
+        # Manual release
+        if self.get_control_bit(5) == 1:
+            if self.get_status_bit(7) == 1:
+                self.set_status_bit(bit=8, value=True)
+
+        # Shutdown
+        if self.get_control_bit(3) == 1:
+            self.set_status_bit(bit=2, value=True)
+
+        # Release workpiece
+        if self.get_control_bit(bit=11) == 1:
+            self.set_status_bit(bit=4, value=True)
+            self.set_status_bit(bit=13, value=True)
+            self.set_status_bit(bit=14, value=False)
+            self.set_status_bit(bit=12, value=False)
+            self.set_status_bit(bit=17, value=False)
+
+        # Soft reset
+        if self.get_control_bit(bit=4) == 1:
+            self.set_system_uptime(0)
+            self.data[self.plc_input] = self.initial_state
+
         # Move to absolute position
-        if self.get_control_bit(13) == 1:
-            self.toggle_status_bit(5)
+        if self.get_control_bit(bit=13) == 1:
             self.move(
                 target_pos=self.get_target_position(),
                 target_speed=self.get_target_speed(),
             )
             self.set_status_bit(bit=13, value=True)
             self.set_status_bit(bit=4, value=True)
+
+        # Move to relative position
+        if self.get_control_bit(bit=14) == 1:
+            target_pos = (
+                self.get_actual_position()
+                + self.get_target_position()  # interpret relative
+            )
+            self.move(
+                target_pos=target_pos,
+                target_speed=self.get_target_speed(),
+            )
+            self.set_status_bit(bit=13, value=True)
+            self.set_status_bit(bit=4, value=True)
+
+        # Grip workpiece
+        if self.get_control_bit(bit=12) == 1:
+            self.set_status_bit(bit=12, value=True)
+            self.set_status_bit(bit=4, value=True)
+
+        # Grip workpiece at position
+        if self.get_control_bit(bit=16) == 1:
+            self.set_status_bit(bit=12, value=True)
+            self.set_status_bit(bit=4, value=True)
+            self.set_status_bit(bit=31, value=True)

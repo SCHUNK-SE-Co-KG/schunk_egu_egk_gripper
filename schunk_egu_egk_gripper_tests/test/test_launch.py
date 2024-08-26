@@ -6,7 +6,7 @@ from test.conftest import launch_description
 
 
 @pytest.mark.launch(fixture=launch_description)
-def test_normal_startup_works(launch_context, isolated, gripper_dummy):
+def test_normal_startup_works(launch_context, isolated):
     node = Node("test_startup")
     until_ready = 2.0  # sec
     time.sleep(until_ready)

@@ -36,7 +36,6 @@
 #include "schunk_egu_egk_gripper_interfaces/srv/prepare_for_shutdown.hpp"
 #include "schunk_egu_egk_gripper_interfaces/srv/softreset.hpp"
 #include "schunk_egu_egk_gripper_interfaces/srv/brake_test.hpp"
-#include "schunk_egu_egk_gripper_interfaces/srv/change_ip.hpp"
 #include "schunk_egu_egk_gripper_interfaces/srv/parameter_get.hpp"
 #include "schunk_egu_egk_gripper_interfaces/srv/parameter_set.hpp"
 #include "schunk_egu_egk_gripper_interfaces/srv/release_for_manual_movement.hpp"
@@ -66,7 +65,6 @@ std::string name_space;
     using Softreset = schunk_egu_egk_gripper_interfaces::srv::Softreset;
     using PrepareForShutdown = schunk_egu_egk_gripper_interfaces::srv::PrepareForShutdown;
     using GripperInfo= schunk_egu_egk_gripper_interfaces::srv::GripperInfo;
-    using ChangeIp = schunk_egu_egk_gripper_interfaces::srv::ChangeIp;
     using ParameterGet = schunk_egu_egk_gripper_interfaces::srv::ParameterGet;
     using ParameterSet = schunk_egu_egk_gripper_interfaces::srv::ParameterSet;
 
@@ -234,7 +232,7 @@ void moveRelativeAndStop(rclcpp_action::Client<MoveToRelativePosition>::SharedPt
 
     auto stop_req = std::make_shared<Stop::Request>();
     auto resp = stop_client->async_send_request(stop_req);
-    bool stopped = resp.get()->stopped;
+    bool stopped = resp.get()->success;
 
     RCLCPP_INFO(rclcpp::get_logger("schunk_gripper_example"), "%s", stopped ? "Stopped!" : "Not stopped!");
     auto res = move_rel_client->async_get_result(goal_handle.get());

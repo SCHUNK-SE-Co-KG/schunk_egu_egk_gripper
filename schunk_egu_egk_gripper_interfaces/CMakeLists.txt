@@ -26,7 +26,6 @@ rosidl_generate_interfaces(
     msg/State.msg
     srv/Acknowledge.srv
     srv/BrakeTest.srv
-    srv/ChangeIp.srv
     srv/FastStop.srv
     srv/GripperInfo.srv
     srv/ParameterGet.srv

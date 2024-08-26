@@ -7,6 +7,7 @@ import string
 
 # Components
 dummy = Dummy()
+dummy.start()
 server = FastAPI()
 client = ["http://localhost:8001"]
 
