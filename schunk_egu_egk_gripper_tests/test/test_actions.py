@@ -8,6 +8,7 @@ from schunk_egu_egk_gripper_interfaces.action import (  # type: ignore[attr-defi
     MoveToRelativePosition,
     ReleaseWorkpiece,
 )
+from control_msgs.action import GripperCommand
 
 
 @pytest.mark.launch(fixture=launch_description)
@@ -55,6 +56,25 @@ def test_driver_grips_with_position(running_driver):
     assert action.result.workpiece_gripped
     assert action.result.no_workpiece_detected is False
     assert action.result.workpiece_lost is False
+
+
+@pytest.mark.launch(fixture=launch_description)
+def test_driver_supports_gripper_control(running_driver):
+
+    runs = [
+        {"position": 0.0, "max_effort": 77.0},  # grip workpiece
+        {"position": 82.4, "max_effort": 0.0},  # move to abs. position
+        {"position": 66.3, "max_effort": 85.1},  # grip with position
+    ]
+
+    for run in runs:
+        goal = GripperCommand.Goal()
+        goal.command.position = run["position"]
+        goal.command.max_effort = run["max_effort"]
+        action = ActionReturnsResult("/gripper_control", GripperCommand, goal)
+        action.event.wait()
+        assert action.result.reached_goal
+        assert action.result.stalled
 
 
 @pytest.mark.launch(fixture=launch_description)
