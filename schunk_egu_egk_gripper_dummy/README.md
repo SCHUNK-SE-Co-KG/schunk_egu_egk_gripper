@@ -9,7 +9,7 @@ We need additional Python dependencies.
 Install them inside your favorite Python environment with
 
 ```bash
-pip install --user fastapi uvicorn
+pip install --user fastapi uvicorn requests python-multipart
 ```
 
 ## Getting started
