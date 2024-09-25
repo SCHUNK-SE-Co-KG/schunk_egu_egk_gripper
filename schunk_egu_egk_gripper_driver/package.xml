@@ -20,6 +20,7 @@
   <depend>rclcpp_components</depend>
   <depend>control_msgs</depend>
   <depend>sensor_msgs</depend>
+  <depend>std_srvs</depend>
 
   <exec_depend>ros2launch</exec_depend>
 

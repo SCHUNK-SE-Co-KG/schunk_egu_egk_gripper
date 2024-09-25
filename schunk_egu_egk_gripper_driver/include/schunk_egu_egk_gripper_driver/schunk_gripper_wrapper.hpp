@@ -31,6 +31,7 @@
 #include "sensor_msgs/msg/joint_state.hpp"
 #include "control_msgs/action/gripper_command.hpp"
 #include <diagnostic_updater/diagnostic_updater.hpp>
+#include "std_srvs/srv/trigger.hpp"
 
 #include "schunk_egu_egk_gripper_interfaces/action/grip_with_position.hpp"
 #include "schunk_egu_egk_gripper_interfaces/action/grip_with_velocity.hpp"
@@ -147,6 +148,7 @@ class SchunkGripperNode :  public rclcpp::Node, public Gripper
     void softreset_srv(const std::shared_ptr<Softreset::Request>, std::shared_ptr<Softreset::Response>);
     void prepare_for_shutdown_srv(const std::shared_ptr<PrepareForShutdown::Request>, std::shared_ptr<PrepareForShutdown::Response>);
     void info_srv(const std::shared_ptr<GripperInfo::Request>, std::shared_ptr<GripperInfo::Response> res);
+    void grip_srv(const std::shared_ptr<std_srvs::srv::Trigger::Request>, std::shared_ptr<std_srvs::srv::Trigger::Response> res);
 
     //Action-basic-functions
     template<typename GoalType, typename ResType>
@@ -220,6 +222,7 @@ class SchunkGripperNode :  public rclcpp::Node, public Gripper
     rclcpp::Service<Softreset>::SharedPtr              softreset_service;
     rclcpp::Service<PrepareForShutdown>::SharedPtr     prepare_for_shutdown_service;
     rclcpp::Service<GripperInfo>::SharedPtr            info_service;
+    rclcpp::Service<std_srvs::srv::Trigger>::SharedPtr grip_service;
 };
 
 #endif

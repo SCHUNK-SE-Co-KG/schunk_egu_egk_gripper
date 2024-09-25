@@ -30,6 +30,7 @@ find_package(diagnostic_updater REQUIRED)
 find_package(sensor_msgs REQUIRED)
 find_package(control_msgs REQUIRED)
 find_package(diagnostic_msgs REQUIRED)
+find_package(std_srvs REQUIRED)
 
 
 #--------------------------------------------------------------------------------
@@ -52,6 +53,7 @@ ament_target_dependencies(${PROJECT_NAME}
   diagnostic_updater
   diagnostic_msgs
   schunk_egu_egk_gripper_interfaces
+  std_srvs
 )
 target_link_libraries(${PROJECT_NAME}
   Schunk::schunk_egu_egk_gripper_library
