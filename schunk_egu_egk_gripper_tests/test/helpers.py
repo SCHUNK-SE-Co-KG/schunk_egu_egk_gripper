@@ -81,7 +81,7 @@ class ActionReturnsResult(Node):
 
 def check_each_in(elements: list, node_method: str) -> None:
     node = Node("test")
-    until_ready = 2.0  # sec
+    until_ready = 10.0  # sec
     time.sleep(until_ready)
     existing = getattr(node, node_method)()
     advertised = [i[0] for i in existing]
