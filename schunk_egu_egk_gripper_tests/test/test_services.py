@@ -27,6 +27,7 @@ def test_driver_advertices_all_relevant_services(running_driver):
         "/softreset",
         "/stop",
         "/grip",
+        "/release",
     ]
     check_each_in(service_list, "get_service_names_and_types")
 
@@ -97,5 +98,12 @@ def test_driver_supports_stop(running_driver):
 @pytest.mark.launch(fixture=launch_description)
 def test_driver_supports_grip(running_driver):
     service = ServiceReturnsResult("/grip", Trigger, Trigger.Request())
+    service.event.wait(timeout=1)
+    assert service.result.success is True
+
+
+@pytest.mark.launch(fixture=launch_description)
+def test_driver_supports_release(running_driver):
+    service = ServiceReturnsResult("/release", Trigger, Trigger.Request())
     service.event.wait(timeout=1)
     assert service.result.success is True

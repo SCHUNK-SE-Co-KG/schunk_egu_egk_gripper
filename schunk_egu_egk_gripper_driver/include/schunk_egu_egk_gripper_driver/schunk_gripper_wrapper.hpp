@@ -149,6 +149,7 @@ class SchunkGripperNode :  public rclcpp::Node, public Gripper
     void prepare_for_shutdown_srv(const std::shared_ptr<PrepareForShutdown::Request>, std::shared_ptr<PrepareForShutdown::Response>);
     void info_srv(const std::shared_ptr<GripperInfo::Request>, std::shared_ptr<GripperInfo::Response> res);
     void grip_srv(const std::shared_ptr<std_srvs::srv::Trigger::Request>, std::shared_ptr<std_srvs::srv::Trigger::Response> res);
+    void release_srv(const std::shared_ptr<std_srvs::srv::Trigger::Request>, std::shared_ptr<std_srvs::srv::Trigger::Response> res);
 
     //Action-basic-functions
     template<typename GoalType, typename ResType>
@@ -223,6 +224,7 @@ class SchunkGripperNode :  public rclcpp::Node, public Gripper
     rclcpp::Service<PrepareForShutdown>::SharedPtr     prepare_for_shutdown_service;
     rclcpp::Service<GripperInfo>::SharedPtr            info_service;
     rclcpp::Service<std_srvs::srv::Trigger>::SharedPtr grip_service;
+    rclcpp::Service<std_srvs::srv::Trigger>::SharedPtr release_service;
 };
 
 #endif
