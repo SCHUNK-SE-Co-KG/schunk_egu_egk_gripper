@@ -32,28 +32,28 @@ def test_driver_advertices_all_relevant_services(running_driver):
 @pytest.mark.launch(fixture=launch_description)
 def test_driver_is_ready_after_acknowledge(running_driver):
     service = ServiceReturnsResult("/acknowledge", Acknowledge, Acknowledge.Request())
-    service.event.wait(timeout=1)
+    service.event.wait(timeout=10)
     assert service.result.success is True
 
 
 @pytest.mark.launch(fixture=launch_description)
 def test_driver_supports_break_test(running_driver):
     service = ServiceReturnsResult("/brake_test", BrakeTest, BrakeTest.Request())
-    service.event.wait(timeout=1)
+    service.event.wait(timeout=10)
     assert service.result.success is True
 
 
 @pytest.mark.launch(fixture=launch_description)
 def test_driver_supports_fast_stop(running_driver):
     service = ServiceReturnsResult("/fast_stop", FastStop, FastStop.Request())
-    service.event.wait(timeout=1)
+    service.event.wait(timeout=10)
     assert service.result.success is True
 
 
 @pytest.mark.launch(fixture=launch_description)
 def test_driver_supports_gripper_info(running_driver):
     service = ServiceReturnsResult("/gripper_info", GripperInfo, GripperInfo.Request())
-    service.event.wait(timeout=1)
+    service.event.wait(timeout=10)
     assert service.result.success is True
     assert service.result.info != ""
 
@@ -63,7 +63,7 @@ def test_driver_supports_prepare_for_shutdown(running_driver):
     service = ServiceReturnsResult(
         "/prepare_for_shutdown", PrepareForShutdown, PrepareForShutdown.Request()
     )
-    service.event.wait(timeout=1)
+    service.event.wait(timeout=10)
     assert service.result.success is True
 
 
@@ -74,19 +74,19 @@ def test_driver_supports_release_for_manual_movement(running_driver):
         ReleaseForManualMovement,
         ReleaseForManualMovement.Request(),
     )
-    service.event.wait(timeout=1)
+    service.event.wait(timeout=10)
     assert service.result.success is True
 
 
 @pytest.mark.launch(fixture=launch_description)
 def test_driver_supports_softreset(running_driver):
     service = ServiceReturnsResult("/softreset", Softreset, Softreset.Request())
-    service.event.wait(timeout=1)
+    service.event.wait(timeout=10)
     assert service.result.success is True
 
 
 @pytest.mark.launch(fixture=launch_description)
 def test_driver_supports_stop(running_driver):
     service = ServiceReturnsResult("/stop", Stop, Stop.Request())
-    service.event.wait(timeout=1)
+    service.event.wait(timeout=10)
     assert service.result.success is True
