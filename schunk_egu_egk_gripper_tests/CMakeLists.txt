@@ -17,6 +17,9 @@ if(BUILD_TESTING)
   find_package(ament_cmake_pytest REQUIRED)
   set(_pytest_tests
     test/test_launch.py
+    test/test_topics.py
+    test/test_services.py
+    test/test_actions.py
   )
   foreach(_test_path ${_pytest_tests})
     get_filename_component(_test_name ${_test_path} NAME_WE)
