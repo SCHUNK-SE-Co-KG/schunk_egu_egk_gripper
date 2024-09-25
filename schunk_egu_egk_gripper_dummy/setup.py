@@ -1,5 +1,6 @@
 from setuptools import find_packages, setup
 import os
+from glob import glob
 
 package_name = "schunk_egu_egk_gripper_dummy"
 
@@ -10,6 +11,9 @@ setup(
     data_files=[
         ("share/ament_index/resource_index/packages", ["resource/" + package_name]),
         ("share/" + package_name, ["package.xml"]),
+        (os.path.join("share", package_name), [package_name + "/main.py"]),
+        (os.path.join("share", package_name, "src"), glob("src/*.py")),
+        (os.path.join("share", package_name, "config"), glob("config/*.json")),
         (os.path.join("lib", package_name), ["start_dummy"]),
     ],
     install_requires=["setuptools"],
