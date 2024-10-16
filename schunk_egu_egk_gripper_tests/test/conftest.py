@@ -61,6 +61,7 @@ def launch_description():
 def running_driver(gripper_dummy, isolated, launch_context):
 
     print("Waiting until the driver is connected")
+    time.sleep(5)
     while not get_current_state(variable="ready_for_operation") is True:
         time.sleep(0.1)
     yield
