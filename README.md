@@ -23,14 +23,14 @@
 </p>
 
 
-This is the ROS2 driver for the SCHUNK
-[EGU](https://schunk.com/us/en/gripping-systems/parallel-gripper/egu/c/PGR_6556)
-and
-[EGK](https://schunk.com/us/en/gripping-systems/parallel-gripper/egk/c/PGR_6557)
-grippers. The driver communicates via the _AnybusCom 40_ interface and is
-compatible with
-grippers featuring _PROFINET_, _Ethernet/IP_, and _EtherCAT_.
-The driver currently supports most gripper functionalities, except for the jog mode.
+This is the official ROS2 driver for SCHUNK's
+[EGU](https://schunk.com/us/en/gripping-systems/parallel-gripper/egu/c/PGR_6556),
+[EGK](https://schunk.com/us/en/gripping-systems/parallel-gripper/egk/c/PGR_6557),
+and [EZU](https://schunk.com/us/en/gripping-systems/centric-grippers/ezu/c/PGR_7582) grippers.
+The driver communicates via the _AnybusCom 40_ interface of its internal HMS chip and is
+compatible with **Ethernet**-based
+versions, i.e.  _PROFINET_, _Ethernet/IP_, and _EtherCAT_.
+You recognize those grippers via their two connecting cables. In contrast, the MODBUS version has only one cable and is not yet supported.
 
 ## System dependencies
 
