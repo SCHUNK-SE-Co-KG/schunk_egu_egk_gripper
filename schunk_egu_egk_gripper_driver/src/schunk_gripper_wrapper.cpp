@@ -20,6 +20,7 @@
  */
 
 #include "schunk_egu_egk_gripper_driver/schunk_gripper_wrapper.hpp"
+#include <chrono>
 
  std::map<std::string, const char*> param_inst =
  {
@@ -1786,9 +1787,17 @@ void SchunkGripperNode::grip_srv(const std::shared_ptr<std_srvs::srv::Trigger::R
         //if command received, get values
         if(handshake != gripperBitInput(COMMAND_RECEIVED_TOGGLE))
         {
+            auto start = std::chrono::steady_clock::now();
+            auto timeout = std::chrono::seconds(3);
             while(rclcpp::ok() && !gripperBitInput(SUCCESS))
             {
                 runGets();
+                auto now = std::chrono::steady_clock::now();
+                if (now - start >= timeout)
+                {
+                    res->message = "Timeout reached";
+                    break;
+                }
             }
         }
         lock.unlock();
@@ -1828,9 +1837,17 @@ void SchunkGripperNode::release_srv(const std::shared_ptr<std_srvs::srv::Trigger
         //if command received, get values
         if(handshake != gripperBitInput(COMMAND_RECEIVED_TOGGLE))
         {
+            auto start = std::chrono::steady_clock::now();
+            auto timeout = std::chrono::seconds(3);
             while(rclcpp::ok() && !gripperBitInput(SUCCESS))
             {
                 runGets();
+                auto now = std::chrono::steady_clock::now();
+                if (now - start >= timeout)
+                {
+                    res->message = "Timeout reached";
+                    break;
+                }
             }
         }
         lock.unlock();
