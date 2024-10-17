@@ -1781,6 +1781,7 @@ void SchunkGripperNode::grip_srv(const std::shared_ptr<std_srvs::srv::Trigger::R
         std::unique_lock<std::recursive_mutex> lock(lock_mutex, std::defer_lock);
         std::unique_lock<std::mutex> lock_service(lock_service_post);
         set_command = GRIP_WORK_PIECE;
+        set_gripping_force = 20;  // N
         sendService(lock);
         lock_service.unlock();
 
