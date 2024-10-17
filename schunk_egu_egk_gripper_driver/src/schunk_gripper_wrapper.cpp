@@ -1810,7 +1810,9 @@ void SchunkGripperNode::grip_srv(const std::shared_ptr<std_srvs::srv::Trigger::R
         RCLCPP_WARN(this->get_logger(),"COMMAND FAILED");
         res->success = false;
     }
+    last_command = 0;
     gripper_updater->force_update();
+    finishedCommand();
 }
 
 void SchunkGripperNode::release_srv(const std::shared_ptr<std_srvs::srv::Trigger::Request>, std::shared_ptr<std_srvs::srv::Trigger::Response> res)
@@ -1850,7 +1852,9 @@ void SchunkGripperNode::release_srv(const std::shared_ptr<std_srvs::srv::Trigger
         RCLCPP_WARN(this->get_logger(),"COMMAND FAILED");
         res->success = false;
     }
+    last_command = 0;
     gripper_updater->force_update();
+    finishedCommand();
 }
 
 //Callback for Parameters
