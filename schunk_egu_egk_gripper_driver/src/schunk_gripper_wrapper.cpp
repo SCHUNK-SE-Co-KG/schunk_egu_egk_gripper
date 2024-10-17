@@ -161,8 +161,7 @@ void SchunkGripperNode::advertiseServices()
     parameter_get_service = this->create_service<ParameterGet>("parameter_get", std::bind(&SchunkGripperNode::parameter_get_srv,this,std::placeholders::_1,std::placeholders::_2), rmw_qos_profile_services_default, services_group);
     parameter_set_service= this->create_service<ParameterSet>("parameter_set", std::bind(&SchunkGripperNode::parameter_set_srv,this,std::placeholders::_1,std::placeholders::_2), rmw_qos_profile_services_default, services_group);
     info_service = this->create_service<GripperInfo>("gripper_info", std::bind(&SchunkGripperNode::info_srv,this,std::placeholders::_1,std::placeholders::_2), rmw_qos_profile_services_default, services_group);
-    grip_service = this->create_service<std_srvs::srv::Trigger>("grip", std::bind(&SchunkGripperNode::grip_srv,this,std::placeholders::_1,std::placeholders::_2), rmw_qos_profile_services_default, services_group);
-    release_service = this->create_service<std_srvs::srv::Trigger>("release", std::bind(&SchunkGripperNode::release_srv,this,std::placeholders::_1,std::placeholders::_2), rmw_qos_profile_services_default, services_group);
+    toggle_grip_service = this->create_service<std_srvs::srv::Trigger>("toggle_grip", std::bind(&SchunkGripperNode::toggle_grip_srv,this,std::placeholders::_1,std::placeholders::_2), rmw_qos_profile_services_default, services_group);
 
 }
 //Advertise Actions
@@ -1774,14 +1773,15 @@ void SchunkGripperNode::parameter_set_srv(const std::shared_ptr<ParameterSet::Re
 
 }
 
-void SchunkGripperNode::grip_srv(const std::shared_ptr<std_srvs::srv::Trigger::Request>, std::shared_ptr<std_srvs::srv::Trigger::Response> res)
+void SchunkGripperNode::toggle_grip_srv(const std::shared_ptr<std_srvs::srv::Trigger::Request>, std::shared_ptr<std_srvs::srv::Trigger::Response> res)
 {
     try
     {
         std::unique_lock<std::recursive_mutex> lock(lock_mutex, std::defer_lock);
         std::unique_lock<std::mutex> lock_service(lock_service_post);
         set_command = GRIP_WORK_PIECE;
-        set_gripping_force = 20;  // N
+        set_command |= GRIP_DIRECTION;
+        set_gripping_force = static_cast<uint32_t>(100);  // %
         sendService(lock);
         lock_service.unlock();
 
@@ -1789,14 +1789,13 @@ void SchunkGripperNode::grip_srv(const std::shared_ptr<std_srvs::srv::Trigger::R
         if(handshake != gripperBitInput(COMMAND_RECEIVED_TOGGLE))
         {
             auto start = std::chrono::steady_clock::now();
-            auto timeout = std::chrono::seconds(3);
-            while(rclcpp::ok() && !gripperBitInput(SUCCESS))
+            auto timeout = std::chrono::seconds(2);
+            while(rclcpp::ok())
             {
                 runGets();
                 auto now = std::chrono::steady_clock::now();
                 if (now - start >= timeout)
                 {
-                    res->message = "Timeout reached";
                     break;
                 }
             }
@@ -1813,56 +1812,6 @@ void SchunkGripperNode::grip_srv(const std::shared_ptr<std_srvs::srv::Trigger::R
     if(gripperBitInput(GRIPPED) && (handshake != gripperBitInput(COMMAND_RECEIVED_TOGGLE)))
     {
         RCLCPP_INFO(this->get_logger(),"WORKPIECE GRIPPED");
-        res->success = true;
-    }
-    else
-    {
-        RCLCPP_WARN(this->get_logger(),"COMMAND FAILED");
-        res->success = false;
-    }
-    last_command = 0;
-    gripper_updater->force_update();
-    finishedCommand();
-}
-
-void SchunkGripperNode::release_srv(const std::shared_ptr<std_srvs::srv::Trigger::Request>, std::shared_ptr<std_srvs::srv::Trigger::Response> res)
-{
-    try
-    {
-        std::unique_lock<std::recursive_mutex> lock(lock_mutex, std::defer_lock);
-        std::unique_lock<std::mutex> lock_service(lock_service_post);
-        set_command = RELEASE_WORK_PIECE;
-        sendService(lock);
-        lock_service.unlock();
-
-        //if command received, get values
-        if(handshake != gripperBitInput(COMMAND_RECEIVED_TOGGLE))
-        {
-            auto start = std::chrono::steady_clock::now();
-            auto timeout = std::chrono::seconds(3);
-            while(rclcpp::ok() && !gripperBitInput(SUCCESS))
-            {
-                runGets();
-                auto now = std::chrono::steady_clock::now();
-                if (now - start >= timeout)
-                {
-                    res->message = "Timeout reached";
-                    break;
-                }
-            }
-        }
-        lock.unlock();
-    }
-
-    catch(const char* res)
-    {
-        connection_error = res;
-        RCLCPP_ERROR(this->get_logger(), "Failed Connection! %s", connection_error.c_str());
-    }
-
-    if(gripperBitInput(POSITION_REACHED) && (handshake != gripperBitInput(COMMAND_RECEIVED_TOGGLE)))
-    {
-        RCLCPP_INFO(this->get_logger(),"WORKPIECE RELEASED");
         res->success = true;
     }
     else
