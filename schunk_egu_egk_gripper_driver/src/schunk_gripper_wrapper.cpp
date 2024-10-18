@@ -1819,6 +1819,7 @@ void SchunkGripperNode::toggle_grip_srv(const std::shared_ptr<std_srvs::srv::Tri
         RCLCPP_WARN(this->get_logger(),"COMMAND FAILED");
         res->success = false;
     }
+    acknowledge();
     last_command = 0;
     gripper_updater->force_update();
     finishedCommand();
