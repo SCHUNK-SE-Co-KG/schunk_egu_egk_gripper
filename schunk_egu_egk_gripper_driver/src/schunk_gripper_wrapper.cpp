@@ -1819,7 +1819,31 @@ void SchunkGripperNode::toggle_grip_srv(const std::shared_ptr<std_srvs::srv::Tri
         RCLCPP_WARN(this->get_logger(),"COMMAND FAILED");
         res->success = false;
     }
-    acknowledge();
+
+    const std::lock_guard<std::recursive_mutex> lock(lock_mutex);
+
+    actual_command = "ACKNOWLEDGE";
+    try
+    {
+        acknowledge();
+        if(check())
+        {
+            res->success = true;
+            RCLCPP_WARN(this->get_logger(),"Acknowledged");
+        }
+        else
+        {
+            res->success = false;
+            RCLCPP_WARN(this->get_logger(),"Acknowledge failed!");
+        }
+    }
+    catch(const char* server_err)
+    {
+        connection_error = server_err ;
+        RCLCPP_ERROR(this->get_logger(), "Failed Connection! %s", connection_error.c_str());
+        res->success = false;
+        RCLCPP_WARN(this->get_logger(), "Acknowledge failed!");
+    }
     last_command = 0;
     gripper_updater->force_update();
     finishedCommand();
