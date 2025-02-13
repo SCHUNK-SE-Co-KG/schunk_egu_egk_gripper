@@ -34,6 +34,9 @@ from ament_index_python.packages import get_package_share_directory
 @pytest.fixture(scope="module")
 def isolated():
     rclpy.init()
+    # Make sure all test nodes find each other
+    subprocess.run(["ros2", "daemon", "stop"])
+    subprocess.run(["ros2", "daemon", "start"])
     yield
     rclpy.shutdown()
 
