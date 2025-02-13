@@ -16,7 +16,7 @@
 
 import pytest
 import rclpy
-from launch import LaunchDescription  # type: ignore[attr-defined]
+from launch import LaunchDescription
 from launch.actions import IncludeLaunchDescription
 from launch.substitutions import PathJoinSubstitution
 from launch_ros.substitutions import FindPackageShare

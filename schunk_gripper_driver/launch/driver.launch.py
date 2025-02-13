@@ -14,7 +14,7 @@
 # this program. If not, see <https://www.gnu.org/licenses/>.
 # --------------------------------------------------------------------------------
 
-from launch import LaunchDescription  # type: ignore[attr-defined]
+from launch import LaunchDescription
 from launch_ros.actions import Node
 
 
