@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 # Copyright 2025 SCHUNK SE & Co. KG
 #
 # This program is free software: you can redistribute it and/or modify it

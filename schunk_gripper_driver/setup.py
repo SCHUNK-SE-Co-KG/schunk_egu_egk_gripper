@@ -22,6 +22,6 @@ setup(
     license="GPL-3.0-or-later",
     tests_require=["pytest"],
     entry_points={
-        "console_scripts": ["driver = schunk_gripper_driver.driver:main"],
+        "console_scripts": [],
     },
 )

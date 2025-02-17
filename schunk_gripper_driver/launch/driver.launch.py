@@ -24,7 +24,7 @@ def generate_launch_description():
             Node(
                 package="schunk_gripper_driver",
                 namespace="schunk",
-                executable="driver",
+                executable="driver.py",
                 name="driver",
             )
         ]
