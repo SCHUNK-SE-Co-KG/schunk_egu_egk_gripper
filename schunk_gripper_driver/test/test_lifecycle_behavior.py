@@ -42,6 +42,50 @@ def check_state(node, client, state_id):
 
 
 @pytest.mark.launch(fixture=launch_description)
+def test_driver_supports_repeated_configure_and_cleanup(isolated):
+    node = Node("test_repeated_configure")
+    timeout = Duration(seconds=2)
+
+    change_state_client = node.create_client(ChangeState, "/schunk/driver/change_state")
+    change_state_client.wait_for_service(timeout.nanoseconds / 1e9)
+    get_state_client = node.create_client(GetState, "/schunk/driver/get_state")
+    get_state_client.wait_for_service(timeout.nanoseconds / 1e9)
+
+    in_state = partial(check_state, node, get_state_client)
+    trigger = partial(change_state, node, change_state_client)
+
+    for _ in range(3):
+        trigger(Transition.TRANSITION_CONFIGURE)
+        assert in_state(State.PRIMARY_STATE_INACTIVE)
+        trigger(Transition.TRANSITION_CLEANUP)
+        assert in_state(State.PRIMARY_STATE_UNCONFIGURED)
+
+
+@pytest.mark.launch(fixture=launch_description)
+def test_driver_supports_repeated_activate_and_deactivate(isolated):
+    node = Node("test_repeated_activate")
+    timeout = Duration(seconds=2)
+
+    change_state_client = node.create_client(ChangeState, "/schunk/driver/change_state")
+    change_state_client.wait_for_service(timeout.nanoseconds / 1e9)
+    get_state_client = node.create_client(GetState, "/schunk/driver/get_state")
+    get_state_client.wait_for_service(timeout.nanoseconds / 1e9)
+
+    in_state = partial(check_state, node, get_state_client)
+    trigger = partial(change_state, node, change_state_client)
+
+    trigger(Transition.TRANSITION_CONFIGURE)
+
+    for _ in range(3):
+        trigger(Transition.TRANSITION_ACTIVATE)
+        assert in_state(State.PRIMARY_STATE_ACTIVE)
+        trigger(Transition.TRANSITION_DEACTIVATE)
+        assert in_state(State.PRIMARY_STATE_INACTIVE)
+
+    trigger(Transition.TRANSITION_CLEANUP)
+
+
+@pytest.mark.launch(fixture=launch_description)
 def test_primary_lifecycle_states(isolated):
     node = Node("test_primary_lifecycle_states")
     timeout = Duration(seconds=2)
