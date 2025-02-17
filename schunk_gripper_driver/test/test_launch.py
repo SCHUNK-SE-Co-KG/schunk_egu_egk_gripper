@@ -17,7 +17,7 @@
 import pytest
 from rclpy.node import Node
 import time
-from test.conftest import launch_description
+from schunk_gripper_driver.test.conftest import launch_description
 
 
 @pytest.mark.launch(fixture=launch_description)
