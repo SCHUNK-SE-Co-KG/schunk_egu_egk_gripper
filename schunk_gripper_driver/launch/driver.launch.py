@@ -16,16 +16,30 @@
 
 from launch import LaunchDescription
 from launch_ros.actions import Node
+from launch.actions import DeclareLaunchArgument
+from launch.substitutions import LaunchConfiguration
+
+
+port = DeclareLaunchArgument(
+    "port",
+    default_value="/dev/pts/13",
+    description="The gripper's serial port",
+)
+args = [port]
 
 
 def generate_launch_description():
     return LaunchDescription(
-        [
+        args
+        + [
             Node(
                 package="schunk_gripper_driver",
                 namespace="schunk",
                 executable="driver.py",
                 name="driver",
+                parameters=[
+                    {"port": LaunchConfiguration("port")},
+                ],
             )
         ]
     )

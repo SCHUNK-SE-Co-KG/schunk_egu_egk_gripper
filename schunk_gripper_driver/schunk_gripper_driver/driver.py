@@ -28,12 +28,13 @@ class Driver(Node):
 
     def __init__(self, node_name: str, **kwargs):
         super().__init__(node_name, **kwargs)
-        self.mb_client = ModbusSerialClient(
-            port="/dev/pts/13", baudrate=9600, timeout=1
-        )
+        self.declare_parameter("port", rclpy.Parameter.Type.STRING)
+        self.port = self.get_parameter_or("port", "/dev/ttyUSB0").value
+        self.mb_client = ModbusSerialClient(port=self.port, baudrate=9600, timeout=1)
 
     def on_configure(self, state: State) -> TransitionCallbackReturn:
         self.get_logger().info("on_configure() is called.")
+        self.get_logger().info(f"Connecting on port {self.port}")
         if not self.mb_client.connect():
             self.get_logger().warn("Modbus client connect failed")
             return TransitionCallbackReturn.FAILURE
