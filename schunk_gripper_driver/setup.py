@@ -14,7 +14,7 @@ setup(
         (os.path.join("lib", package_name), [package_name + "/driver.py"]),
         (os.path.join("share", package_name, "launch"), glob("launch/*.launch.py")),
     ],
-    install_requires=["setuptools"],
+    install_requires=["setuptools", "pymodbus"],
     zip_safe=True,
     maintainer="stefan",
     maintainer_email="stefan.scherzinger@de.schunk.com",

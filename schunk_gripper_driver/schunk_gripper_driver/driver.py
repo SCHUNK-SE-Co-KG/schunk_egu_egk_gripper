@@ -20,15 +20,31 @@ import rclpy
 from rclpy.lifecycle import Node
 from rclpy.lifecycle import State
 from rclpy.lifecycle import TransitionCallbackReturn
+from pymodbus.client import ModbusSerialClient
+from std_srvs.srv import Trigger
 
 
 class Driver(Node):
 
     def __init__(self, node_name: str, **kwargs):
         super().__init__(node_name, **kwargs)
+        self.mb_client = ModbusSerialClient(
+            port="/dev/pts/13", baudrate=9600, timeout=1
+        )
 
     def on_configure(self, state: State) -> TransitionCallbackReturn:
         self.get_logger().info("on_configure() is called.")
+        if not self.mb_client.connect():
+            self.get_logger().warn("Modbus client connect failed")
+            return TransitionCallbackReturn.FAILURE
+
+        # Services
+        self.acknowledge_srv = self.create_service(
+            Trigger, "~/acknowledge", self._acknowledge_cb
+        )
+        self.fast_stop_srv = self.create_service(
+            Trigger, "~/fast_stop", self._fast_stop_cb
+        )
         return TransitionCallbackReturn.SUCCESS
 
     def on_activate(self, state: State) -> TransitionCallbackReturn:
@@ -41,11 +57,31 @@ class Driver(Node):
 
     def on_cleanup(self, state: State) -> TransitionCallbackReturn:
         self.get_logger().info("on_cleanup() is called.")
+        if self.mb_client.connected:
+            self.mb_client.close()
+
+        # Release services
+        if not self.destroy_service(self.acknowledge_srv):
+            return TransitionCallbackReturn.FAILURE
+        if not self.destroy_service(self.fast_stop_srv):
+            return TransitionCallbackReturn.FAILURE
+
         return TransitionCallbackReturn.SUCCESS
 
     def on_shutdown(self, state: State) -> TransitionCallbackReturn:
         self.get_logger().info("on_shutdown() is called.")
         return TransitionCallbackReturn.SUCCESS
+
+    # Service callbacks
+    def _acknowledge_cb(self, request: Trigger.Request, response: Trigger.Response):
+        response.success = True
+        response.message = "Done"
+        return response
+
+    def _fast_stop_cb(self, request: Trigger.Request, response: Trigger.Response):
+        response.success = True
+        response.message = "Done"
+        return response
 
 
 def main():
