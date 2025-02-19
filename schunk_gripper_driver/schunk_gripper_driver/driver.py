@@ -21,6 +21,7 @@ from rclpy.lifecycle import Node
 from rclpy.lifecycle import State
 from rclpy.lifecycle import TransitionCallbackReturn
 from pymodbus.client import ModbusSerialClient
+from pymodbus.pdu import ModbusPDU
 from std_srvs.srv import Trigger
 
 
@@ -29,8 +30,17 @@ class Driver(Node):
     def __init__(self, node_name: str, **kwargs):
         super().__init__(node_name, **kwargs)
         self.declare_parameter("port", rclpy.Parameter.Type.STRING)
+        self.declare_parameter("device_id", rclpy.Parameter.Type.INTEGER)
         self.port = self.get_parameter_or("port", "/dev/ttyUSB0").value
-        self.mb_client = ModbusSerialClient(port=self.port, baudrate=9600, timeout=1)
+        self.mb_device_id = self.get_parameter_or("device_id", 14).value
+        self.mb_client = ModbusSerialClient(
+            port=self.port,
+            baudrate=9600,
+            timeout=1,
+            trace_packet=self._trace_packet,
+            trace_pdu=self._trace_pdu,
+        )
+        self.plc_output_reg = 72  # 0x0048
 
     def on_configure(self, state: State) -> TransitionCallbackReturn:
         self.get_logger().info("on_configure() is called.")
@@ -72,6 +82,14 @@ class Driver(Node):
     def on_shutdown(self, state: State) -> TransitionCallbackReturn:
         self.get_logger().info("on_shutdown() is called.")
         return TransitionCallbackReturn.SUCCESS
+
+    def _trace_pdu(self, flag: bool, pdu: ModbusPDU) -> ModbusPDU:
+        self.get_logger().warn(f"Sending/receiving this pdu: {pdu}")
+        return pdu
+
+    def _trace_packet(self, flag: bool, packet: bytes) -> bytes:
+        self.get_logger().warn(f"Sending/receiving these bytes: {packet!r}")
+        return packet
 
     # Service callbacks
     def _acknowledge_cb(self, request: Trigger.Request, response: Trigger.Response):

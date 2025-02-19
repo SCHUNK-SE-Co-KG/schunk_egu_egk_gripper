@@ -25,7 +25,12 @@ port = DeclareLaunchArgument(
     default_value="/dev/pts/13",
     description="The gripper's serial port",
 )
-args = [port]
+device_id = DeclareLaunchArgument(
+    "device_id",
+    default_value="12",
+    description="The gripper's Modbus device id",
+)
+args = [port, device_id]
 
 
 def generate_launch_description():
@@ -39,7 +44,9 @@ def generate_launch_description():
                 name="driver",
                 parameters=[
                     {"port": LaunchConfiguration("port")},
+                    {"device_id": LaunchConfiguration("device_id")},
                 ],
+                output="screen",
             )
         ]
     )
