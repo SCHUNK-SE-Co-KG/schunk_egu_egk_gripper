@@ -1,6 +1,4 @@
-from src.driver import Driver
-
-# [1]: https://stb.cloud.schunk.com/media/IM0046706.PDF
+from schunk_gripper_library.src.driver import Driver
 
 
 def test_driver_initializes_plc_data_buffers():

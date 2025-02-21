@@ -1,4 +1,4 @@
-from src.driver import Driver
+from schunk_gripper_library.src.driver import Driver
 import struct
 import pytest
 
