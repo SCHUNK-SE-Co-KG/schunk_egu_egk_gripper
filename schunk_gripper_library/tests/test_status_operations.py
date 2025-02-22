@@ -12,9 +12,10 @@ def test_driver_supports_reading_status_bits():
         assert result == 1
 
 
-def test_driver_rejects_reading_reserved_status_bits():
+def test_driver_rejects_reading_reserved_or_invalid_status_bits():
     driver = Driver()
-    for bit in driver.reserved_status_bits:
+    invalid_bits = [-1, 32]
+    for bit in driver.reserved_status_bits + invalid_bits:
         assert isinstance(driver.get_status_bit(bit), bool)  # call fails
         assert not driver.get_status_bit(bit)
 

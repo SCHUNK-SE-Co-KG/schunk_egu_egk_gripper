@@ -18,9 +18,10 @@ def test_driver_rejects_writing_reserved_control_bits():
         assert not driver.set_control_bit(bit, True)
 
 
-def test_driver_rejects_reading_reserved_control_bits():
+def test_driver_rejects_reading_reserved_or_invalid_control_bits():
     driver = Driver()
-    for bit in driver.reserved_control_bits:
+    invalid_bits = [-1, 32]
+    for bit in driver.reserved_control_bits + invalid_bits:
         assert isinstance(driver.get_control_bit(bit), bool)  # call fails
         assert not driver.get_control_bit(bit)
 
@@ -36,9 +37,10 @@ def test_driver_supports_toggling_control_bits():
         assert driver.get_control_bit(bit=bit) == before
 
 
-def test_driver_rejects_toggling_reserved_control_bits():
+def test_driver_rejects_toggling_reserved_or_invalid_control_bits():
     driver = Driver()
-    for bit in driver.reserved_control_bits:
+    invalid_bits = [-1, 32]
+    for bit in driver.reserved_control_bits + invalid_bits:
         assert not driver.toggle_control_bit(bit)
 
 
