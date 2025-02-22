@@ -20,6 +20,7 @@ class Driver(object):
         self.output_buffer_lock = Lock()
 
         self.mb_client = None
+        self.connected = False
 
     def connect(self, protocol: str, port: str, device_id: int | None = None) -> bool:
         if protocol not in ["modbus"]:
@@ -32,6 +33,8 @@ class Driver(object):
             return False
         if isinstance(device_id, int) and device_id < 0:
             return False
+        if self.connected:
+            return False
 
         if protocol == "modbus":
             self.mb_client = ModbusSerialClient(
@@ -39,8 +42,8 @@ class Driver(object):
                 baudrate=9600,
                 timeout=1,
             )
-            return self.mb_client.connect()
-        return False
+            self.connected = self.mb_client.connect()
+        return self.connected
 
     def disconnect(self) -> bool:
         if self.mb_client and self.mb_client.connected:

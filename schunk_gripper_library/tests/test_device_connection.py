@@ -16,9 +16,36 @@ def test_driver_rejects_invalid_connection_arguments():
     assert not driver.connect("modbus", "ok", 0)
 
 
-def test_driver_connects_to_modbus_grippers(pseudo_terminals):
+def test_driver_opens_modbus_connection(pseudo_terminals):
     driver = Driver()
     port = pseudo_terminals[0]
     device_id = 12  # SChUNK default
     assert driver.connect("modbus", port, device_id)
     assert driver.disconnect()
+
+
+def test_driver_rejects_repeated_connects(pseudo_terminals):
+    driver = Driver()
+    port = pseudo_terminals[0]
+    device_id = 42
+    driver.connect("modbus", port, device_id)
+    for _ in range(3):
+        assert not driver.connect("modbus", port, device_id)
+        driver.disconnect()
+
+
+def test_driver_rejects_new_connect_without_disconnect(pseudo_terminals):
+    driver = Driver()
+    port = pseudo_terminals[0]
+    other_port = pseudo_terminals[1]
+    assert driver.connect("modbus", port, 12)
+    assert not driver.connect("modbus", other_port[1], 34)
+    driver.disconnect()
+
+
+def test_driver_supports_repeated_disconnects(pseudo_terminals):
+    driver = Driver()
+    assert driver.disconnect()
+    driver.connect("modbus", pseudo_terminals[0], 123)
+    for _ in range(3):
+        assert driver.disconnect()
