@@ -1,5 +1,6 @@
 import struct
 from threading import Lock
+from pymodbus.client import ModbusSerialClient
 
 
 class Driver(object):
@@ -17,6 +18,34 @@ class Driver(object):
         self.plc_output_buffer = bytearray(bytes.fromhex("00" * 16))
         self.input_buffer_lock = Lock()
         self.output_buffer_lock = Lock()
+
+        self.mb_client = None
+
+    def connect(self, protocol: str, port: str, device_id: int | None = None) -> bool:
+        if protocol not in ["modbus"]:
+            return False
+        if not isinstance(port, str):
+            return False
+        if protocol == "modbus" and not device_id:
+            return False
+        if device_id and not isinstance(device_id, int):
+            return False
+        if isinstance(device_id, int) and device_id < 0:
+            return False
+
+        if protocol == "modbus":
+            self.mb_client = ModbusSerialClient(
+                port=port,
+                baudrate=9600,
+                timeout=1,
+            )
+            return self.mb_client.connect()
+        return False
+
+    def disconnect(self) -> bool:
+        if self.mb_client and self.mb_client.connected:
+            self.mb_client.close()
+        return True
 
     def set_plc_input(self, buffer: str) -> None:
         with self.input_buffer_lock:
