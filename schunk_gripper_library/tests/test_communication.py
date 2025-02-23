@@ -6,6 +6,7 @@ def test_driver_implements_connect(pseudo_terminals):
     port = pseudo_terminals[0]
     device_id = 12  # SChUNK default
     assert driver.connect("modbus", port, device_id)
+    assert driver.mb_device_id == device_id
     assert driver.disconnect()
 
 

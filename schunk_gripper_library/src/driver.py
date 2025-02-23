@@ -4,23 +4,30 @@ from pymodbus.client import ModbusSerialClient
 
 
 class Driver(object):
-    def __init__(self):
-        self.plc_input = "0x0040"
-        self.plc_output = "0x0048"
-        self.error_byte = 12
-        self.diagnostics_byte = 15
-        self.valid_status_bits = list(range(0, 10)) + [11, 12, 13, 14, 16, 17, 31]
-        self.valid_control_bits = list(range(0, 10)) + [11, 12, 13, 14, 16, 30, 31]
-        self.reserved_status_bits = [10, 15] + list(range(18, 31))
-        self.reserved_control_bits = [10, 15] + list(range(17, 30))
+    def __init__(self) -> None:
+        self.plc_input: str = "0x0040"
+        self.plc_output: str = "0x0048"
+        self.error_byte: int = 12
+        self.diagnostics_byte: int = 15
+        # fmt: off
+        self.valid_status_bits: list[int] = (
+            list(range(0, 10)) + [11, 12, 13, 14, 16, 17, 31]
+        )
+        self.valid_control_bits: list[int] = (
+            list(range(0, 10)) + [11, 12, 13, 14, 16, 30, 31]
+        )
+        # fmt:on
+        self.reserved_status_bits: list[int] = [10, 15] + list(range(18, 31))
+        self.reserved_control_bits: list[int] = [10, 15] + list(range(17, 30))
 
-        self.plc_input_buffer = bytearray(bytes.fromhex("00" * 16))
-        self.plc_output_buffer = bytearray(bytes.fromhex("00" * 16))
-        self.input_buffer_lock = Lock()
-        self.output_buffer_lock = Lock()
+        self.plc_input_buffer: bytearray = bytearray(bytes.fromhex("00" * 16))
+        self.plc_output_buffer: bytearray = bytearray(bytes.fromhex("00" * 16))
+        self.input_buffer_lock: Lock = Lock()
+        self.output_buffer_lock: Lock = Lock()
 
-        self.mb_client = None
-        self.connected = False
+        self.mb_client: ModbusSerialClient | None = None
+        self.mb_device_id: int | None = None
+        self.connected: bool = False
 
     def connect(self, protocol: str, port: str, device_id: int | None = None) -> bool:
         if protocol not in ["modbus"]:
@@ -37,6 +44,7 @@ class Driver(object):
             return False
 
         if protocol == "modbus":
+            self.mb_device_id = device_id
             self.mb_client = ModbusSerialClient(
                 port=port,
                 baudrate=9600,
