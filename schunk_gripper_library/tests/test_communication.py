@@ -24,6 +24,9 @@ def test_driver_rejects_invalid_connection_arguments():
     assert not driver.connect("modbus", "ok", -1)
     assert not driver.connect("modbus", "ok", 0)
 
+    # Arguments ok, but non-existent modbus port
+    assert not driver.connect("modbus", "non-existent", 12)
+
 
 def test_driver_rejects_repeated_connects(pseudo_terminals):
     driver = Driver()
