@@ -47,7 +47,8 @@ class Driver(object):
             self.mb_device_id = device_id
             self.mb_client = ModbusSerialClient(
                 port=port,
-                baudrate=9600,
+                baudrate=115200,
+                parity="N",
                 timeout=1,
             )
             self.connected = self.mb_client.connect()
@@ -57,6 +58,25 @@ class Driver(object):
         if self.mb_client and self.mb_client.connected:
             self.mb_client.close()
         return True
+
+    def send_plc_output(self) -> bool:
+        if self.mb_client and self.mb_client.connected:
+            with self.output_buffer_lock:
+                # Turn the 16-byte array into a list of 2-byte registers
+                values = [
+                    int.from_bytes(
+                        self.plc_output_buffer[i : i + 2], byteorder="little"
+                    )
+                    for i in range(0, len(self.plc_output_buffer), 2)
+                ]
+                self.mb_client.write_registers(
+                    address=int(self.plc_output, 16) - 1,  # Modbus convention
+                    values=values,
+                    slave=self.mb_device_id,
+                    no_response_expected=False,
+                )
+            return True
+        return False
 
     def set_plc_input(self, buffer: str) -> None:
         with self.input_buffer_lock:

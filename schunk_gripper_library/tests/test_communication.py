@@ -53,3 +53,9 @@ def test_driver_supports_repeated_disconnects(pseudo_terminals):
     driver.connect("modbus", pseudo_terminals[0], 123)
     for _ in range(3):
         assert driver.disconnect()
+
+
+def test_driver_implements_sending_plc_output(modbus_server):
+    driver = Driver()
+    driver.connect("modbus", modbus_server, 12)
+    assert driver.send_plc_output()

@@ -1,5 +1,7 @@
 import pytest
 from schunk_gripper_library.tests.etc.pseudo_terminals import Connection
+from schunk_gripper_library.tests.etc.modbus_server import ModbusServer
+import asyncio
 
 
 @pytest.fixture(scope="module")
@@ -12,3 +14,17 @@ def pseudo_terminals():
 
     print("Closing both pseudo terminals")
     connection.close()
+
+
+@pytest.fixture(scope="module")
+def modbus_server(pseudo_terminals):
+    pt1, pt2 = pseudo_terminals
+    server = ModbusServer()
+    print("Opening Modbus server")
+    asyncio.run(server.setup(port=pt1))
+    asyncio.run(server.start())
+
+    yield pt2
+
+    print("Closing Modbus server")
+    server.stop()
