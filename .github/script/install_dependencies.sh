@@ -1,9 +1,9 @@
 #/usr/bin/bash
 cd $HOME
-apt-get install -y curl libcurl4-openssl-dev
+apt-get install -y socat
 
 # Python dependencies
-python_deps="fastapi uvicorn httpx requests coverage python-multipart"
+python_deps="fastapi uvicorn httpx requests coverage python-multipart pymodbus pyserial"
 os_name=$(lsb_release -cs)
 
 case $os_name in

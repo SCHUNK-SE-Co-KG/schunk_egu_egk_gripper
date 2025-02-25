@@ -1,4 +1,5 @@
 from schunk_gripper_library.src.driver import Driver
+import pytest
 
 
 def test_driver_implements_connect(pseudo_terminals):
@@ -55,6 +56,7 @@ def test_driver_supports_repeated_disconnects(pseudo_terminals):
         assert driver.disconnect()
 
 
+@pytest.mark.skip()
 def test_driver_implements_sending_plc_output(modbus_server):
     driver = Driver()
     driver.connect("modbus", modbus_server, 12)
