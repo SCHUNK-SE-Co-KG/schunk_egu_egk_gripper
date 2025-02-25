@@ -173,9 +173,7 @@ class Driver(object):
 
     def get_target_speed(self) -> float:
         with self.output_buffer_lock:
-            return (
-                struct.unpack("i", self.plc_output_buffer[8:12])[0] / 1000.0
-            )  # um/s to mm/s
+            return struct.unpack("i", self.plc_output_buffer[8:12])[0]  # um/s
 
     def get_actual_position(self) -> int:  # um
         with self.input_buffer_lock:

@@ -73,7 +73,7 @@ def test_driver_supports_reading_and_writing_target_speed():
     driver = Driver()
     target_speed = 55300
     driver.set_target_speed(target_speed)
-    assert pytest.approx(driver.get_target_speed(), rel=1e-3) == target_speed / 1000.0
+    assert driver.get_target_speed() == target_speed
 
 
 def test_driver_rejects_invalid_target_speed():
