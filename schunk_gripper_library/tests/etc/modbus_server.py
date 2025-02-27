@@ -67,3 +67,10 @@ class ModbusServer:
 
     def stop(self):
         self.background_serving.cancel()
+
+    def get_params(self):
+        if self.server:
+            print(f"Slaves: {self.server.context.slaves()}")
+            return self.server.comm_params
+        else:
+            return "Server not set-up yet."
