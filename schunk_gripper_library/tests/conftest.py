@@ -2,6 +2,7 @@ import pytest
 from schunk_gripper_library.tests.etc.pseudo_terminals import Connection
 from schunk_gripper_library.tests.etc.modbus_server import ModbusServer
 import asyncio
+from pathlib import Path
 
 
 @pytest.fixture(scope="module")
@@ -28,3 +29,14 @@ def modbus_server(pseudo_terminals):
 
     print("Closing Modbus server")
     server.stop()
+
+
+def modbus_gripper_available():
+    if Path("/dev/ttyUSB0").exists():
+        return True
+    return False
+
+
+skip_without_gripper = pytest.mark.skipif(
+    not modbus_gripper_available(), reason="No modbus gripper available"
+)

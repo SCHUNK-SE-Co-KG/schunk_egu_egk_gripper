@@ -1,5 +1,5 @@
 from schunk_gripper_library.src.driver import Driver
-import pytest
+from schunk_gripper_library.tests.conftest import skip_without_gripper
 
 
 def test_driver_implements_connect(pseudo_terminals):
@@ -56,8 +56,24 @@ def test_driver_supports_repeated_disconnects(pseudo_terminals):
         assert driver.disconnect()
 
 
-@pytest.mark.skip()
-def test_driver_implements_sending_plc_output(modbus_server):
+@skip_without_gripper
+def test_driver_implements_sending_plc_output():
     driver = Driver()
-    driver.connect("modbus", modbus_server, 12)
+    driver.connect("modbus", "/dev/ttyUSB0", 12)
     assert driver.send_plc_output()
+    driver.disconnect()
+
+
+@skip_without_gripper
+def test_driver_supports_repeated_sending_without_sleep():
+    driver = Driver()
+    driver.connect("modbus", "/dev/ttyUSB0", 12)
+    for _ in range(5):
+        assert driver.send_plc_output()
+    driver.disconnect()
+
+
+@skip_without_gripper
+def test_driver_rejects_sending_when_not_connected():
+    driver = Driver()
+    assert not driver.send_plc_output()
