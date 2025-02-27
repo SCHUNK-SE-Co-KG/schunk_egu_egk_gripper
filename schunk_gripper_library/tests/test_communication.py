@@ -77,3 +77,23 @@ def test_driver_supports_repeated_sending_without_sleep():
 def test_driver_rejects_sending_when_not_connected():
     driver = Driver()
     assert not driver.send_plc_output()
+
+
+@skip_without_gripper
+def test_driver_implements_receiving_plc_input():
+    driver = Driver()
+    driver.connect("modbus", "/dev/ttyUSB0", 12)
+    before = driver.get_plc_input()
+    assert driver.receive_plc_input()
+    after = driver.get_plc_input()
+    assert not after == before
+    driver.disconnect()
+
+
+@skip_without_gripper
+def test_driver_supports_repeated_receiving_without_sleep():
+    driver = Driver()
+    driver.connect("modbus", "/dev/ttyUSB0", 12)
+    for _ in range(5):
+        assert driver.receive_plc_input()
+    driver.disconnect()

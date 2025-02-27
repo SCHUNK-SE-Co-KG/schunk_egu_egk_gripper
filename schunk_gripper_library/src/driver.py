@@ -1,6 +1,7 @@
 import struct
 from threading import Lock
 from pymodbus.client import ModbusSerialClient
+import re
 
 
 class Driver(object):
@@ -78,19 +79,49 @@ class Driver(object):
             return True
         return False
 
-    def set_plc_input(self, buffer: str) -> None:
-        with self.input_buffer_lock:
-            self.plc_input_buffer = bytearray(bytes.fromhex(buffer))
+    def receive_plc_input(self) -> bool:
+        if self.mb_client and self.mb_client.connected:
+            with self.input_buffer_lock:
+                pdu = self.mb_client.read_holding_registers(
+                    address=int(self.plc_input, 16) - 1,
+                    count=8,
+                    slave=self.mb_device_id,
+                    no_response_expected=False,
+                )
+                # Parse the 2-byte registers into a 16-byte array
+                data = bytearray()
+                for reg in pdu.registers:
+                    data.extend(reg.to_bytes(2, byteorder="little"))
+                self.plc_input_buffer = data
+                return True
+        return False
 
-    def get_plc_input(self):
+    def contains_non_hex_chars(self, buffer: str) -> bool:
+        return bool(re.search(r"[^0-9a-fA-F]", buffer))
+
+    def set_plc_input(self, buffer: str) -> bool:
+        with self.input_buffer_lock:
+            if len(buffer) != 32:
+                return False
+            if self.contains_non_hex_chars(buffer):
+                return False
+            self.plc_input_buffer = bytearray(bytes.fromhex(buffer))
+            return True
+
+    def get_plc_input(self) -> str:
         with self.input_buffer_lock:
             return self.plc_input_buffer.hex().upper()
 
-    def set_plc_output(self, buffer: str) -> None:
+    def set_plc_output(self, buffer: str) -> bool:
         with self.output_buffer_lock:
+            if len(buffer) != 32:
+                return False
+            if self.contains_non_hex_chars(buffer):
+                return False
             self.plc_output_buffer = bytearray(bytes.fromhex(buffer))
+            return True
 
-    def get_plc_output(self):
+    def get_plc_output(self) -> str:
         with self.output_buffer_lock:
             return self.plc_output_buffer.hex().upper()
 
