@@ -21,8 +21,6 @@ from launch.actions import IncludeLaunchDescription
 from launch.substitutions import PathJoinSubstitution
 from launch_ros.substitutions import FindPackageShare
 import launch_pytest
-import subprocess
-from ament_index_python.packages import get_package_share_directory
 
 
 # We avoid black's F811, F401 linting warnings
@@ -36,21 +34,6 @@ def isolated():
     rclpy.init()
     yield
     rclpy.shutdown()
-
-
-@pytest.fixture(scope="module")
-def gripper_dummy():
-    package_name = "schunk_egu_egk_gripper_dummy"
-    dummy_dir = get_package_share_directory(package_name)
-    start_cmd = " uvicorn main:server --port 8000"
-    p = subprocess.Popen(
-        "exec" + start_cmd, stdin=subprocess.PIPE, cwd=dummy_dir, shell=True
-    )
-
-    print("------------ Started gripper dummy")
-    yield
-    p.kill()
-    print("------------ Stopped gripper dummy")
 
 
 @launch_pytest.fixture(scope="module")
