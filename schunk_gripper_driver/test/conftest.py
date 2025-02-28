@@ -21,23 +21,20 @@ from launch.actions import IncludeLaunchDescription
 from launch.substitutions import PathJoinSubstitution
 from launch_ros.substitutions import FindPackageShare
 import launch_pytest
-
-
-# We avoid black's F811, F401 linting warnings
-# by using pytest's special conftest.py file.
-# See documentation here:
-# https://docs.pytest.org/en/7.1.x/reference/fixtures.html#conftest-py-sharing-fixtures-across-multiple-files  # noqa: E501
+from lifecycle_msgs.srv import ChangeState, GetState
+from rclpy.node import Node
+from rclpy.time import Duration
 
 
 @pytest.fixture(scope="module")
-def isolated():
+def ros2():
     rclpy.init()
     yield
     rclpy.shutdown()
 
 
 @launch_pytest.fixture(scope="module")
-def launch_description():
+def driver(ros2):
     setup = IncludeLaunchDescription(
         PathJoinSubstitution(
             [
@@ -48,3 +45,36 @@ def launch_description():
         )
     )
     return LaunchDescription([setup, launch_pytest.actions.ReadyToTest()])
+
+
+class LifecycleInterface(object):
+    def __init__(self):
+        self.node = Node("test_repeated_configure")
+        timeout = Duration(seconds=2)
+
+        self.change_state_client = self.node.create_client(
+            ChangeState, "/schunk/driver/change_state"
+        )
+        self.change_state_client.wait_for_service(timeout.nanoseconds / 1e9)
+        self.get_state_client = self.node.create_client(
+            GetState, "/schunk/driver/get_state"
+        )
+        self.get_state_client.wait_for_service(timeout.nanoseconds / 1e9)
+
+    def change_state(self, transition_id):
+        req = ChangeState.Request()
+        req.transition.id = transition_id
+        future = self.change_state_client.call_async(req)
+        rclpy.spin_until_future_complete(self.node, future)
+        return future.result()
+
+    def check_state(self, state_id):
+        req = GetState.Request()
+        future = self.get_state_client.call_async(req)
+        rclpy.spin_until_future_complete(self.node, future)
+        return future.result().current_state.id == state_id
+
+
+@pytest.fixture(scope="module")
+def lifecycle_interface(driver):
+    return LifecycleInterface()

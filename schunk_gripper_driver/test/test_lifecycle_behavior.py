@@ -14,109 +14,51 @@
 # this program. If not, see <https://www.gnu.org/licenses/>.
 # --------------------------------------------------------------------------------
 
-import pytest
-import rclpy
-from rclpy.node import Node
-from rclpy.time import Duration
-from schunk_gripper_driver.test.conftest import (
-    launch_description,
-)
-from lifecycle_msgs.srv import ChangeState, GetState
 from lifecycle_msgs.msg import Transition, State
-from functools import partial
 
 
-def change_state(node, client, transition_id):
-    req = ChangeState.Request()
-    req.transition.id = transition_id
-    future = client.call_async(req)
-    rclpy.spin_until_future_complete(node, future)
-    return future.result()
-
-
-def check_state(node, client, state_id):
-    req = GetState.Request()
-    future = client.call_async(req)
-    rclpy.spin_until_future_complete(node, future)
-    return future.result().current_state.id == state_id
-
-
-@pytest.mark.launch(fixture=launch_description)
-def test_driver_supports_repeated_configure_and_cleanup(isolated):
-    node = Node("test_repeated_configure")
-    timeout = Duration(seconds=2)
-
-    change_state_client = node.create_client(ChangeState, "/schunk/driver/change_state")
-    change_state_client.wait_for_service(timeout.nanoseconds / 1e9)
-    get_state_client = node.create_client(GetState, "/schunk/driver/get_state")
-    get_state_client.wait_for_service(timeout.nanoseconds / 1e9)
-
-    in_state = partial(check_state, node, get_state_client)
-    trigger = partial(change_state, node, change_state_client)
-
+def test_driver_supports_repeated_configure_and_cleanup(lifecycle_interface):
+    driver = lifecycle_interface
     for _ in range(3):
-        trigger(Transition.TRANSITION_CONFIGURE)
-        assert in_state(State.PRIMARY_STATE_INACTIVE)
-        trigger(Transition.TRANSITION_CLEANUP)
-        assert in_state(State.PRIMARY_STATE_UNCONFIGURED)
+        driver.change_state(Transition.TRANSITION_CONFIGURE)
+        assert driver.check_state(State.PRIMARY_STATE_INACTIVE)
+        driver.change_state(Transition.TRANSITION_CLEANUP)
+        assert driver.check_state(State.PRIMARY_STATE_UNCONFIGURED)
 
 
-@pytest.mark.launch(fixture=launch_description)
-def test_driver_supports_repeated_activate_and_deactivate(isolated):
-    node = Node("test_repeated_activate")
-    timeout = Duration(seconds=2)
-
-    change_state_client = node.create_client(ChangeState, "/schunk/driver/change_state")
-    change_state_client.wait_for_service(timeout.nanoseconds / 1e9)
-    get_state_client = node.create_client(GetState, "/schunk/driver/get_state")
-    get_state_client.wait_for_service(timeout.nanoseconds / 1e9)
-
-    in_state = partial(check_state, node, get_state_client)
-    trigger = partial(change_state, node, change_state_client)
-
-    trigger(Transition.TRANSITION_CONFIGURE)
-
+def test_driver_supports_repeated_activate_and_deactivate(lifecycle_interface):
+    driver = lifecycle_interface
+    driver.change_state(Transition.TRANSITION_CONFIGURE)
     for _ in range(3):
-        trigger(Transition.TRANSITION_ACTIVATE)
-        assert in_state(State.PRIMARY_STATE_ACTIVE)
-        trigger(Transition.TRANSITION_DEACTIVATE)
-        assert in_state(State.PRIMARY_STATE_INACTIVE)
+        driver.change_state(Transition.TRANSITION_ACTIVATE)
+        assert driver.check_state(State.PRIMARY_STATE_ACTIVE)
+        driver.change_state(Transition.TRANSITION_DEACTIVATE)
+        assert driver.check_state(State.PRIMARY_STATE_INACTIVE)
+    driver.change_state(Transition.TRANSITION_CLEANUP)
 
-    trigger(Transition.TRANSITION_CLEANUP)
 
-
-@pytest.mark.launch(fixture=launch_description)
-def test_primary_lifecycle_states(isolated):
-    node = Node("test_primary_lifecycle_states")
-    timeout = Duration(seconds=2)
-
-    change_state_client = node.create_client(ChangeState, "/schunk/driver/change_state")
-    change_state_client.wait_for_service(timeout.nanoseconds / 1e9)
-    get_state_client = node.create_client(GetState, "/schunk/driver/get_state")
-    get_state_client.wait_for_service(timeout.nanoseconds / 1e9)
-
-    in_state = partial(check_state, node, get_state_client)
-    trigger = partial(change_state, node, change_state_client)
+def test_primary_lifecycle_states(lifecycle_interface):
+    driver = lifecycle_interface
 
     # Startup
-    assert in_state(State.PRIMARY_STATE_UNCONFIGURED)
+    assert driver.check_state(State.PRIMARY_STATE_UNCONFIGURED)
 
     # configure
-    trigger(Transition.TRANSITION_CONFIGURE)
-    assert in_state(State.PRIMARY_STATE_INACTIVE)
+    driver.change_state(Transition.TRANSITION_CONFIGURE)
+    assert driver.check_state(State.PRIMARY_STATE_INACTIVE)
 
     # activate
-    trigger(Transition.TRANSITION_ACTIVATE)
-    assert in_state(State.PRIMARY_STATE_ACTIVE)
+    driver.change_state(Transition.TRANSITION_ACTIVATE)
+    assert driver.check_state(State.PRIMARY_STATE_ACTIVE)
 
     # deactivate
-    trigger(Transition.TRANSITION_DEACTIVATE)
-    assert in_state(State.PRIMARY_STATE_INACTIVE)
+    driver.change_state(Transition.TRANSITION_DEACTIVATE)
+    assert driver.check_state(State.PRIMARY_STATE_INACTIVE)
 
     # cleanup
-    trigger(Transition.TRANSITION_CLEANUP)
-    assert in_state(State.PRIMARY_STATE_UNCONFIGURED)
+    driver.change_state(Transition.TRANSITION_CLEANUP)
+    assert driver.check_state(State.PRIMARY_STATE_UNCONFIGURED)
 
     # shutdown
-    trigger(Transition.TRANSITION_UNCONFIGURED_SHUTDOWN)
-    assert in_state(State.PRIMARY_STATE_FINALIZED)
+    driver.change_state(Transition.TRANSITION_UNCONFIGURED_SHUTDOWN)
+    assert driver.check_state(State.PRIMARY_STATE_FINALIZED)
