@@ -23,7 +23,6 @@ from launch_ros.substitutions import FindPackageShare
 import launch_pytest
 from lifecycle_msgs.srv import ChangeState, GetState
 from rclpy.node import Node
-from rclpy.time import Duration
 
 
 @pytest.fixture(scope="module")
@@ -49,17 +48,15 @@ def driver(ros2):
 
 class LifecycleInterface(object):
     def __init__(self):
-        self.node = Node("test_repeated_configure")
-        timeout = Duration(seconds=2)
-
+        self.node = Node("lifecycle_interface")
         self.change_state_client = self.node.create_client(
             ChangeState, "/schunk/driver/change_state"
         )
-        self.change_state_client.wait_for_service(timeout.nanoseconds / 1e9)
+        self.change_state_client.wait_for_service(timeout_sec=2)
         self.get_state_client = self.node.create_client(
             GetState, "/schunk/driver/get_state"
         )
-        self.get_state_client.wait_for_service(timeout.nanoseconds / 1e9)
+        self.get_state_client.wait_for_service(timeout_sec=2)
 
     def change_state(self, transition_id):
         req = ChangeState.Request()
