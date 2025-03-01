@@ -58,6 +58,7 @@ class Driver(object):
     def disconnect(self) -> bool:
         if self.mb_client and self.mb_client.connected:
             self.mb_client.close()
+            self.connected = False
         return True
 
     def send_plc_output(self) -> bool:
