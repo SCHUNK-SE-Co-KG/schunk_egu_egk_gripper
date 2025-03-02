@@ -10,7 +10,7 @@ class Driver(object):
         self.plc_output: str = "0x0048"
         self.error_byte: int = 12
         self.warning_byte: int = 14
-        self.diagnostics_byte: int = 15
+        self.additional_byte: int = 15
         # fmt: off
         self.valid_status_bits: list[int] = (
             list(range(0, 10)) + [11, 12, 13, 14, 16, 17, 31]
@@ -170,23 +170,31 @@ class Driver(object):
             byte_index, bit_index = divmod(bit, 8)
             return 1 if self.plc_input_buffer[byte_index] & (1 << bit_index) != 0 else 0
 
-    def get_status_error(self) -> str:
+    def get_error_code(self) -> str:
         with self.input_buffer_lock:
             return hex(self.plc_input_buffer[self.error_byte]).replace("0x", "").upper()
 
-    def get_status_warning(self) -> str:
+    def get_warning_code(self) -> str:
         with self.input_buffer_lock:
             return (
                 hex(self.plc_input_buffer[self.warning_byte]).replace("0x", "").upper()
             )
 
-    def get_status_diagnostics(self) -> str:
+    def get_additional_code(self) -> str:
         with self.input_buffer_lock:
             return (
-                hex(self.plc_input_buffer[self.diagnostics_byte])
+                hex(self.plc_input_buffer[self.additional_byte])
                 .replace("0x", "")
                 .upper()
             )
+
+    def get_status_diagnostics(self) -> str:
+        diagnostics = (
+            f"error_code: {self.get_error_code()}"
+            + f", warning_code: {self.get_warning_code()}"
+            + f", additional_code: {self.get_additional_code()}"
+        )
+        return diagnostics
 
     def set_target_position(self, target_pos: int) -> bool:
         with self.output_buffer_lock:
