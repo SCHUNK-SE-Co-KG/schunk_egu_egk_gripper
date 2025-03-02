@@ -47,7 +47,9 @@ def test_concurrent_input_buffer_reads_dont_deadlock():
 
     def read():
         for n in range(nr_iterations):
-            driver.get_status_error()
+            driver.get_error_code()
+            driver.get_warning_code()
+            driver.get_additional_code()
             driver.get_status_diagnostics()
             for bit in driver.valid_status_bits:
                 driver.get_status_bit(bit)
