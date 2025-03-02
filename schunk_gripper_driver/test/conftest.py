@@ -71,6 +71,11 @@ class LifecycleInterface(object):
         rclpy.spin_until_future_complete(self.node, future)
         return future.result().current_state.id == state_id
 
+    def exists(self, service: str) -> bool:
+        existing = getattr(self.node, "get_service_names_and_types")()
+        advertised = [i[0] for i in existing]
+        return service in advertised
+
 
 @pytest.fixture(scope="module")
 def lifecycle_interface(driver):

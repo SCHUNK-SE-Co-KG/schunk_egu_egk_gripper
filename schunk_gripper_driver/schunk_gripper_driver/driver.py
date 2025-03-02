@@ -20,7 +20,7 @@ import rclpy
 from rclpy.lifecycle import Node
 from rclpy.lifecycle import State
 from rclpy.lifecycle import TransitionCallbackReturn
-from pymodbus.client import ModbusSerialClient
+from schunk_gripper_library.driver import Driver as GripperDriver
 from pymodbus.pdu import ModbusPDU
 from std_srvs.srv import Trigger
 
@@ -32,21 +32,17 @@ class Driver(Node):
         self.declare_parameter("port", rclpy.Parameter.Type.STRING)
         self.declare_parameter("device_id", rclpy.Parameter.Type.INTEGER)
         self.port = self.get_parameter_or("port", "/dev/ttyUSB0").value
-        self.mb_device_id = self.get_parameter_or("device_id", 14).value
-        self.mb_client = ModbusSerialClient(
-            port=self.port,
-            baudrate=9600,
-            timeout=1,
-            trace_packet=self._trace_packet,
-            trace_pdu=self._trace_pdu,
-        )
-        self.plc_output_reg = 72  # 0x0048
+        self.gripper = GripperDriver()
 
     def on_configure(self, state: State) -> TransitionCallbackReturn:
         self.get_logger().info("on_configure() is called.")
         self.get_logger().info(f"Connecting on port {self.port}")
-        if not self.mb_client.connect():
-            self.get_logger().warn("Modbus client connect failed")
+        if not self.gripper.connect(
+            protocol="modbus",
+            port=self.get_parameter_or("port", "/dev/ttyUSB0").value,
+            device_id=self.get_parameter_or("device_id", 12).value,
+        ):
+            self.get_logger().warn("Gripper connect failed")
             return TransitionCallbackReturn.FAILURE
 
         # Services
@@ -68,8 +64,7 @@ class Driver(Node):
 
     def on_cleanup(self, state: State) -> TransitionCallbackReturn:
         self.get_logger().info("on_cleanup() is called.")
-        if self.mb_client.connected:
-            self.mb_client.close()
+        self.gripper.disconnect()
 
         # Release services
         if not self.destroy_service(self.acknowledge_srv):

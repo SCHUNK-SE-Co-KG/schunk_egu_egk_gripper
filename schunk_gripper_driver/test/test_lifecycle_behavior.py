@@ -13,10 +13,11 @@
 # You should have received a copy of the GNU General Public License along with
 # this program. If not, see <https://www.gnu.org/licenses/>.
 # --------------------------------------------------------------------------------
-
+from schunk_gripper_library.tests.conftest import skip_without_gripper
 from lifecycle_msgs.msg import Transition, State
 
 
+@skip_without_gripper
 def test_driver_supports_repeated_configure_and_cleanup(lifecycle_interface):
     driver = lifecycle_interface
     for _ in range(3):
@@ -26,6 +27,7 @@ def test_driver_supports_repeated_configure_and_cleanup(lifecycle_interface):
         assert driver.check_state(State.PRIMARY_STATE_UNCONFIGURED)
 
 
+@skip_without_gripper
 def test_driver_supports_repeated_activate_and_deactivate(lifecycle_interface):
     driver = lifecycle_interface
     driver.change_state(Transition.TRANSITION_CONFIGURE)
@@ -37,6 +39,7 @@ def test_driver_supports_repeated_activate_and_deactivate(lifecycle_interface):
     driver.change_state(Transition.TRANSITION_CLEANUP)
 
 
+@skip_without_gripper
 def test_primary_lifecycle_states(lifecycle_interface):
     driver = lifecycle_interface
 
