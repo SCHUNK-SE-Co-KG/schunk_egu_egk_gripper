@@ -53,3 +53,20 @@ def test_driver_implements_acknowledge(lifecycle_interface):
     assert future.result().success
     expected_msg = "error_code: 0, warning_code: 0, additional_code: 0"  # everything ok
     assert future.result().message == expected_msg
+    lifecycle_interface.change_state(Transition.TRANSITION_CLEANUP)
+
+
+@skip_without_gripper
+def test_driver_implements_fast_stop(lifecycle_interface):
+    lifecycle_interface.change_state(Transition.TRANSITION_CONFIGURE)
+
+    node = Node("check_fast_stop")
+    client = node.create_client(Trigger, "/schunk/driver/fast_stop")
+    client.wait_for_service(timeout_sec=2)
+    future = client.call_async(Trigger.Request())
+    rclpy.spin_until_future_complete(node, future)
+
+    assert future.result().success
+    expected_msg = "error_code: 0, warning_code: 0, additional_code: 0"  # everything ok
+    assert future.result().message == expected_msg
+    lifecycle_interface.change_state(Transition.TRANSITION_CLEANUP)
