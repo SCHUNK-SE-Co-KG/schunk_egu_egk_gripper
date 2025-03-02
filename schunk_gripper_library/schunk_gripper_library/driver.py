@@ -9,6 +9,7 @@ class Driver(object):
         self.plc_input: str = "0x0040"
         self.plc_output: str = "0x0048"
         self.error_byte: int = 12
+        self.warning_byte: int = 14
         self.diagnostics_byte: int = 15
         # fmt: off
         self.valid_status_bits: list[int] = (
@@ -172,6 +173,12 @@ class Driver(object):
     def get_status_error(self) -> str:
         with self.input_buffer_lock:
             return hex(self.plc_input_buffer[self.error_byte]).replace("0x", "").upper()
+
+    def get_status_warning(self) -> str:
+        with self.input_buffer_lock:
+            return (
+                hex(self.plc_input_buffer[self.warning_byte]).replace("0x", "").upper()
+            )
 
     def get_status_diagnostics(self) -> str:
         with self.input_buffer_lock:

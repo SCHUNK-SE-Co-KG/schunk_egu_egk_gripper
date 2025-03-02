@@ -29,6 +29,15 @@ def test_driver_supports_reading_status_error():
         assert driver.get_status_error() == expected
 
 
+def test_driver_supports_reading_status_warning():
+    driver = Driver()
+    warning_codes = ["A0", "c1", "0xef"]
+    expected = ["A0", "C1", "EF"]
+    for warning, expected in zip(warning_codes, expected):
+        driver.plc_input_buffer[driver.warning_byte] = int(warning, 16)
+        assert driver.get_status_warning() == expected
+
+
 def test_driver_supports_reading_status_diagnostics():
     driver = Driver()
     diagnostics_code = "EF"
