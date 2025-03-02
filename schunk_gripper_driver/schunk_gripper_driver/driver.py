@@ -88,8 +88,10 @@ class Driver(Node):
 
     # Service callbacks
     def _acknowledge_cb(self, request: Trigger.Request, response: Trigger.Response):
-        response.success = True
-        response.message = "Done"
+        self.gripper.set_control_bit(bit=2, value=True)
+        self.gripper.set_control_bit(bit=0, value=True)
+        response.success = self.gripper.send_plc_output()
+        response.message = self.gripper.get_status_diagnostics()
         return response
 
     def _fast_stop_cb(self, request: Trigger.Request, response: Trigger.Response):

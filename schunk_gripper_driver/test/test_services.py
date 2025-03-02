@@ -16,6 +16,9 @@
 
 from schunk_gripper_library.tests.conftest import skip_without_gripper
 from lifecycle_msgs.msg import Transition
+from std_srvs.srv import Trigger
+from rclpy.node import Node
+import rclpy
 
 
 @skip_without_gripper
@@ -35,3 +38,18 @@ def test_driver_advertises_services_when_configured(lifecycle_interface):
     driver.change_state(Transition.TRANSITION_CLEANUP)
     for service in service_list:
         not driver.exists(service)
+
+
+@skip_without_gripper
+def test_driver_implements_acknowledge(lifecycle_interface):
+    lifecycle_interface.change_state(Transition.TRANSITION_CONFIGURE)
+
+    node = Node("check_acknowledge")
+    client = node.create_client(Trigger, "/schunk/driver/acknowledge")
+    client.wait_for_service(timeout_sec=2)
+    future = client.call_async(Trigger.Request())
+    rclpy.spin_until_future_complete(node, future)
+
+    assert future.result().success
+    expected_msg = "error_code: 0, warning_code: 0, additional_code: 0"  # everything ok
+    assert future.result().message == expected_msg
