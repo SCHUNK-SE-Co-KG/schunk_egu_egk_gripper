@@ -172,20 +172,24 @@ class Driver(object):
 
     def get_error_code(self) -> str:
         with self.input_buffer_lock:
-            return hex(self.plc_input_buffer[self.error_byte]).replace("0x", "").upper()
+            return (
+                hex(self.plc_input_buffer[self.error_byte]).upper().replace("0X", "0x")
+            )
 
     def get_warning_code(self) -> str:
         with self.input_buffer_lock:
             return (
-                hex(self.plc_input_buffer[self.warning_byte]).replace("0x", "").upper()
+                hex(self.plc_input_buffer[self.warning_byte])
+                .upper()
+                .replace("0X", "0x")
             )
 
     def get_additional_code(self) -> str:
         with self.input_buffer_lock:
             return (
                 hex(self.plc_input_buffer[self.additional_byte])
-                .replace("0x", "")
                 .upper()
+                .replace("0X", "0x")
             )
 
     def get_status_diagnostics(self) -> str:
