@@ -65,11 +65,10 @@ class Driver(object):
     def send_plc_output(self) -> bool:
         if self.mb_client and self.mb_client.connected:
             with self.output_buffer_lock:
-                # Turn the 16-byte array into a list of 2-byte registers
+                # Turn the 16-byte array into a list of 2-byte registers.
+                # Pymodbus uses big endian internally for their encoding.
                 values = [
-                    int.from_bytes(
-                        self.plc_output_buffer[i : i + 2], byteorder="little"
-                    )
+                    int.from_bytes(self.plc_output_buffer[i : i + 2], byteorder="big")
                     for i in range(0, len(self.plc_output_buffer), 2)
                 ]
                 self.mb_client.write_registers(
@@ -90,10 +89,11 @@ class Driver(object):
                     slave=self.mb_device_id,
                     no_response_expected=False,
                 )
-                # Parse the 2-byte registers into a 16-byte array
+                # Parse the 2-byte registers into a 16-byte array.
+                # Revert pymodbus' internal big endian decoding.
                 data = bytearray()
                 for reg in pdu.registers:
-                    data.extend(reg.to_bytes(2, byteorder="little"))
+                    data.extend(reg.to_bytes(2, byteorder="big"))
                 self.plc_input_buffer = data
                 return True
         return False
