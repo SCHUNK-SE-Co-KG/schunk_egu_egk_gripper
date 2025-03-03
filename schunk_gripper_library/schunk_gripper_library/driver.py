@@ -127,6 +127,10 @@ class Driver(object):
         with self.output_buffer_lock:
             return self.plc_output_buffer.hex().upper()
 
+    def clear_plc_output(self) -> None:
+        with self.output_buffer_lock:
+            self.plc_output_buffer = bytearray(bytes.fromhex("00" * 16))
+
     def set_control_bit(self, bit: int, value: bool) -> bool:
         with self.output_buffer_lock:
             if bit < 0 or bit > 31:
