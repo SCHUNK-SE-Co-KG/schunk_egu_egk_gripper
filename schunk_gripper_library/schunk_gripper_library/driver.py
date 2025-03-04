@@ -1,6 +1,7 @@
 import struct
 from threading import Lock
 from pymodbus.client import ModbusSerialClient
+from pymodbus.pdu import ModbusPDU
 import re
 
 
@@ -51,7 +52,10 @@ class Driver(object):
                 port=port,
                 baudrate=115200,
                 parity="N",
-                timeout=1,
+                stopbits=1,
+                trace_connect=self._trace_connect,
+                trace_packet=self._trace_packet,
+                trace_pdu=self._trace_pdu,
             )
             self.connected = self.mb_client.connect()
         return self.connected
@@ -246,3 +250,17 @@ class Driver(object):
             else:
                 self.plc_input_buffer[byte_index] &= ~(1 << bit_index)
             return True
+
+    def _trace_packet(self, sending: bool, data: bytes) -> bytes:
+        txt = "REQUEST stream" if sending else "RESPONSE stream"
+        print(f"---> {txt}: {data!r}")
+        return data
+
+    def _trace_pdu(self, sending: bool, pdu: ModbusPDU) -> ModbusPDU:
+        txt = "REQUEST pdu" if sending else "RESPONSE pdu"
+        print(f"---> {txt}: {pdu}")
+        return pdu
+
+    def _trace_connect(self, connect: bool) -> None:
+        txt = "Connected" if connect else "Disconnected"
+        print(f"---> {txt}")

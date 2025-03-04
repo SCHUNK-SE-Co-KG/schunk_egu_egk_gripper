@@ -21,8 +21,8 @@ from rclpy.lifecycle import Node
 from rclpy.lifecycle import State
 from rclpy.lifecycle import TransitionCallbackReturn
 from schunk_gripper_library.driver import Driver as GripperDriver
-from pymodbus.pdu import ModbusPDU
 from std_srvs.srv import Trigger
+import time
 
 
 class Driver(Node):
@@ -52,6 +52,14 @@ class Driver(Node):
         self.fast_stop_srv = self.create_service(
             Trigger, "~/fast_stop", self._fast_stop_cb
         )
+
+        # State update
+        self.timer = self.create_timer(0.5, self.status_update)
+
+        # Clear control bits
+        self.gripper.clear_plc_output()
+        self.gripper.set_control_bit(bit=0, value=True)
+        self.gripper.send_plc_output()
         return TransitionCallbackReturn.SUCCESS
 
     def on_activate(self, state: State) -> TransitionCallbackReturn:
@@ -78,25 +86,55 @@ class Driver(Node):
         self.get_logger().info("on_shutdown() is called.")
         return TransitionCallbackReturn.SUCCESS
 
-    def _trace_pdu(self, flag: bool, pdu: ModbusPDU) -> ModbusPDU:
-        self.get_logger().warn(f"Sending/receiving this pdu: {pdu}")
-        return pdu
-
-    def _trace_packet(self, flag: bool, packet: bytes) -> bytes:
-        self.get_logger().warn(f"Sending/receiving these bytes: {packet!r}")
-        return packet
+    def status_update(self):
+        self.gripper.receive_plc_input()
 
     # Service callbacks
     def _acknowledge_cb(self, request: Trigger.Request, response: Trigger.Response):
-        self.gripper.set_control_bit(bit=2, value=True)
+        self.get_logger().info("---> Acknowledge")
+        # Reset
+        self.gripper.clear_plc_output()
         self.gripper.set_control_bit(bit=0, value=True)
-        response.success = self.gripper.send_plc_output()
+        self.gripper.send_plc_output()
+        time.sleep(0.5)
+        # Acknowledge
+        self.gripper.set_control_bit(bit=2, value=True)
+        for bit in self.gripper.valid_control_bits:
+            self.get_logger().info(
+                f"---> Control bit {bit}: {self.gripper.get_control_bit(bit=bit)}"
+            )
+        self.gripper.send_plc_output()
+        time.sleep(0.5)
+        self.gripper.receive_plc_input()
+        for bit in self.gripper.valid_status_bits:
+            self.get_logger().info(
+                f"---> Status bit {bit}: {self.gripper.get_status_bit(bit=bit)}"
+            )
+
+        response.success = (
+            self.gripper.get_status_bit(bit=0) == 1
+            and self.gripper.get_status_bit(bit=4) == 1
+        )
         response.message = self.gripper.get_status_diagnostics()
         return response
 
     def _fast_stop_cb(self, request: Trigger.Request, response: Trigger.Response):
-        self.gripper.set_control_bit(bit=0, value=0)
-        response.success = self.gripper.send_plc_output()
+        self.get_logger().info("---> Fast stop")
+        self.gripper.clear_plc_output()
+        self.gripper.set_control_bit(bit=0, value=False)
+        for bit in self.gripper.valid_control_bits:
+            self.get_logger().info(
+                f"---> Control bit {bit}: {self.gripper.get_control_bit(bit=bit)}"
+            )
+        self.gripper.send_plc_output()
+        time.sleep(0.5)
+        self.gripper.receive_plc_input()
+        for bit in self.gripper.valid_status_bits:
+            self.get_logger().info(
+                f"---> Status bit {bit}: {self.gripper.get_status_bit(bit=bit)}"
+            )
+
+        response.success = self.gripper.get_status_bit(bit=4) == 1
         response.message = self.gripper.get_status_diagnostics()
         return response
 
