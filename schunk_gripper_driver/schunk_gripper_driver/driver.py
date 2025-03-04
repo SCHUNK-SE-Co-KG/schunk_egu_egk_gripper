@@ -88,6 +88,7 @@ class Driver(Node):
 
     def status_update(self):
         self.gripper.receive_plc_input()
+        self.get_logger().info(f"---> Status update: {self.gripper.get_plc_input()}")
 
     # Service callbacks
     def _acknowledge_cb(self, request: Trigger.Request, response: Trigger.Response):
@@ -103,17 +104,19 @@ class Driver(Node):
             self.get_logger().info(
                 f"---> Control bit {bit}: {self.gripper.get_control_bit(bit=bit)}"
             )
+        cmd_before = self.gripper.get_status_bit(bit=5)
         self.gripper.send_plc_output()
         time.sleep(0.5)
         self.gripper.receive_plc_input()
+        cmd_after = self.gripper.get_status_bit(bit=5)
+        self.get_logger().info(f"---> PLC input: {self.gripper.get_plc_input()}")
         for bit in self.gripper.valid_status_bits:
             self.get_logger().info(
                 f"---> Status bit {bit}: {self.gripper.get_status_bit(bit=bit)}"
             )
 
-        response.success = (
-            self.gripper.get_status_bit(bit=0) == 1
-            and self.gripper.get_status_bit(bit=4) == 1
+        response.success = self.gripper.get_status_bit(bit=0) == 1 and (
+            cmd_after != cmd_before
         )
         response.message = self.gripper.get_status_diagnostics()
         return response
@@ -126,15 +129,20 @@ class Driver(Node):
             self.get_logger().info(
                 f"---> Control bit {bit}: {self.gripper.get_control_bit(bit=bit)}"
             )
+        cmd_before = self.gripper.get_status_bit(bit=5)
         self.gripper.send_plc_output()
         time.sleep(0.5)
         self.gripper.receive_plc_input()
+        cmd_after = self.gripper.get_status_bit(bit=5)
+        self.get_logger().info(f"---> PLC input: {self.gripper.get_plc_input()}")
         for bit in self.gripper.valid_status_bits:
             self.get_logger().info(
                 f"---> Status bit {bit}: {self.gripper.get_status_bit(bit=bit)}"
             )
 
-        response.success = self.gripper.get_status_bit(bit=4) == 1
+        response.success = self.gripper.get_status_bit(bit=4) == 1 and (
+            cmd_after != cmd_before
+        )
         response.message = self.gripper.get_status_diagnostics()
         return response
 
