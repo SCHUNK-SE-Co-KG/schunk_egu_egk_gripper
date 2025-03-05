@@ -28,6 +28,11 @@ def test_driver_rejects_invalid_connection_arguments():
     # Arguments ok, but non-existent modbus port
     assert not driver.connect("modbus", "non-existent", 12)
 
+    # Wrong update cycles
+    invalid_cycles = [-1, -0.001, 0.0, 0, 0.0001]
+    for cycle in invalid_cycles:
+        assert not driver.connect("modbus", "/dev/ttyUSB0", 12, cycle)
+
 
 @skip_without_gripper
 def test_driver_supports_repeated_connects_and_disconnects():

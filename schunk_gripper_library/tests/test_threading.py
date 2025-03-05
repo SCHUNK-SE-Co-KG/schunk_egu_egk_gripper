@@ -2,6 +2,7 @@ from ..schunk_gripper_library.driver import Driver
 from threading import Thread
 from ..tests.conftest import skip_without_gripper
 import time
+import pytest
 
 
 def test_writing_entire_buffers_keeps_data_consistent():
@@ -133,3 +134,11 @@ def test_driver_runs_receiving_background_thread():
     time.sleep(1)  # Let it run a little
     driver.disconnect()
     assert not driver.polling_thread.is_alive()
+
+
+@skip_without_gripper
+def test_driver_updates_with_specified_cycle():
+    driver = Driver()
+    update_cycle = 0.1
+    driver.connect("modbus", "/dev/ttyUSB0", 12, update_cycle)
+    assert pytest.approx(driver.update_cycle) == update_cycle

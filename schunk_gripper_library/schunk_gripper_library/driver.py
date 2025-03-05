@@ -34,8 +34,15 @@ class Driver(object):
         self.mb_device_id: int | None = None
         self.connected: bool = False
         self.polling_thread: Thread = Thread()
+        self.update_cycle: float = 0.05  # sec
 
-    def connect(self, protocol: str, port: str, device_id: int | None = None) -> bool:
+    def connect(
+        self,
+        protocol: str,
+        port: str,
+        device_id: int | None = None,
+        update_cycle: float = 0.05,
+    ) -> bool:
         if protocol not in ["modbus"]:
             return False
         if not isinstance(port, str):
@@ -45,6 +52,8 @@ class Driver(object):
         if device_id and not isinstance(device_id, int):
             return False
         if isinstance(device_id, int) and device_id < 0:
+            return False
+        if update_cycle < 0.001:
             return False
         if self.connected:
             return False
@@ -63,7 +72,10 @@ class Driver(object):
             self.connected = self.mb_client.connect()
 
         if self.connected:
-            self.polling_thread = Thread(target=self._module_update, daemon=True)
+            self.update_cycle = update_cycle
+            self.polling_thread = Thread(
+                target=self._module_update, args=(self.update_cycle,), daemon=True
+            )
             self.polling_thread.start()
 
         return self.connected
@@ -262,7 +274,7 @@ class Driver(object):
                 self.plc_input_buffer[byte_index] &= ~(1 << bit_index)
             return True
 
-    def _module_update(self, update_cycle: float = 0.05) -> None:
+    def _module_update(self, update_cycle: float) -> None:
         while self.connected:
             self.receive_plc_input()
             time.sleep(update_cycle)
