@@ -3,6 +3,8 @@ from threading import Lock
 from pymodbus.client import ModbusSerialClient
 from pymodbus.pdu import ModbusPDU
 import re
+from threading import Thread
+import time
 
 
 class Driver(object):
@@ -31,6 +33,7 @@ class Driver(object):
         self.mb_client: ModbusSerialClient | None = None
         self.mb_device_id: int | None = None
         self.connected: bool = False
+        self.polling_thread: Thread = Thread()
 
     def connect(self, protocol: str, port: str, device_id: int | None = None) -> bool:
         if protocol not in ["modbus"]:
@@ -58,12 +61,20 @@ class Driver(object):
                 trace_pdu=self._trace_pdu,
             )
             self.connected = self.mb_client.connect()
+
+        if self.connected:
+            self.polling_thread = Thread(target=self._module_update, daemon=True)
+            self.polling_thread.start()
+
         return self.connected
 
     def disconnect(self) -> bool:
+        self.connected = False
+        if self.polling_thread.is_alive():
+            self.polling_thread.join()
+
         if self.mb_client and self.mb_client.connected:
             self.mb_client.close()
-            self.connected = False
         return True
 
     def send_plc_output(self) -> bool:
@@ -250,6 +261,11 @@ class Driver(object):
             else:
                 self.plc_input_buffer[byte_index] &= ~(1 << bit_index)
             return True
+
+    def _module_update(self, update_cycle: float = 0.05) -> None:
+        while self.connected:
+            self.receive_plc_input()
+            time.sleep(update_cycle)
 
     def _trace_packet(self, sending: bool, data: bytes) -> bytes:
         txt = "REQUEST stream" if sending else "RESPONSE stream"
