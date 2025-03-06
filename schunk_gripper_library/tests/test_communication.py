@@ -1,5 +1,6 @@
 from ..schunk_gripper_library.driver import Driver
 from ..tests.conftest import skip_without_gripper
+import asyncio
 
 
 @skip_without_gripper
@@ -99,4 +100,53 @@ def test_driver_supports_repeated_receiving_without_sleep():
     driver.connect("modbus", "/dev/ttyUSB0", 12)
     for _ in range(5):
         assert driver.receive_plc_input()
+    driver.disconnect()
+
+
+@skip_without_gripper
+def test_driver_supports_waiting_for_desired_status():
+    driver = Driver()
+    driver.connect("modbus", "/dev/ttyUSB0", 12)
+
+    # Timeout for bitsets that don't come
+    impossible_bits = {"0": True, "7": True}  # operational + error
+    assert not asyncio.run(
+        driver.wait_for_status(bits=impossible_bits, timeout_sec=0.1)
+    )
+
+    # Default timeout works
+    impossible_bits = {"0": True, "7": True}
+    assert not asyncio.run(driver.wait_for_status(bits=impossible_bits))
+
+    # Success when bits match
+    matching_bits = {"0": False, "7": True}  # error on startup
+    assert asyncio.run(driver.wait_for_status(bits=matching_bits, timeout_sec=0.1))
+
+    # Fails but survives invalid bits
+    invalid_bits = {"33": True, "-1": False}
+    assert not asyncio.run(driver.wait_for_status(bits=invalid_bits, timeout_sec=0.1))
+
+    # Fails but survives invalid timeouts
+    matching_bits = {"0": False, "7": True}
+    invalid_timeouts = [0.0, 0, -1.5]
+    for timeout in invalid_timeouts:
+        assert not asyncio.run(
+            driver.wait_for_status(bits=matching_bits, timeout_sec=timeout)
+        )
+
+    # Fails with empty bits
+    assert not asyncio.run(driver.wait_for_status(bits={}))
+
+    # Async calls don't block
+    async def wait() -> bool:
+        matching_bits = {"0": False, "7": True}
+        return await driver.wait_for_status(bits=matching_bits)
+
+    async def test() -> bool:
+        succeeded = await asyncio.gather(wait(), wait(), wait())
+        return all(succeeded)
+
+    assert asyncio.run(test())
+
+    # Finish
     driver.disconnect()

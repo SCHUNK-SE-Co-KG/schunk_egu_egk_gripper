@@ -5,6 +5,7 @@ from pymodbus.pdu import ModbusPDU
 import re
 from threading import Thread
 import asyncio
+import time
 
 
 class Driver(object):
@@ -126,6 +127,21 @@ class Driver(object):
                 self.plc_input_buffer = data
                 return True
         return False
+
+    async def wait_for_status(self, bits: dict = {}, timeout_sec: float = 1.0) -> bool:
+        if not timeout_sec > 0.0:
+            return False
+        if not bits:
+            return False
+        max_duration = time.time() + timeout_sec
+        while not all(
+            [self.get_status_bit(int(bit)) == value for bit, value in bits.items()]
+        ):
+            await asyncio.sleep(0.001)
+            self.receive_plc_input()
+            if time.time() > max_duration:
+                return False
+        return True
 
     def contains_non_hex_chars(self, buffer: str) -> bool:
         return bool(re.search(r"[^0-9a-fA-F]", buffer))
