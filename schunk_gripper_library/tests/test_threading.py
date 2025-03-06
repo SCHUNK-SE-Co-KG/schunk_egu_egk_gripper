@@ -1,5 +1,6 @@
-from schunk_gripper_library.src.driver import Driver
+from ..schunk_gripper_library.driver import Driver
 from threading import Thread
+from ..tests.conftest import skip_without_gripper
 
 
 def test_writing_entire_buffers_keeps_data_consistent():
@@ -47,7 +48,9 @@ def test_concurrent_input_buffer_reads_dont_deadlock():
 
     def read():
         for n in range(nr_iterations):
-            driver.get_status_error()
+            driver.get_error_code()
+            driver.get_warning_code()
+            driver.get_additional_code()
             driver.get_status_diagnostics()
             for bit in driver.valid_status_bits:
                 driver.get_status_bit(bit)
@@ -91,6 +94,27 @@ def test_concurrent_output_buffer_reads_and_writes_dont_deadlock():
         writing_thread = Thread(target=write)
         writing_thread.start()
         threads.append(writing_thread)
+
+    for thread in threads:
+        thread.join()
+        assert not thread.is_alive()
+
+
+@skip_without_gripper
+def test_concurrent_receive_calls_dont_deadlock():
+    driver = Driver()
+    driver.connect("modbus", "/dev/ttyUSB0", 12)
+    nr_iterations = 100
+
+    def receive():
+        for n in range(nr_iterations):
+            assert driver.receive_plc_input()
+
+    threads = []
+    for i in range(10):
+        thread = Thread(target=receive)
+        thread.start()
+        threads.append(thread)
 
     for thread in threads:
         thread.join()

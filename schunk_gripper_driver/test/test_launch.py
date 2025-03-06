@@ -13,18 +13,13 @@
 # You should have received a copy of the GNU General Public License along with
 # this program. If not, see <https://www.gnu.org/licenses/>.
 # --------------------------------------------------------------------------------
-
-import pytest
 from rclpy.node import Node
-import time
-from schunk_gripper_driver.test.conftest import launch_description
+from lifecycle_msgs.srv import GetState
 
 
-@pytest.mark.launch(fixture=launch_description)
-def test_normal_startup_works(isolated):
+def test_normal_startup_works(driver):
     node = Node("test_startup")
-    until_ready = 2.0  # sec
-    time.sleep(until_ready)
-    nodes = node.get_node_names()
-    print(nodes)
-    assert "driver" in nodes
+    client = node.create_client(GetState, "/schunk/driver/get_state")
+
+    # The driver started correctly if the lifecycle interface is reachable
+    assert client.wait_for_service(timeout_sec=2)

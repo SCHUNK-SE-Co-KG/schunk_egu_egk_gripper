@@ -1,32 +1,29 @@
 # SCHUNK Gripper Library
 A Low-level communication library for Modbus RTU and Ethernet-based SCHUNK grippers.
 
-
-## Dependencies
-We need additional Python dependencies.
-Install them inside your favorite Python environment with
+## ROS2 installation
+In a sourced environment
 
 ```bash
-pip install --user pymodbus pyserial
+colcon build --packages-select schunk_gripper_library
 ```
 
-## Run tests locally
-We use `socat` to set-up pseudo terminals for a connection between the driver library and a minimalist Modbus server.
-Install that with
+## Stand-alone installation
+
+It's easiest to use _virtual environments_ to keep your python projects nicely separated.
+Navigate inside this package and install it with
+
 ```bash
-sudo apt-get install socat
+pip install --editable .
 ```
 
-Additionally, inside the dummy's package, install test-related dependencies with
-
+You can then use pip's conventional tools, such as
 ```bash
-pip install --user pytest httpx coverage
+pip show schunk_gripper_library
 ```
 
-You can run the tests either directly with `pytest tests/` or with more output through
+Uninstall it with
 
 ```bash
-coverage run -m pytest tests/
-coverage report  # for console output
-coverage html    # for web-based output
+pip uninstall schunk_gripper_library
 ```

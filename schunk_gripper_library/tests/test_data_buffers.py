@@ -1,4 +1,4 @@
-from schunk_gripper_library.src.driver import Driver
+from ..schunk_gripper_library.driver import Driver
 
 
 def test_driver_initializes_plc_data_buffers():
@@ -37,6 +37,14 @@ def test_driver_rejects_setting_invalid_buffer_arguments():
     for buffer in invalid_buffers:
         assert not driver.set_plc_input(buffer)
         assert not driver.set_plc_output(buffer)
+
+
+def test_driver_supports_clearing_plc_output_buffer():
+    driver = Driver()
+    output_buffer = "8899aabbccddeeff".upper() * 2
+    driver.set_plc_output(output_buffer)
+    driver.clear_plc_output()
+    assert driver.get_plc_output() == "00" * 16
 
 
 def test_check_for_non_hex_characters_behaves_as_expected():

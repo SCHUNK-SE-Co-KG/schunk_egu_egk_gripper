@@ -1,6 +1,7 @@
 import struct
 from threading import Lock
 from pymodbus.client import ModbusSerialClient
+from pymodbus.pdu import ModbusPDU
 import re
 
 
@@ -9,7 +10,8 @@ class Driver(object):
         self.plc_input: str = "0x0040"
         self.plc_output: str = "0x0048"
         self.error_byte: int = 12
-        self.diagnostics_byte: int = 15
+        self.warning_byte: int = 14
+        self.additional_byte: int = 15
         # fmt: off
         self.valid_status_bits: list[int] = (
             list(range(0, 10)) + [11, 12, 13, 14, 16, 17, 31]
@@ -50,7 +52,10 @@ class Driver(object):
                 port=port,
                 baudrate=115200,
                 parity="N",
-                timeout=1,
+                stopbits=1,
+                trace_connect=self._trace_connect,
+                trace_packet=self._trace_packet,
+                trace_pdu=self._trace_pdu,
             )
             self.connected = self.mb_client.connect()
         return self.connected
@@ -58,16 +63,16 @@ class Driver(object):
     def disconnect(self) -> bool:
         if self.mb_client and self.mb_client.connected:
             self.mb_client.close()
+            self.connected = False
         return True
 
     def send_plc_output(self) -> bool:
         if self.mb_client and self.mb_client.connected:
             with self.output_buffer_lock:
-                # Turn the 16-byte array into a list of 2-byte registers
+                # Turn the 16-byte array into a list of 2-byte registers.
+                # Pymodbus uses big endian internally for their encoding.
                 values = [
-                    int.from_bytes(
-                        self.plc_output_buffer[i : i + 2], byteorder="little"
-                    )
+                    int.from_bytes(self.plc_output_buffer[i : i + 2], byteorder="big")
                     for i in range(0, len(self.plc_output_buffer), 2)
                 ]
                 self.mb_client.write_registers(
@@ -88,10 +93,11 @@ class Driver(object):
                     slave=self.mb_device_id,
                     no_response_expected=False,
                 )
-                # Parse the 2-byte registers into a 16-byte array
+                # Parse the 2-byte registers into a 16-byte array.
+                # Revert pymodbus' internal big endian decoding.
                 data = bytearray()
                 for reg in pdu.registers:
-                    data.extend(reg.to_bytes(2, byteorder="little"))
+                    data.extend(reg.to_bytes(2, byteorder="big"))
                 self.plc_input_buffer = data
                 return True
         return False
@@ -124,6 +130,10 @@ class Driver(object):
     def get_plc_output(self) -> str:
         with self.output_buffer_lock:
             return self.plc_output_buffer.hex().upper()
+
+    def clear_plc_output(self) -> None:
+        with self.output_buffer_lock:
+            self.plc_output_buffer = bytearray(bytes.fromhex("00" * 16))
 
     def set_control_bit(self, bit: int, value: bool) -> bool:
         with self.output_buffer_lock:
@@ -168,17 +178,35 @@ class Driver(object):
             byte_index, bit_index = divmod(bit, 8)
             return 1 if self.plc_input_buffer[byte_index] & (1 << bit_index) != 0 else 0
 
-    def get_status_error(self) -> str:
-        with self.input_buffer_lock:
-            return hex(self.plc_input_buffer[self.error_byte]).replace("0x", "").upper()
-
-    def get_status_diagnostics(self) -> str:
+    def get_error_code(self) -> str:
         with self.input_buffer_lock:
             return (
-                hex(self.plc_input_buffer[self.diagnostics_byte])
-                .replace("0x", "")
-                .upper()
+                hex(self.plc_input_buffer[self.error_byte]).upper().replace("0X", "0x")
             )
+
+    def get_warning_code(self) -> str:
+        with self.input_buffer_lock:
+            return (
+                hex(self.plc_input_buffer[self.warning_byte])
+                .upper()
+                .replace("0X", "0x")
+            )
+
+    def get_additional_code(self) -> str:
+        with self.input_buffer_lock:
+            return (
+                hex(self.plc_input_buffer[self.additional_byte])
+                .upper()
+                .replace("0X", "0x")
+            )
+
+    def get_status_diagnostics(self) -> str:
+        diagnostics = (
+            f"error_code: {self.get_error_code()}"
+            + f", warning_code: {self.get_warning_code()}"
+            + f", additional_code: {self.get_additional_code()}"
+        )
+        return diagnostics
 
     def set_target_position(self, target_pos: int) -> bool:
         with self.output_buffer_lock:
@@ -222,3 +250,17 @@ class Driver(object):
             else:
                 self.plc_input_buffer[byte_index] &= ~(1 << bit_index)
             return True
+
+    def _trace_packet(self, sending: bool, data: bytes) -> bytes:
+        txt = "REQUEST stream" if sending else "RESPONSE stream"
+        print(f"---> {txt}: {data!r}")
+        return data
+
+    def _trace_pdu(self, sending: bool, pdu: ModbusPDU) -> ModbusPDU:
+        txt = "REQUEST pdu" if sending else "RESPONSE pdu"
+        print(f"---> {txt}: {pdu}")
+        return pdu
+
+    def _trace_connect(self, connect: bool) -> None:
+        txt = "Connected" if connect else "Disconnected"
+        print(f"---> {txt}")

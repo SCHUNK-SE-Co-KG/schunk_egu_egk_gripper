@@ -21,40 +21,19 @@ from launch.actions import IncludeLaunchDescription
 from launch.substitutions import PathJoinSubstitution
 from launch_ros.substitutions import FindPackageShare
 import launch_pytest
-import subprocess
-from ament_index_python.packages import get_package_share_directory
-
-
-# We avoid black's F811, F401 linting warnings
-# by using pytest's special conftest.py file.
-# See documentation here:
-# https://docs.pytest.org/en/7.1.x/reference/fixtures.html#conftest-py-sharing-fixtures-across-multiple-files  # noqa: E501
+from lifecycle_msgs.srv import ChangeState, GetState
+from rclpy.node import Node
 
 
 @pytest.fixture(scope="module")
-def isolated():
+def ros2():
     rclpy.init()
     yield
     rclpy.shutdown()
 
 
-@pytest.fixture(scope="module")
-def gripper_dummy():
-    package_name = "schunk_egu_egk_gripper_dummy"
-    dummy_dir = get_package_share_directory(package_name)
-    start_cmd = " uvicorn main:server --port 8000"
-    p = subprocess.Popen(
-        "exec" + start_cmd, stdin=subprocess.PIPE, cwd=dummy_dir, shell=True
-    )
-
-    print("------------ Started gripper dummy")
-    yield
-    p.kill()
-    print("------------ Stopped gripper dummy")
-
-
 @launch_pytest.fixture(scope="module")
-def launch_description():
+def driver(ros2):
     setup = IncludeLaunchDescription(
         PathJoinSubstitution(
             [
@@ -65,3 +44,39 @@ def launch_description():
         )
     )
     return LaunchDescription([setup, launch_pytest.actions.ReadyToTest()])
+
+
+class LifecycleInterface(object):
+    def __init__(self):
+        self.node = Node("lifecycle_interface")
+        self.change_state_client = self.node.create_client(
+            ChangeState, "/schunk/driver/change_state"
+        )
+        self.change_state_client.wait_for_service(timeout_sec=2)
+        self.get_state_client = self.node.create_client(
+            GetState, "/schunk/driver/get_state"
+        )
+        self.get_state_client.wait_for_service(timeout_sec=2)
+
+    def change_state(self, transition_id):
+        req = ChangeState.Request()
+        req.transition.id = transition_id
+        future = self.change_state_client.call_async(req)
+        rclpy.spin_until_future_complete(self.node, future)
+        return future.result()
+
+    def check_state(self, state_id):
+        req = GetState.Request()
+        future = self.get_state_client.call_async(req)
+        rclpy.spin_until_future_complete(self.node, future)
+        return future.result().current_state.id == state_id
+
+    def exists(self, service: str) -> bool:
+        existing = getattr(self.node, "get_service_names_and_types")()
+        advertised = [i[0] for i in existing]
+        return service in advertised
+
+
+@pytest.fixture(scope="module")
+def lifecycle_interface(driver):
+    return LifecycleInterface()

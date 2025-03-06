@@ -1,5 +1,5 @@
-from schunk_gripper_library.src.driver import Driver
-from schunk_gripper_library.tests.conftest import skip_without_gripper
+from ..schunk_gripper_library.driver import Driver
+from ..tests.conftest import skip_without_gripper
 
 
 def test_driver_implements_connect(pseudo_terminals):
@@ -29,14 +29,13 @@ def test_driver_rejects_invalid_connection_arguments():
     assert not driver.connect("modbus", "non-existent", 12)
 
 
-def test_driver_rejects_repeated_connects(pseudo_terminals):
+def test_driver_supports_repeated_connects_and_disconnects(pseudo_terminals):
     driver = Driver()
     port = pseudo_terminals[0]
-    device_id = 42
-    driver.connect("modbus", port, device_id)
-    for _ in range(3):
-        assert not driver.connect("modbus", port, device_id)
-        driver.disconnect()
+    device_ids = [42, 12, 14]
+    for _, device in zip(range(3), device_ids):
+        assert driver.connect("modbus", port, device)
+        assert driver.disconnect()
 
 
 def test_driver_rejects_new_connect_without_disconnect(pseudo_terminals):
