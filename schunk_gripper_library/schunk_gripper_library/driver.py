@@ -157,8 +157,10 @@ class Driver(object):
             return self.plc_output_buffer.hex().upper()
 
     def clear_plc_output(self) -> None:
-        with self.output_buffer_lock:
-            self.plc_output_buffer = bytearray(bytes.fromhex("00" * 16))
+        self.set_plc_output("00" * 16)
+        self.set_control_bit(
+            bit=0, value=True
+        )  # deactivate fast stop (inverted behavior)
 
     def set_control_bit(self, bit: int, value: bool) -> bool:
         with self.output_buffer_lock:
