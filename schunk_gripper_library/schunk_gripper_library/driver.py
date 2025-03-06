@@ -4,7 +4,7 @@ from pymodbus.client import ModbusSerialClient
 from pymodbus.pdu import ModbusPDU
 import re
 from threading import Thread
-import time
+import asyncio
 
 
 class Driver(object):
@@ -74,7 +74,9 @@ class Driver(object):
         if self.connected:
             self.update_cycle = update_cycle
             self.polling_thread = Thread(
-                target=self._module_update, args=(self.update_cycle,), daemon=True
+                target=asyncio.run,
+                args=(self._module_update(self.update_cycle),),
+                daemon=True,
             )
             self.polling_thread.start()
 
@@ -274,10 +276,10 @@ class Driver(object):
                 self.plc_input_buffer[byte_index] &= ~(1 << bit_index)
             return True
 
-    def _module_update(self, update_cycle: float) -> None:
+    async def _module_update(self, update_cycle: float) -> None:
         while self.connected:
             self.receive_plc_input()
-            time.sleep(update_cycle)
+            await asyncio.sleep(update_cycle)
 
     def _trace_packet(self, sending: bool, data: bytes) -> bytes:
         txt = "REQUEST stream" if sending else "RESPONSE stream"
