@@ -92,6 +92,19 @@ class Driver(object):
             self.mb_client.close()
         return True
 
+    async def acknowledge(self) -> bool:
+        if not self.connected:
+            return False
+        self.clear_plc_output()
+        self.send_plc_output()
+
+        cmd_toggle_before = self.get_status_bit(bit=5)
+        self.set_control_bit(bit=2, value=True)
+        self.send_plc_output()
+
+        desired_bits = {"0": 1, "5": cmd_toggle_before ^ 1}
+        return await self.wait_for_status(bits=desired_bits)
+
     def send_plc_output(self) -> bool:
         if self.mb_client and self.mb_client.connected:
             with self.output_buffer_lock:
