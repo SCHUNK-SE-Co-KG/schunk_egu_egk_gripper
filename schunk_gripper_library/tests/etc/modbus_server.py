@@ -41,12 +41,11 @@ class ModbusServer:
 
     async def setup(self, port: str):
         datablock = ModbusSequentialDataBlock(0x00, [0] * 1000)
-        slave_id = 12  # SCHUNK default
         slave_context = ModbusSlaveContext(
             di=datablock, co=datablock, hr=datablock, ir=datablock
         )
         context = ModbusServerContext(
-            slaves={slave_id: slave_context},
+            slaves=slave_context,
             single=True,
         )
         self.server = ModbusSerialServer(
