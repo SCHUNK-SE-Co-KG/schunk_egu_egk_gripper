@@ -1,5 +1,4 @@
 import pytest
-import pytest_asyncio
 from schunk_gripper_library.tests.etc.pseudo_terminals import Connection
 from schunk_gripper_library.tests.etc.modbus_server import ModbusServer
 import asyncio
@@ -19,22 +18,19 @@ def pseudo_terminals():
     connection.close()
 
 
-@pytest_asyncio.fixture(scope="module")
-async def modbus_server(pseudo_terminals):
+@pytest.fixture(scope="module")
+def modbus_server(pseudo_terminals):
     pt1, pt2 = pseudo_terminals
 
     async def periodic_modbus_task(pt1, stop_event):
         server = ModbusServer()
-        print("Opening and starting Modbus server on port:", pt1)
         await server.setup(port=pt1)
         await server.start()
 
         try:
             while not stop_event.is_set():
-                print("Modbus server is running")
                 await asyncio.sleep(1)
         finally:
-            print("Closing Modbus server")
             server.stop()
 
     loop = asyncio.new_event_loop()
@@ -46,8 +42,7 @@ async def modbus_server(pseudo_terminals):
     yield pt2
 
     stop_event.set()
-    while not task.done():
-        await asyncio.sleep(0.1)
+    task.result()
 
     loop.call_soon_threadsafe(loop.stop)
     thread.join()
