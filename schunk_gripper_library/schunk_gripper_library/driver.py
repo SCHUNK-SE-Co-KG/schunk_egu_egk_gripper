@@ -128,7 +128,9 @@ class Driver(object):
                 return True
         return False
 
-    async def wait_for_status(self, bits: dict = {}, timeout_sec: float = 1.0) -> bool:
+    async def wait_for_status(
+        self, bits: dict[str, int] = {}, timeout_sec: float = 1.0
+    ) -> bool:
         if not timeout_sec > 0.0:
             return False
         if not bits:

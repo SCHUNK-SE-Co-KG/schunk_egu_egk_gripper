@@ -109,25 +109,25 @@ def test_driver_supports_waiting_for_desired_status():
     driver.connect("modbus", "/dev/ttyUSB0", 12)
 
     # Timeout for bitsets that don't come
-    impossible_bits = {"0": True, "7": True}  # operational + error
+    impossible_bits = {"0": 1, "7": 1}  # operational + error
     assert not asyncio.run(
         driver.wait_for_status(bits=impossible_bits, timeout_sec=0.1)
     )
 
     # Default timeout works
-    impossible_bits = {"0": True, "7": True}
+    impossible_bits = {"0": 1, "7": 1}
     assert not asyncio.run(driver.wait_for_status(bits=impossible_bits))
 
     # Success when bits match
-    matching_bits = {"0": False, "7": True}  # error on startup
+    matching_bits = {"0": 0, "7": 1}  # error on startup
     assert asyncio.run(driver.wait_for_status(bits=matching_bits, timeout_sec=0.1))
 
     # Fails but survives invalid bits
-    invalid_bits = {"33": True, "-1": False}
+    invalid_bits = {"33": 1, "-1": 0}
     assert not asyncio.run(driver.wait_for_status(bits=invalid_bits, timeout_sec=0.1))
 
     # Fails but survives invalid timeouts
-    matching_bits = {"0": False, "7": True}
+    matching_bits = {"0": 0, "7": 1}
     invalid_timeouts = [0.0, 0, -1.5]
     for timeout in invalid_timeouts:
         assert not asyncio.run(
@@ -139,7 +139,7 @@ def test_driver_supports_waiting_for_desired_status():
 
     # Async calls don't block
     async def wait() -> bool:
-        matching_bits = {"0": False, "7": True}
+        matching_bits = {"0": 0, "7": 1}
         return await driver.wait_for_status(bits=matching_bits)
 
     async def test() -> bool:
