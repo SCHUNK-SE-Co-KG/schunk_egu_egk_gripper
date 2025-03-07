@@ -22,7 +22,7 @@ from rclpy.lifecycle import State
 from rclpy.lifecycle import TransitionCallbackReturn
 from schunk_gripper_library.driver import Driver as GripperDriver
 from std_srvs.srv import Trigger
-import time
+import asyncio
 
 
 class Driver(Node):
@@ -87,62 +87,18 @@ class Driver(Node):
         return TransitionCallbackReturn.SUCCESS
 
     def status_update(self):
-        self.gripper.receive_plc_input()
         self.get_logger().info(f"---> Status update: {self.gripper.get_plc_input()}")
 
     # Service callbacks
     def _acknowledge_cb(self, request: Trigger.Request, response: Trigger.Response):
         self.get_logger().info("---> Acknowledge")
-        # Reset
-        self.gripper.clear_plc_output()
-        self.gripper.set_control_bit(bit=0, value=True)
-        self.gripper.send_plc_output()
-        time.sleep(0.5)
-        # Acknowledge
-        self.gripper.set_control_bit(bit=2, value=True)
-        for bit in self.gripper.valid_control_bits:
-            self.get_logger().info(
-                f"---> Control bit {bit}: {self.gripper.get_control_bit(bit=bit)}"
-            )
-        cmd_before = self.gripper.get_status_bit(bit=5)
-        self.gripper.send_plc_output()
-        time.sleep(0.5)
-        self.gripper.receive_plc_input()
-        cmd_after = self.gripper.get_status_bit(bit=5)
-        self.get_logger().info(f"---> PLC input: {self.gripper.get_plc_input()}")
-        for bit in self.gripper.valid_status_bits:
-            self.get_logger().info(
-                f"---> Status bit {bit}: {self.gripper.get_status_bit(bit=bit)}"
-            )
-
-        response.success = self.gripper.get_status_bit(bit=0) == 1 and (
-            cmd_after != cmd_before
-        )
+        response.success = asyncio.run(self.gripper.acknowledge())
         response.message = self.gripper.get_status_diagnostics()
         return response
 
     def _fast_stop_cb(self, request: Trigger.Request, response: Trigger.Response):
         self.get_logger().info("---> Fast stop")
-        self.gripper.clear_plc_output()
-        self.gripper.set_control_bit(bit=0, value=False)
-        for bit in self.gripper.valid_control_bits:
-            self.get_logger().info(
-                f"---> Control bit {bit}: {self.gripper.get_control_bit(bit=bit)}"
-            )
-        cmd_before = self.gripper.get_status_bit(bit=5)
-        self.gripper.send_plc_output()
-        time.sleep(0.5)
-        self.gripper.receive_plc_input()
-        cmd_after = self.gripper.get_status_bit(bit=5)
-        self.get_logger().info(f"---> PLC input: {self.gripper.get_plc_input()}")
-        for bit in self.gripper.valid_status_bits:
-            self.get_logger().info(
-                f"---> Status bit {bit}: {self.gripper.get_status_bit(bit=bit)}"
-            )
-
-        response.success = self.gripper.get_status_bit(bit=4) == 1 and (
-            cmd_after != cmd_before
-        )
+        response.success = asyncio.run(self.gripper.fast_stop())
         response.message = self.gripper.get_status_diagnostics()
         return response
 
