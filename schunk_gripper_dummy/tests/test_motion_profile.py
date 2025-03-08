@@ -1,4 +1,4 @@
-from src.dummy import LinearMotion
+from schunk_gripper_dummy.dummy import LinearMotion
 import pytest
 import time
 

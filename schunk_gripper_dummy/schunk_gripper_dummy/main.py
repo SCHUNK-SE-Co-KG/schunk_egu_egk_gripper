@@ -1,4 +1,4 @@
-from src.dummy import Dummy
+from schunk_gripper_dummy.dummy import Dummy
 
 from fastapi import FastAPI, Request, Form, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware

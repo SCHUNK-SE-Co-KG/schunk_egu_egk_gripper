@@ -1,4 +1,4 @@
-from src.dummy import Dummy
+from schunk_gripper_dummy.dummy import Dummy
 from schunk_gripper_dummy.main import server, dummy as client_dummy
 from fastapi.testclient import TestClient
 

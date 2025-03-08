@@ -1,4 +1,4 @@
-from src.dummy import Dummy
+from schunk_gripper_dummy.dummy import Dummy
 import pytest
 import struct
 import time
