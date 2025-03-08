@@ -1,6 +1,6 @@
 from threading import Thread
 import time
-import pkg_resources  # type: ignore [import-untyped]
+from importlib.resources import files
 import json
 import struct
 from typing import Tuple
@@ -56,11 +56,9 @@ class Dummy(object):
         self.reserved_status_bits = [10, 15] + list(range(18, 31))
         self.reserved_control_bits = [10, 15] + list(range(17, 30))
 
-        enum_config = pkg_resources.resource_filename(__name__, "config/enum.json")
-        metadata_config = pkg_resources.resource_filename(
-            __name__, "config/metadata.json"
-        )
-        data_config = pkg_resources.resource_filename(__name__, "config/data.json")
+        enum_config = files(__package__).joinpath("config/enum.json")
+        metadata_config = files(__package__).joinpath("config/metadata.json")
+        data_config = files(__package__).joinpath("config/data.json")
 
         with open(enum_config, "r") as f:
             self.enum = json.load(f)
