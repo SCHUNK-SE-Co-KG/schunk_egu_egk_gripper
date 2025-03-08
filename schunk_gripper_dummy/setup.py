@@ -1,7 +1,7 @@
 from setuptools import find_packages, setup
 import os
 
-package_name = "schunk_egu_egk_gripper_dummy"
+package_name = "schunk_gripper_dummy"
 
 setup(
     name=package_name,

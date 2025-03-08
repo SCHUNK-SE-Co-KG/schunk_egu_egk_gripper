@@ -1,5 +1,5 @@
 from src.dummy import Dummy
-from schunk_egu_egk_gripper_dummy.main import server, dummy as client_dummy
+from schunk_gripper_dummy.main import server, dummy as client_dummy
 from fastapi.testclient import TestClient
 
 

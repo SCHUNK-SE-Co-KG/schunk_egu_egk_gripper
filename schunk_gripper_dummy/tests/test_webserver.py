@@ -1,4 +1,4 @@
-from schunk_egu_egk_gripper_dummy.main import server, dummy
+from schunk_gripper_dummy.main import server, dummy
 from fastapi.testclient import TestClient
 
 

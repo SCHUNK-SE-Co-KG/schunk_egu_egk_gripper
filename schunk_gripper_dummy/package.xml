@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
 <?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
 <package format="3">
-  <name>schunk_egu_egk_gripper_dummy</name>
+  <name>schunk_gripper_dummy</name>
   <version>0.0.0</version>
   <description>A minimalist dummy for simulating the gripper's communication</description>
   <maintainer email="stefan.scherzinger@de.schunk.com">Stefan Scherzinger</maintainer>

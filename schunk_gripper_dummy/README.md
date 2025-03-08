@@ -27,7 +27,7 @@ You can simply navigate into the dummy's package and start it with
 ### ROS2
 When working in a sourced ROS2 environment, you can start the dummy with
 ```bash
-ros2 run schunk_egu_egk_gripper_dummy start_dummy --ros-args -p port:=8000
+ros2 run schunk_gripper_dummy start_dummy --ros-args -p port:=8000
 ```
 
 ## Run tests locally

@@ -22,4 +22,4 @@ while [ $# -gt 0 ]; do
   esac
 done
 
-uvicorn schunk_egu_egk_gripper_dummy.main:server --port $port --reload
+uvicorn schunk_gripper_dummy.main:server --port $port --reload
