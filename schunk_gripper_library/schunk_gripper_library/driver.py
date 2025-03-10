@@ -3,6 +3,9 @@ from threading import Lock
 from pymodbus.client import ModbusSerialClient
 from pymodbus.pdu import ModbusPDU
 import re
+from threading import Thread
+import asyncio
+import time
 
 
 class Driver(object):
@@ -31,8 +34,16 @@ class Driver(object):
         self.mb_client: ModbusSerialClient | None = None
         self.mb_device_id: int | None = None
         self.connected: bool = False
+        self.polling_thread: Thread = Thread()
+        self.update_cycle: float = 0.05  # sec
 
-    def connect(self, protocol: str, port: str, device_id: int | None = None) -> bool:
+    def connect(
+        self,
+        protocol: str,
+        port: str,
+        device_id: int | None = None,
+        update_cycle: float = 0.05,
+    ) -> bool:
         if protocol not in ["modbus"]:
             return False
         if not isinstance(port, str):
@@ -42,6 +53,8 @@ class Driver(object):
         if device_id and not isinstance(device_id, int):
             return False
         if isinstance(device_id, int) and device_id < 0:
+            return False
+        if update_cycle < 0.001:
             return False
         if self.connected:
             return False
@@ -58,13 +71,54 @@ class Driver(object):
                 trace_pdu=self._trace_pdu,
             )
             self.connected = self.mb_client.connect()
+
+        if self.connected:
+            self.update_cycle = update_cycle
+            self.polling_thread = Thread(
+                target=asyncio.run,
+                args=(self._module_update(self.update_cycle),),
+                daemon=True,
+            )
+            self.polling_thread.start()
+
         return self.connected
 
     def disconnect(self) -> bool:
+        self.connected = False
+        if self.polling_thread.is_alive():
+            self.polling_thread.join()
+
         if self.mb_client and self.mb_client.connected:
             self.mb_client.close()
-            self.connected = False
         return True
+
+    async def acknowledge(self) -> bool:
+        if not self.connected:
+            return False
+        self.clear_plc_output()
+        self.send_plc_output()
+
+        cmd_toggle_before = self.get_status_bit(bit=5)
+        self.set_control_bit(bit=2, value=True)
+        self.send_plc_output()
+
+        desired_bits = {"0": 1, "5": cmd_toggle_before ^ 1}
+        return await self.wait_for_status(bits=desired_bits)
+
+    async def fast_stop(self) -> bool:
+        if not self.connected:
+            return False
+        self.clear_plc_output()
+        self.send_plc_output()
+
+        cmd_toggle_before = self.get_status_bit(bit=5)
+        self.set_control_bit(
+            bit=0, value=False
+        )  # activate fast stop (inverted behavior)
+        self.send_plc_output()
+        desired_bits = {"5": cmd_toggle_before ^ 1, "7": 1}
+        print(f"hello stefan: {self.get_plc_input()}")
+        return await self.wait_for_status(bits=desired_bits)
 
     def send_plc_output(self) -> bool:
         if self.mb_client and self.mb_client.connected:
@@ -102,6 +156,23 @@ class Driver(object):
                 return True
         return False
 
+    async def wait_for_status(
+        self, bits: dict[str, int] = {}, timeout_sec: float = 1.0
+    ) -> bool:
+        if not timeout_sec > 0.0:
+            return False
+        if not bits:
+            return False
+        max_duration = time.time() + timeout_sec
+        while not all(
+            [self.get_status_bit(int(bit)) == value for bit, value in bits.items()]
+        ):
+            await asyncio.sleep(0.001)
+            self.receive_plc_input()
+            if time.time() > max_duration:
+                return False
+        return True
+
     def contains_non_hex_chars(self, buffer: str) -> bool:
         return bool(re.search(r"[^0-9a-fA-F]", buffer))
 
@@ -132,8 +203,10 @@ class Driver(object):
             return self.plc_output_buffer.hex().upper()
 
     def clear_plc_output(self) -> None:
-        with self.output_buffer_lock:
-            self.plc_output_buffer = bytearray(bytes.fromhex("00" * 16))
+        self.set_plc_output("00" * 16)
+        self.set_control_bit(
+            bit=0, value=True
+        )  # deactivate fast stop (inverted behavior)
 
     def set_control_bit(self, bit: int, value: bool) -> bool:
         with self.output_buffer_lock:
@@ -250,6 +323,11 @@ class Driver(object):
             else:
                 self.plc_input_buffer[byte_index] &= ~(1 << bit_index)
             return True
+
+    async def _module_update(self, update_cycle: float) -> None:
+        while self.connected:
+            self.receive_plc_input()
+            await asyncio.sleep(update_cycle)
 
     def _trace_packet(self, sending: bool, data: bytes) -> bytes:
         txt = "REQUEST stream" if sending else "RESPONSE stream"

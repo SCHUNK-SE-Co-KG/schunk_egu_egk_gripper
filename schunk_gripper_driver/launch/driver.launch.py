@@ -22,7 +22,7 @@ from launch.substitutions import LaunchConfiguration
 
 port = DeclareLaunchArgument(
     "port",
-    default_value="/dev/ur-ttylink/ttyTool",
+    default_value="/dev/ttyUSB0",
     description="The gripper's serial port",
 )
 device_id = DeclareLaunchArgument(

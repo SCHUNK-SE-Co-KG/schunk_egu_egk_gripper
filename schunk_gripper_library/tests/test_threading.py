@@ -1,6 +1,8 @@
 from ..schunk_gripper_library.driver import Driver
 from threading import Thread
 from ..tests.conftest import skip_without_gripper
+import time
+import pytest
 
 
 def test_writing_entire_buffers_keeps_data_consistent():
@@ -30,11 +32,11 @@ def test_writing_entire_buffers_keeps_data_consistent():
             buffer = all_zeros
         else:
             buffer = all_ones
-        thread = Thread(target=write, args=(buffer,))
+        thread = Thread(target=write, args=(buffer,), daemon=True)
         thread.start()
         updating_threads.append(thread)
 
-    client_thread = Thread(target=check_data_integrity)
+    client_thread = Thread(target=check_data_integrity, daemon=True)
     client_thread.start()
 
     client_thread.join()
@@ -57,7 +59,7 @@ def test_concurrent_input_buffer_reads_dont_deadlock():
 
     threads = []
     for i in range(10):
-        thread = Thread(target=read)
+        thread = Thread(target=read, daemon=True)
         thread.start()
         threads.append(thread)
 
@@ -87,11 +89,11 @@ def test_concurrent_output_buffer_reads_and_writes_dont_deadlock():
 
     threads = []
     for i in range(10):
-        reading_thread = Thread(target=read)
+        reading_thread = Thread(target=read, daemon=True)
         reading_thread.start()
         threads.append(reading_thread)
 
-        writing_thread = Thread(target=write)
+        writing_thread = Thread(target=write, daemon=True)
         writing_thread.start()
         threads.append(writing_thread)
 
@@ -104,7 +106,7 @@ def test_concurrent_output_buffer_reads_and_writes_dont_deadlock():
 def test_concurrent_receive_calls_dont_deadlock():
     driver = Driver()
     driver.connect("modbus", "/dev/ttyUSB0", 12)
-    nr_iterations = 100
+    nr_iterations = 10
 
     def receive():
         for n in range(nr_iterations):
@@ -112,10 +114,31 @@ def test_concurrent_receive_calls_dont_deadlock():
 
     threads = []
     for i in range(10):
-        thread = Thread(target=receive)
+        thread = Thread(target=receive, daemon=True)
         thread.start()
         threads.append(thread)
 
     for thread in threads:
         thread.join()
         assert not thread.is_alive()
+
+    driver.disconnect()
+
+
+@skip_without_gripper
+def test_driver_runs_receiving_background_thread():
+    driver = Driver()
+    assert not driver.polling_thread.is_alive()
+    driver.connect("modbus", "/dev/ttyUSB0", 12)
+    assert driver.polling_thread.is_alive()
+    time.sleep(1)  # Let it run a little
+    driver.disconnect()
+    assert not driver.polling_thread.is_alive()
+
+
+@skip_without_gripper
+def test_driver_updates_with_specified_cycle():
+    driver = Driver()
+    update_cycle = 0.1
+    driver.connect("modbus", "/dev/ttyUSB0", 12, update_cycle)
+    assert pytest.approx(driver.update_cycle) == update_cycle

@@ -49,11 +49,13 @@ def test_driver_implements_acknowledge(lifecycle_interface):
     client.wait_for_service(timeout_sec=2)
     future = client.call_async(Trigger.Request())
     rclpy.spin_until_future_complete(node, future)
+    lifecycle_interface.change_state(Transition.TRANSITION_CLEANUP)
 
     assert future.result().success
-    expected_msg = "error_code: 0, warning_code: 0, additional_code: 0"  # everything ok
+    expected_msg = (
+        "error_code: 0x0, warning_code: 0x0, additional_code: 0x0"  # everything ok
+    )
     assert future.result().message == expected_msg
-    lifecycle_interface.change_state(Transition.TRANSITION_CLEANUP)
 
 
 @skip_without_gripper
@@ -65,8 +67,8 @@ def test_driver_implements_fast_stop(lifecycle_interface):
     client.wait_for_service(timeout_sec=2)
     future = client.call_async(Trigger.Request())
     rclpy.spin_until_future_complete(node, future)
+    lifecycle_interface.change_state(Transition.TRANSITION_CLEANUP)
 
     assert future.result().success
-    expected_msg = "error_code: 0, warning_code: 0, additional_code: 0"  # everything ok
+    expected_msg = "error_code: 0xD9, warning_code: 0x0, additional_code: 0x0"
     assert future.result().message == expected_msg
-    lifecycle_interface.change_state(Transition.TRANSITION_CLEANUP)

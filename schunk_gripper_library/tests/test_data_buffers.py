@@ -44,7 +44,7 @@ def test_driver_supports_clearing_plc_output_buffer():
     output_buffer = "8899aabbccddeeff".upper() * 2
     driver.set_plc_output(output_buffer)
     driver.clear_plc_output()
-    assert driver.get_plc_output() == "00" * 16
+    assert driver.get_plc_output() == "01" + "00" * 15
 
 
 def test_check_for_non_hex_characters_behaves_as_expected():
