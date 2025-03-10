@@ -12,9 +12,6 @@ async def main():
     pt1, pt2 = connection.open()
     server = ModbusServer()
     print(f"Opening Modbus server on {pt2}")
-    # await server.setup(port=pt1)
-    # print(f"Using these parameters: {server.get_params()}")
-    # await server.start()
 
     async def start_server():
         print("Before start")
@@ -24,10 +21,10 @@ async def main():
 
     loop = asyncio.get_event_loop()
     server_task = loop.create_task(start_server())
-    # Log the data block contents periodically
+
     try:
         while True:
-            # server.log_data_block()
+
             await asyncio.sleep(5)
     except asyncio.CancelledError:
         pass
