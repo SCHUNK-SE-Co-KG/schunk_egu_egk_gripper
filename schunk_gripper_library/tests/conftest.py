@@ -2,6 +2,7 @@ import pytest
 from schunk_gripper_library.tests.etc.pseudo_terminals import Connection
 from schunk_gripper_library.tests.etc.modbus_server import ModbusServer
 import asyncio
+import threading
 from pathlib import Path
 
 
@@ -20,15 +21,32 @@ def pseudo_terminals():
 @pytest.fixture(scope="module")
 def modbus_server(pseudo_terminals):
     pt1, pt2 = pseudo_terminals
-    server = ModbusServer()
-    print("Opening Modbus server")
-    asyncio.run(server.setup(port=pt1))
-    asyncio.run(server.start())
 
+    async def periodic_modbus_task(pt1, stop_event):
+        server = ModbusServer()
+        await server.setup(port=pt1)
+        await server.start()
+
+        try:
+            while not stop_event.is_set():
+                await asyncio.sleep(1)
+        finally:
+            server.stop()
+
+    loop = asyncio.new_event_loop()
+    thread = threading.Thread(target=lambda: loop.run_forever())
+    thread.start()
+
+    stop_event = asyncio.Event()
+    task = asyncio.run_coroutine_threadsafe(periodic_modbus_task(pt1, stop_event), loop)
     yield pt2
 
-    print("Closing Modbus server")
-    server.stop()
+    stop_event.set()
+    task.result()
+
+    loop.call_soon_threadsafe(loop.stop)
+    thread.join()
+    loop.close()
 
 
 def modbus_gripper_available():
