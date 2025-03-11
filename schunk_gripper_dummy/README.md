@@ -37,3 +37,12 @@ When working in a sourced ROS2 environment, you can start the dummy with
 ```bash
 ros2 run schunk_gripper_dummy start_dummy --ros-args -p port:=8000
 ```
+
+## Stopping the dummy
+If you somehow lost control over the dummy's terminal, you can stop it via its processes.
+Get the processes (pid) that occupy the `port`, e.g. with
+
+```bash
+ ss -ltnup 'sport = :8000'
+ ```
+ and kill them with `kill -9 <process-id>`
