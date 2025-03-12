@@ -105,40 +105,44 @@ def test_concurrent_output_buffer_reads_and_writes_dont_deadlock():
 @skip_without_gripper
 def test_concurrent_receive_calls_dont_deadlock():
     driver = Driver()
-    driver.connect("modbus", "/dev/ttyUSB0", 12)
-    nr_iterations = 10
+    for host, port in zip(["0.0.0.0", None], [8000, "/dev/ttyUSB0"]):
+        driver.connect(host=host, port=port, device_id=12)
+        nr_iterations = 10
 
-    def receive():
-        for n in range(nr_iterations):
-            assert driver.receive_plc_input()
+        def receive():
+            for n in range(nr_iterations):
+                assert driver.receive_plc_input()
 
-    threads = []
-    for i in range(10):
-        thread = Thread(target=receive, daemon=True)
-        thread.start()
-        threads.append(thread)
+        threads = []
+        for i in range(10):
+            thread = Thread(target=receive, daemon=True)
+            thread.start()
+            threads.append(thread)
 
-    for thread in threads:
-        thread.join()
-        assert not thread.is_alive()
+        for thread in threads:
+            thread.join()
+            assert not thread.is_alive()
 
-    driver.disconnect()
+        driver.disconnect()
 
 
 @skip_without_gripper
 def test_driver_runs_receiving_background_thread():
     driver = Driver()
-    assert not driver.polling_thread.is_alive()
-    driver.connect("modbus", "/dev/ttyUSB0", 12)
-    assert driver.polling_thread.is_alive()
-    time.sleep(1)  # Let it run a little
-    driver.disconnect()
-    assert not driver.polling_thread.is_alive()
+    for host, port in zip(["0.0.0.0", None], [8000, "/dev/ttyUSB0"]):
+        assert not driver.polling_thread.is_alive()
+        driver.connect(host=host, port=port, device_id=12)
+        assert driver.polling_thread.is_alive()
+        time.sleep(1)  # Let it run a little
+        driver.disconnect()
+        assert not driver.polling_thread.is_alive()
 
 
 @skip_without_gripper
 def test_driver_updates_with_specified_cycle():
     driver = Driver()
-    update_cycle = 0.1
-    driver.connect("modbus", "/dev/ttyUSB0", 12, update_cycle)
-    assert pytest.approx(driver.update_cycle) == update_cycle
+    for host, port in zip(["0.0.0.0", None], [8000, "/dev/ttyUSB0"]):
+        update_cycle = 0.1
+        driver.connect(host=host, port=port, device_id=12, update_cycle=update_cycle)
+        assert pytest.approx(driver.update_cycle) == update_cycle
+        driver.disconnect()
