@@ -39,27 +39,32 @@ class Driver(object):
 
     def connect(
         self,
-        protocol: str,
-        port: str,
+        host: str = "",
+        port: int | str = 80,
         device_id: int | None = None,
         update_cycle: float = 0.05,
     ) -> bool:
-        if protocol not in ["modbus"]:
-            return False
-        if not isinstance(port, str):
-            return False
-        if protocol == "modbus" and not device_id:
-            return False
-        if device_id and not isinstance(device_id, int):
-            return False
-        if isinstance(device_id, int) and device_id < 0:
-            return False
         if update_cycle < 0.001:
             return False
         if self.connected:
             return False
 
-        if protocol == "modbus":
+        # TCP/IP
+        if host:
+            if not isinstance(port, int):
+                return False
+            if isinstance(port, int) and port < 0:
+                return False
+            self.connected = True
+
+        # Modbus
+        else:
+            if not isinstance(port, str):
+                return False
+            if not isinstance(device_id, int):
+                return False
+            if isinstance(device_id, int) and device_id < 0:
+                return False
             self.mb_device_id = device_id
             self.mb_client = ModbusSerialClient(
                 port=port,
