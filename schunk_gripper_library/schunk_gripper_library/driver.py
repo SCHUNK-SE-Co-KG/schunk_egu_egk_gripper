@@ -6,6 +6,7 @@ import re
 from threading import Thread
 import asyncio
 import time
+from httpx import Client
 
 
 class Driver(object):
@@ -33,6 +34,7 @@ class Driver(object):
 
         self.mb_client: ModbusSerialClient | None = None
         self.mb_device_id: int | None = None
+        self.web_client: Client | None = None
         self.connected: bool = False
         self.polling_thread: Thread = Thread()
         self.update_cycle: float = 0.05  # sec
@@ -55,6 +57,7 @@ class Driver(object):
                 return False
             if isinstance(port, int) and port < 0:
                 return False
+            self.web_client = Client()
             self.connected = True
 
         # Modbus
@@ -95,6 +98,7 @@ class Driver(object):
 
         if self.mb_client and self.mb_client.connected:
             self.mb_client.close()
+
         return True
 
     async def acknowledge(self) -> bool:
@@ -122,7 +126,6 @@ class Driver(object):
         )  # activate fast stop (inverted behavior)
         self.send_plc_output()
         desired_bits = {"5": cmd_toggle_before ^ 1, "7": 1}
-        print(f"hello stefan: {self.get_plc_input()}")
         return await self.wait_for_status(bits=desired_bits)
 
     def send_plc_output(self) -> bool:
@@ -141,10 +144,18 @@ class Driver(object):
                     no_response_expected=False,
                 )
             return True
+
+        if self.web_client and self.connected:
+            data = {"inst": self.plc_output, "value": self.get_plc_output()}
+            response = self.web_client.post(
+                url="http://0.0.0.0:8000/adi/update.json", data=data
+            )
+            return response.is_success
+
         return False
 
     def receive_plc_input(self) -> bool:
-        if self.mb_client and self.mb_client.connected:
+        if self.mb_client and self.connected:
             with self.input_buffer_lock:
                 pdu = self.mb_client.read_holding_registers(
                     address=int(self.plc_input, 16) - 1,
@@ -159,6 +170,15 @@ class Driver(object):
                     data.extend(reg.to_bytes(2, byteorder="big"))
                 self.plc_input_buffer = data
                 return True
+
+        if self.web_client and self.connected:
+            params = {"inst": self.plc_input, "count": "1"}
+            response = self.web_client.get(
+                "http://0.0.0.0:8000/adi/data.json", params=params
+            )
+            self.set_plc_input(response.json()[0])
+            return response.is_success
+
         return False
 
     async def wait_for_status(

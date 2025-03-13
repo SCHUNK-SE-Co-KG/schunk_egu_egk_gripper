@@ -297,6 +297,7 @@ class Dummy(object):
         # Fast stop
         if self.get_control_bit(0) == 0:  # fail-safe behavior
             self.set_status_bit(bit=7, value=True)
+            self.set_status_bit(bit=0, value=False)
             self.set_status_diagnostics("D9")
 
         # Controlled stop
