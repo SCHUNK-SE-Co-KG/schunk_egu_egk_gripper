@@ -95,7 +95,7 @@ def test_driver_implements_sending_plc_output():
 
 
 @skip_without_gripper
-def test_driver_supports_repeated_sending_without_sleep():
+def test_driver_supports_repeated_sending():
     driver = Driver()
     for host, port in zip(["0.0.0.0", None], [8000, "/dev/ttyUSB0"]):
         driver.connect(host=host, port=port, device_id=12)
@@ -123,7 +123,7 @@ def test_driver_implements_receiving_plc_input():
 
 
 @skip_without_gripper
-def test_driver_supports_repeated_receiving_without_sleep():
+def test_driver_supports_repeated_receiving():
     driver = Driver()
     for host, port in zip(["0.0.0.0", None], [8000, "/dev/ttyUSB0"]):
         driver.connect(host=host, port=port, device_id=12)
