@@ -5,9 +5,9 @@ import asyncio
 
 @skip_without_gripper
 def test_driver_implements_connect_and_disconnect():
+    driver = Driver()
 
     # Modbus
-    driver = Driver()
     device_id = 12  # SChUNK default
     assert driver.connect(port="/dev/ttyUSB0", device_id=device_id)
     assert driver.mb_device_id == device_id
@@ -16,7 +16,11 @@ def test_driver_implements_connect_and_disconnect():
     assert not driver.mb_client.connected
 
     # TCP/IP
-    assert driver.connect(host="0.0.0.0", port=8000)
+    host = "0.0.0.0"
+    port = 8000
+    assert driver.connect(host=host, port=port)
+    assert driver.host == host
+    assert driver.port == port
     assert driver.web_client is not None
     assert driver.disconnect()
     assert driver.web_client is None
@@ -38,6 +42,9 @@ def test_driver_rejects_invalid_connection_arguments():
 
     # TCP/IP
     assert not driver.connect(host="0.0.0.0", port=-10)
+    assert not driver.connect(host="a.b.c.d")
+    assert not driver.connect(host="1.3.3")
+    assert not driver.connect(host="some arbitrary string #!?")
 
     # Wrong update cycles
     invalid_cycles = [-1, -0.001, 0.0, 0, 0.0001]

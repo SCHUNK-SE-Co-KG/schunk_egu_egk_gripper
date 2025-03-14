@@ -6,7 +6,7 @@ import re
 from threading import Thread
 import asyncio
 import time
-from httpx import Client
+from httpx import Client, ConnectError, ConnectTimeout
 
 
 class Driver(object):
@@ -35,6 +35,8 @@ class Driver(object):
         self.mb_client: ModbusSerialClient | None = None
         self.mb_device_id: int | None = None
         self.web_client: Client | None = None
+        self.host: str = "0.0.0.0"
+        self.port: int = 80
         self.connected: bool = False
         self.polling_thread: Thread = Thread()
         self.update_cycle: float = 0.05  # sec
@@ -57,8 +59,15 @@ class Driver(object):
                 return False
             if isinstance(port, int) and port < 0:
                 return False
-            self.web_client = Client()
-            self.connected = True
+            self.host = host
+            self.port = port
+            self.web_client = Client(timeout=1.0)
+            try:
+                self.connected = self.web_client.get(
+                    f"http://{host}:{port}/adi/data.json"
+                ).is_success
+            except (ConnectError, ConnectTimeout):
+                self.connected = False
 
         # Modbus
         else:
@@ -151,7 +160,7 @@ class Driver(object):
         if self.web_client and self.connected:
             data = {"inst": self.plc_output, "value": self.get_plc_output()}
             response = self.web_client.post(
-                url="http://0.0.0.0:8000/adi/update.json", data=data
+                url=f"http://{self.host}:{self.port}/adi/update.json", data=data
             )
             return response.is_success
 
@@ -179,7 +188,7 @@ class Driver(object):
         if self.web_client and self.connected:
             params = {"inst": self.plc_input, "count": "1"}
             response = self.web_client.get(
-                "http://0.0.0.0:8000/adi/data.json", params=params
+                f"http://{self.host}:{self.port}/adi/data.json", params=params
             )
             self.set_plc_input(response.json()[0])
             return response.is_success
