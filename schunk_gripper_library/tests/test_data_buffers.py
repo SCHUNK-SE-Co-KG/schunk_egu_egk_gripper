@@ -55,3 +55,17 @@ def test_check_for_non_hex_characters_behaves_as_expected():
         assert not driver.contains_non_hex_chars(string)
     for string in non_hex_strings:
         assert driver.contains_non_hex_chars(string)
+
+
+def test_driver_knows_supported_module_parameters():
+    driver = Driver()
+
+    # Check shape
+    assert isinstance(driver.supported_parameters, dict)
+    assert all(
+        isinstance(key, str) and isinstance(value, dict)
+        for key, value in driver.supported_parameters.items()
+    )
+    for value in driver.supported_parameters.values():
+        assert "registers" in value and type(value["registers"]) is int
+        assert "type" in value and type(value["type"]) is str

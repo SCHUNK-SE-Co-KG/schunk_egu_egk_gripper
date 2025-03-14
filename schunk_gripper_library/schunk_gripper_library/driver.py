@@ -7,6 +7,9 @@ from threading import Thread
 import asyncio
 import time
 from httpx import Client, ConnectError, ConnectTimeout
+from importlib.resources import files
+from typing import Union
+import json
 
 
 class Driver(object):
@@ -26,6 +29,14 @@ class Driver(object):
         # fmt:on
         self.reserved_status_bits: list[int] = [10, 15] + list(range(18, 31))
         self.reserved_control_bits: list[int] = [10, 15] + list(range(17, 30))
+
+        supported_params = str(
+            files(__package__).joinpath("config/supported_parameters.json")
+        )
+        with open(supported_params, "r") as f:
+            self.supported_parameters: dict[str, dict[str, Union[int, str]]] = (
+                json.load(f)
+            )
 
         self.plc_input_buffer: bytearray = bytearray(bytes.fromhex("00" * 16))
         self.plc_output_buffer: bytearray = bytearray(bytes.fromhex("00" * 16))
@@ -139,6 +150,41 @@ class Driver(object):
         self.send_plc_output()
         desired_bits = {"5": cmd_toggle_before ^ 1, "7": 1}
         return await self.wait_for_status(bits=desired_bits)
+
+    def fetch_module_parameter(self, param: str) -> bool | int:
+        if param not in self.supported_parameters:
+            return False
+        result = bytearray()
+
+        if self.mb_client and self.mb_client.connected:
+            pdu = self.mb_client.read_holding_registers(
+                address=int(param, 16) - 1,
+                count=self.supported_parameters[param]["registers"],
+                slave=self.mb_device_id,
+                no_response_expected=False,
+            )
+            if pdu.isError():
+                return False
+            # Parse the 2-byte registers,
+            # reverting pymodbus' internal big endian decoding.
+            for reg in pdu.registers:
+                result.extend(reg.to_bytes(2, byteorder="big"))
+
+        if self.web_client and self.connected:
+            params = {"inst": param, "count": "1"}
+            response = self.web_client.get(
+                f"http://{self.host}:{self.port}/adi/data.json", params=params
+            )
+            if not response.is_success:
+                return False
+            result = bytearray(bytes.fromhex(response.json()[0]))
+
+        if result:
+            if len(result) == 1:
+                return struct.unpack("B", result)[0]
+            if len(result) == 2:
+                return struct.unpack("h", result)[0]
+        return False
 
     def send_plc_output(self) -> bool:
         if self.mb_client and self.mb_client.connected:
