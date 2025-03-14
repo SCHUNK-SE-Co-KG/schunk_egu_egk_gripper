@@ -99,6 +99,9 @@ class Driver(object):
         if self.mb_client and self.mb_client.connected:
             self.mb_client.close()
 
+        if self.web_client:
+            self.web_client = None
+
         return True
 
     async def acknowledge(self) -> bool:
@@ -137,13 +140,13 @@ class Driver(object):
                     int.from_bytes(self.plc_output_buffer[i : i + 2], byteorder="big")
                     for i in range(0, len(self.plc_output_buffer), 2)
                 ]
-                self.mb_client.write_registers(
+                pdu = self.mb_client.write_registers(
                     address=int(self.plc_output, 16) - 1,  # Modbus convention
                     values=values,
                     slave=self.mb_device_id,
                     no_response_expected=False,
                 )
-            return True
+            return not pdu.isError()
 
         if self.web_client and self.connected:
             data = {"inst": self.plc_output, "value": self.get_plc_output()}
@@ -155,7 +158,7 @@ class Driver(object):
         return False
 
     def receive_plc_input(self) -> bool:
-        if self.mb_client and self.connected:
+        if self.mb_client and self.mb_client.connected:
             with self.input_buffer_lock:
                 pdu = self.mb_client.read_holding_registers(
                     address=int(self.plc_input, 16) - 1,
@@ -163,6 +166,8 @@ class Driver(object):
                     slave=self.mb_device_id,
                     no_response_expected=False,
                 )
+                if pdu.isError():
+                    return False
                 # Parse the 2-byte registers into a 16-byte array.
                 # Revert pymodbus' internal big endian decoding.
                 data = bytearray()

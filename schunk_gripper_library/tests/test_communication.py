@@ -4,18 +4,22 @@ import asyncio
 
 
 @skip_without_gripper
-def test_driver_implements_connect():
+def test_driver_implements_connect_and_disconnect():
 
     # Modbus
     driver = Driver()
     device_id = 12  # SChUNK default
     assert driver.connect(port="/dev/ttyUSB0", device_id=device_id)
     assert driver.mb_device_id == device_id
+    assert driver.mb_client.connected
     assert driver.disconnect()
+    assert not driver.mb_client.connected
 
     # TCP/IP
     assert driver.connect(host="0.0.0.0", port=8000)
+    assert driver.web_client is not None
     assert driver.disconnect()
+    assert driver.web_client is None
 
 
 def test_driver_rejects_invalid_connection_arguments():
@@ -178,3 +182,14 @@ def test_driver_supports_waiting_for_desired_status():
 
         # Finish
         driver.disconnect()
+
+
+@skip_without_gripper
+def test_driver_supports_sending_and_receiving_after_switching_protocols():
+    driver = Driver()
+    for _ in range(3):
+        for host, port in zip(["0.0.0.0", None], [8000, "/dev/ttyUSB0"]):
+            driver.connect(host=host, port=port, device_id=12)
+            assert driver.send_plc_output()
+            assert driver.receive_plc_input()
+            driver.disconnect()
