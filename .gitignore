@@ -1,7 +1,10 @@
-/build/
-/install/
-/log/
+build/
+install/
+log/
 /.vscode
 
 # Ignore test coverage artifacts
 *.coverage
+
+# Ignore pip install artifacts
+*.egg-info/

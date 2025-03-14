@@ -6,6 +6,7 @@ import re
 from threading import Thread
 import asyncio
 import time
+from httpx import Client, ConnectError, ConnectTimeout
 
 
 class Driver(object):
@@ -33,33 +34,49 @@ class Driver(object):
 
         self.mb_client: ModbusSerialClient | None = None
         self.mb_device_id: int | None = None
+        self.web_client: Client | None = None
+        self.host: str = "0.0.0.0"
+        self.port: int = 80
         self.connected: bool = False
         self.polling_thread: Thread = Thread()
         self.update_cycle: float = 0.05  # sec
 
     def connect(
         self,
-        protocol: str,
-        port: str,
+        host: str = "",
+        port: int | str = 80,
         device_id: int | None = None,
         update_cycle: float = 0.05,
     ) -> bool:
-        if protocol not in ["modbus"]:
-            return False
-        if not isinstance(port, str):
-            return False
-        if protocol == "modbus" and not device_id:
-            return False
-        if device_id and not isinstance(device_id, int):
-            return False
-        if isinstance(device_id, int) and device_id < 0:
-            return False
         if update_cycle < 0.001:
             return False
         if self.connected:
             return False
 
-        if protocol == "modbus":
+        # TCP/IP
+        if host:
+            if not isinstance(port, int):
+                return False
+            if isinstance(port, int) and port < 0:
+                return False
+            self.host = host
+            self.port = port
+            self.web_client = Client(timeout=1.0)
+            try:
+                self.connected = self.web_client.get(
+                    f"http://{host}:{port}/adi/data.json"
+                ).is_success
+            except (ConnectError, ConnectTimeout):
+                self.connected = False
+
+        # Modbus
+        else:
+            if not isinstance(port, str):
+                return False
+            if not isinstance(device_id, int):
+                return False
+            if isinstance(device_id, int) and device_id < 0:
+                return False
             self.mb_device_id = device_id
             self.mb_client = ModbusSerialClient(
                 port=port,
@@ -90,6 +107,10 @@ class Driver(object):
 
         if self.mb_client and self.mb_client.connected:
             self.mb_client.close()
+
+        if self.web_client:
+            self.web_client = None
+
         return True
 
     async def acknowledge(self) -> bool:
@@ -117,7 +138,6 @@ class Driver(object):
         )  # activate fast stop (inverted behavior)
         self.send_plc_output()
         desired_bits = {"5": cmd_toggle_before ^ 1, "7": 1}
-        print(f"hello stefan: {self.get_plc_input()}")
         return await self.wait_for_status(bits=desired_bits)
 
     def send_plc_output(self) -> bool:
@@ -129,13 +149,21 @@ class Driver(object):
                     int.from_bytes(self.plc_output_buffer[i : i + 2], byteorder="big")
                     for i in range(0, len(self.plc_output_buffer), 2)
                 ]
-                self.mb_client.write_registers(
+                pdu = self.mb_client.write_registers(
                     address=int(self.plc_output, 16) - 1,  # Modbus convention
                     values=values,
                     slave=self.mb_device_id,
                     no_response_expected=False,
                 )
-            return True
+            return not pdu.isError()
+
+        if self.web_client and self.connected:
+            data = {"inst": self.plc_output, "value": self.get_plc_output()}
+            response = self.web_client.post(
+                url=f"http://{self.host}:{self.port}/adi/update.json", data=data
+            )
+            return response.is_success
+
         return False
 
     def receive_plc_input(self) -> bool:
@@ -147,6 +175,8 @@ class Driver(object):
                     slave=self.mb_device_id,
                     no_response_expected=False,
                 )
+                if pdu.isError():
+                    return False
                 # Parse the 2-byte registers into a 16-byte array.
                 # Revert pymodbus' internal big endian decoding.
                 data = bytearray()
@@ -154,6 +184,15 @@ class Driver(object):
                     data.extend(reg.to_bytes(2, byteorder="big"))
                 self.plc_input_buffer = data
                 return True
+
+        if self.web_client and self.connected:
+            params = {"inst": self.plc_input, "count": "1"}
+            response = self.web_client.get(
+                f"http://{self.host}:{self.port}/adi/data.json", params=params
+            )
+            self.set_plc_input(response.json()[0])
+            return response.is_success
+
         return False
 
     async def wait_for_status(

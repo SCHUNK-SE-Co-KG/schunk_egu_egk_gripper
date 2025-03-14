@@ -1,7 +1,6 @@
 from threading import Thread
 import time
-import os
-from pathlib import Path
+from importlib.resources import files
 import json
 import struct
 from typing import Tuple
@@ -57,15 +56,10 @@ class Dummy(object):
         self.reserved_status_bits = [10, 15] + list(range(18, 31))
         self.reserved_control_bits = [10, 15] + list(range(17, 30))
 
-        enum_config = os.path.join(
-            Path(__file__).resolve().parents[1], "config/enum.json"
-        )
-        metadata_config = os.path.join(
-            Path(__file__).resolve().parents[1], "config/metadata.json"
-        )
-        data_config = os.path.join(
-            Path(__file__).resolve().parents[1], "config/data.json"
-        )
+        enum_config = files(__package__).joinpath("config/enum.json")
+        metadata_config = files(__package__).joinpath("config/metadata.json")
+        data_config = files(__package__).joinpath("config/data.json")
+
         with open(enum_config, "r") as f:
             self.enum = json.load(f)
         with open(metadata_config, "r") as f:
@@ -171,6 +165,12 @@ class Dummy(object):
 
     def get_plc_output(self):
         return [self.plc_output_buffer.hex().upper()]
+
+    def clear_plc_output(self) -> None:
+        self.plc_output_buffer = bytearray(bytes.fromhex("00" * 16))
+        self.set_control_bit(
+            bit=0, value=True
+        )  # deactivate fast stop (inverted behavior)
 
     def set_status_bit(self, bit: int, value: bool) -> bool:
         if bit < 0 or bit > 31:
@@ -286,6 +286,10 @@ class Dummy(object):
         self.set_status_bit(bit=12, value=False)
         self.set_status_bit(bit=13, value=False)
 
+        # Clearing all control bits doesn't trigger any action
+        if self.get_plc_output()[0] == "01" + "00" * 15:
+            return
+
         # Command received toggle
         self.toggle_status_bit(bit=5)
 
@@ -303,6 +307,7 @@ class Dummy(object):
         # Fast stop
         if self.get_control_bit(0) == 0:  # fail-safe behavior
             self.set_status_bit(bit=7, value=True)
+            self.set_status_bit(bit=0, value=False)
             self.set_status_diagnostics("D9")
 
         # Controlled stop

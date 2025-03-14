@@ -1,4 +1,4 @@
-from src.dummy import Dummy
+from schunk_gripper_dummy.dummy import Dummy
 import struct
 import pytest
 
@@ -119,6 +119,22 @@ def test_dummy_rejects_toggling_reserved_status_bits():
     dummy = Dummy()
     for bit in dummy.reserved_status_bits:
         assert not dummy.toggle_status_bit(bit)
+
+
+def test_dummy_supports_clearing_control_bits():
+    dummy = Dummy()
+    dummy.clear_plc_output()
+    before = dummy.get_plc_output()[0]
+
+    # Set every control bit.
+    # The fast_stop has inverted behavior
+    dummy.set_control_bit(bit=0, value=False)
+    for bit in dummy.valid_control_bits[1:]:
+        dummy.set_control_bit(bit=bit, value=True)
+
+    dummy.clear_plc_output()
+    after = dummy.get_plc_output()[0]
+    assert after == before
 
 
 def test_dummy_supports_reading_target_position():

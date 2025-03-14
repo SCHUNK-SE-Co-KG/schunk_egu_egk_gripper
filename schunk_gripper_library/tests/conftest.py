@@ -4,6 +4,7 @@ from schunk_gripper_library.tests.etc.modbus_server import ModbusServer
 import asyncio
 import threading
 from pathlib import Path
+from httpx import Client, ConnectTimeout, ConnectError
 
 
 @pytest.fixture(scope="module")
@@ -49,12 +50,20 @@ def modbus_server(pseudo_terminals):
     loop.close()
 
 
-def modbus_gripper_available():
-    if Path("/dev/ttyUSB0").exists():
+def gripper_available():
+    client = Client()
+    try:
+        webserver_up = client.get(
+            "http://0.0.0.0:8000/adi/data.json", timeout=1.0
+        ).is_success
+    except (ConnectTimeout, ConnectError):
+        webserver_up = False
+    modbus_server_up = Path("/dev/ttyUSB0").exists() or ""
+    if webserver_up and modbus_server_up:
         return True
     return False
 
 
 skip_without_gripper = pytest.mark.skipif(
-    not modbus_gripper_available(), reason="No modbus gripper available"
+    not gripper_available(), reason="No gripper/simulator available"
 )

@@ -4,77 +4,111 @@ import asyncio
 
 
 @skip_without_gripper
-def test_driver_implements_connect():
+def test_driver_implements_connect_and_disconnect():
     driver = Driver()
+
+    # Modbus
     device_id = 12  # SChUNK default
-    assert driver.connect("modbus", "/dev/ttyUSB0", device_id)
+    assert driver.connect(port="/dev/ttyUSB0", device_id=device_id)
     assert driver.mb_device_id == device_id
+    assert driver.mb_client.connected
     assert driver.disconnect()
+    assert not driver.mb_client.connected
+
+    # TCP/IP
+    host = "0.0.0.0"
+    port = 8000
+    assert driver.connect(host=host, port=port)
+    assert driver.host == host
+    assert driver.port == port
+    assert driver.web_client is not None
+    assert driver.disconnect()
+    assert driver.web_client is None
 
 
 def test_driver_rejects_invalid_connection_arguments():
     driver = Driver()
-    invalid_protocols = ["This", "is", "an", "invalid", "protocol"]
-    for protocol in invalid_protocols:
-        assert not driver.connect(protocol, "doesn't matter")
 
-    # Protocol ok but remaining args wrong or missing
-    assert not driver.connect("modbus", 42)  # wrong port type
-    assert not driver.connect("modbus", 42, 12)
-    assert not driver.connect("modbus", "/dev/ttyusb0")  # missing device_id
-    assert not driver.connect("modbus", "/dev/ttyusb0", "12")  # wrong device_id type
-    assert not driver.connect("modbus", "ok", -1)
-    assert not driver.connect("modbus", "ok", 0)
+    # Modbus
+    assert not driver.connect(port=42)  # no host
+    assert not driver.connect(port=42, device_id=12)
+    assert not driver.connect(port="/dev/ttyUSB0")  # missing device_id
+    assert not driver.connect(
+        port="/dev/ttyUSB0", device_id="12"
+    )  # wrong device_id type
+    assert not driver.connect(port="not ok", device_id=-1)
+    assert not driver.connect(port="not ok", device_id=0)
+    assert not driver.connect(port="non-existent", device_id=12)  # non-existent port
 
-    # Arguments ok, but non-existent modbus port
-    assert not driver.connect("modbus", "non-existent", 12)
+    # TCP/IP
+    assert not driver.connect(host="0.0.0.0", port=-10)
+    assert not driver.connect(host="a.b.c.d")
+    assert not driver.connect(host="1.3.3")
+    assert not driver.connect(host="some arbitrary string #!?")
 
     # Wrong update cycles
     invalid_cycles = [-1, -0.001, 0.0, 0, 0.0001]
     for cycle in invalid_cycles:
-        assert not driver.connect("modbus", "/dev/ttyUSB0", 12, cycle)
+        assert not driver.connect("/dev/ttyUSB0", device_id=12, update_cycle=cycle)
 
 
 @skip_without_gripper
 def test_driver_supports_repeated_connects_and_disconnects():
     driver = Driver()
+    for host, port in zip(["0.0.0.0", None], [8000, "/dev/ttyUSB0"]):
+        for _ in range(3):
+            assert driver.connect(host=host, port=port, device_id=12)
+            assert driver.disconnect()
+
+
+@skip_without_gripper
+def test_driver_supports_repeated_switching_between_protocols():
+    driver = Driver()
     for _ in range(3):
-        assert driver.connect("modbus", "/dev/ttyUSB0", 12)
+        assert driver.connect(host="0.0.0.0", port=8000)
+        assert driver.disconnect()
+        assert driver.connect(port="/dev/ttyUSB0", device_id=12)
         assert driver.disconnect()
 
 
 @skip_without_gripper
 def test_driver_rejects_new_connect_without_disconnect():
     driver = Driver()
-    assert driver.connect("modbus", "/dev/ttyUSB0", 12)
-    assert not driver.connect("modbus", "/dev/ttyUSB0", 34)
-    driver.disconnect()
+    for host, port in zip(["0.0.0.0", None], [8000, "/dev/ttyUSB0"]):
+        assert driver.connect(host=host, port=port, device_id=12)
+        assert not driver.connect(host=host, port=port, device_id=12)
+        driver.disconnect()
 
 
 @skip_without_gripper
 def test_driver_supports_repeated_disconnects():
     driver = Driver()
     assert driver.disconnect()
-    driver.connect("modbus", "/dev/ttyUSB0", 12)
-    for _ in range(3):
-        assert driver.disconnect()
+    for host, port in zip(["0.0.0.0", None], [8000, "/dev/ttyUSB0"]):
+        driver.connect(host=host, port=port, device_id=12)
+        for _ in range(3):
+            assert driver.disconnect()
 
 
 @skip_without_gripper
 def test_driver_implements_sending_plc_output():
     driver = Driver()
-    driver.connect("modbus", "/dev/ttyUSB0", 12)
+    driver.connect(port="/dev/ttyUSB0", device_id=12)
+    assert driver.send_plc_output()
+    driver.disconnect()
+    driver.connect(host="0.0.0.0", port=8000)
     assert driver.send_plc_output()
     driver.disconnect()
 
 
 @skip_without_gripper
-def test_driver_supports_repeated_sending_without_sleep():
+def test_driver_supports_repeated_sending():
     driver = Driver()
-    driver.connect("modbus", "/dev/ttyUSB0", 12)
-    for _ in range(5):
-        assert driver.send_plc_output()
-    driver.disconnect()
+    for host, port in zip(["0.0.0.0", None], [8000, "/dev/ttyUSB0"]):
+        driver.connect(host=host, port=port, device_id=12)
+        for _ in range(5):
+            assert driver.send_plc_output()
+        driver.disconnect()
 
 
 @skip_without_gripper
@@ -86,67 +120,83 @@ def test_driver_rejects_sending_when_not_connected():
 @skip_without_gripper
 def test_driver_implements_receiving_plc_input():
     driver = Driver()
-    before = driver.get_plc_input()
-    driver.connect("modbus", "/dev/ttyUSB0", 12)
-    assert driver.receive_plc_input()
-    after = driver.get_plc_input()
-    assert after != before
-    driver.disconnect()
+    for host, port in zip(["0.0.0.0", None], [8000, "/dev/ttyUSB0"]):
+        before = driver.get_plc_input()
+        driver.connect(host=host, port=port, device_id=12)
+        assert driver.receive_plc_input()
+        after = driver.get_plc_input()
+        assert after != before
+        driver.disconnect()
 
 
 @skip_without_gripper
-def test_driver_supports_repeated_receiving_without_sleep():
+def test_driver_supports_repeated_receiving():
     driver = Driver()
-    driver.connect("modbus", "/dev/ttyUSB0", 12)
-    for _ in range(5):
-        assert driver.receive_plc_input()
-    driver.disconnect()
+    for host, port in zip(["0.0.0.0", None], [8000, "/dev/ttyUSB0"]):
+        driver.connect(host=host, port=port, device_id=12)
+        for _ in range(5):
+            assert driver.receive_plc_input()
+        driver.disconnect()
 
 
 @skip_without_gripper
 def test_driver_supports_waiting_for_desired_status():
     driver = Driver()
-    driver.connect("modbus", "/dev/ttyUSB0", 12)
+    for host, port in zip(["0.0.0.0", None], [8000, "/dev/ttyUSB0"]):
+        driver.connect(host=host, port=port, device_id=12)
 
-    # Timeout for bitsets that don't come
-    impossible_bits = {"0": 1, "7": 1}  # operational + error
-    assert not asyncio.run(
-        driver.wait_for_status(bits=impossible_bits, timeout_sec=0.1)
-    )
-
-    # Default timeout works
-    impossible_bits = {"0": 1, "7": 1}
-    assert not asyncio.run(driver.wait_for_status(bits=impossible_bits))
-
-    # Success when bits match
-    matching_bits = {"0": 0, "7": 1}  # error on startup
-    assert asyncio.run(driver.wait_for_status(bits=matching_bits, timeout_sec=0.1))
-
-    # Fails but survives invalid bits
-    invalid_bits = {"33": 1, "-1": 0}
-    assert not asyncio.run(driver.wait_for_status(bits=invalid_bits, timeout_sec=0.1))
-
-    # Fails but survives invalid timeouts
-    matching_bits = {"0": 0, "7": 1}
-    invalid_timeouts = [0.0, 0, -1.5]
-    for timeout in invalid_timeouts:
+        # Timeout for bitsets that don't come
+        impossible_bits = {"0": 1, "7": 1}  # operational + error
         assert not asyncio.run(
-            driver.wait_for_status(bits=matching_bits, timeout_sec=timeout)
+            driver.wait_for_status(bits=impossible_bits, timeout_sec=0.1)
         )
 
-    # Fails with empty bits
-    assert not asyncio.run(driver.wait_for_status(bits={}))
+        # Default timeout works
+        impossible_bits = {"0": 1, "7": 1}
+        assert not asyncio.run(driver.wait_for_status(bits=impossible_bits))
 
-    # Async calls don't block
-    async def wait() -> bool:
+        # Success when bits match
+        matching_bits = {"0": 0, "7": 1}  # error on startup
+        assert asyncio.run(driver.wait_for_status(bits=matching_bits, timeout_sec=0.1))
+
+        # Fails but survives invalid bits
+        invalid_bits = {"33": 1, "-1": 0}
+        assert not asyncio.run(
+            driver.wait_for_status(bits=invalid_bits, timeout_sec=0.1)
+        )
+
+        # Fails but survives invalid timeouts
         matching_bits = {"0": 0, "7": 1}
-        return await driver.wait_for_status(bits=matching_bits)
+        invalid_timeouts = [0.0, 0, -1.5]
+        for timeout in invalid_timeouts:
+            assert not asyncio.run(
+                driver.wait_for_status(bits=matching_bits, timeout_sec=timeout)
+            )
 
-    async def test() -> bool:
-        succeeded = await asyncio.gather(wait(), wait(), wait())
-        return all(succeeded)
+        # Fails with empty bits
+        assert not asyncio.run(driver.wait_for_status(bits={}))
 
-    assert asyncio.run(test())
+        # Async calls don't block
+        async def wait() -> bool:
+            matching_bits = {"0": 0, "7": 1}
+            return await driver.wait_for_status(bits=matching_bits)
 
-    # Finish
-    driver.disconnect()
+        async def test() -> bool:
+            succeeded = await asyncio.gather(wait(), wait(), wait())
+            return all(succeeded)
+
+        assert asyncio.run(test())
+
+        # Finish
+        driver.disconnect()
+
+
+@skip_without_gripper
+def test_driver_supports_sending_and_receiving_after_switching_protocols():
+    driver = Driver()
+    for _ in range(3):
+        for host, port in zip(["0.0.0.0", None], [8000, "/dev/ttyUSB0"]):
+            driver.connect(host=host, port=port, device_id=12)
+            assert driver.send_plc_output()
+            assert driver.receive_plc_input()
+            driver.disconnect()
