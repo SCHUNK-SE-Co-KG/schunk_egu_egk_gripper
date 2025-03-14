@@ -166,6 +166,12 @@ class Dummy(object):
     def get_plc_output(self):
         return [self.plc_output_buffer.hex().upper()]
 
+    def clear_plc_output(self) -> None:
+        self.plc_output_buffer = bytearray(bytes.fromhex("00" * 16))
+        self.set_control_bit(
+            bit=0, value=True
+        )  # deactivate fast stop (inverted behavior)
+
     def set_status_bit(self, bit: int, value: bool) -> bool:
         if bit < 0 or bit > 31:
             return False
@@ -279,6 +285,10 @@ class Dummy(object):
         self.set_status_bit(bit=8, value=False)
         self.set_status_bit(bit=12, value=False)
         self.set_status_bit(bit=13, value=False)
+
+        # Clearing all control bits doesn't trigger any action
+        if self.get_plc_output()[0] == "01" + "00" * 15:
+            return
 
         # Command received toggle
         self.toggle_status_bit(bit=5)

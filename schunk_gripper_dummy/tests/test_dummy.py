@@ -53,12 +53,23 @@ def test_dummy_is_ready_after_acknowledge():
     assert dummy.get_status_diagnostics() == "0"
 
 
-def test_dummy_always_toggles_command_received_bit():
+def test_dummy_toggles_command_received_bit_with_regular_control_bits():
     dummy = Dummy()
-    before = dummy.get_status_bit(bit=5)  # command received toggle
+    for bit in dummy.valid_control_bits[1:]:  # without inverted fast_stop bit 0
+        dummy.set_control_bit(bit=bit, value=True)
+        before = dummy.get_status_bit(bit=5)  # command received toggle
+        dummy.process_control_bits()
+        after = dummy.get_status_bit(bit=5)
+        assert after != before
+
+
+def test_dummy_does_not_toggle_command_received_bit_when_clearing():
+    dummy = Dummy()
+    before = dummy.get_status_bit(bit=5)
+    dummy.clear_plc_output()
     dummy.process_control_bits()
     after = dummy.get_status_bit(bit=5)
-    assert after != before
+    assert after == before
 
 
 def test_dummy_moves_to_absolute_position():
