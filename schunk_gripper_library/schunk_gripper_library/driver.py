@@ -158,6 +158,18 @@ class Driver(object):
         desired_bits = {"5": cmd_toggle_before ^ 1, "7": 1}
         return await self.wait_for_status(bits=desired_bits)
 
+    def receive_plc_input(self) -> bool:
+        with self.input_buffer_lock:
+            data = self.read_module_parameter(self.plc_input)
+            if data:
+                self.plc_input_buffer = data
+                return True
+        return False
+
+    def send_plc_output(self) -> bool:
+        with self.output_buffer_lock:
+            return self.write_module_parameter(self.plc_output, self.plc_output_buffer)
+
     def read_module_parameter(self, param: str) -> bytearray:
         result = bytearray()
         if param not in self.readable_parameters:
@@ -222,18 +234,6 @@ class Driver(object):
             )
             return response.is_success
 
-        return False
-
-    def send_plc_output(self) -> bool:
-        with self.output_buffer_lock:
-            return self.write_module_parameter(self.plc_output, self.plc_output_buffer)
-
-    def receive_plc_input(self) -> bool:
-        with self.input_buffer_lock:
-            data = self.read_module_parameter(self.plc_input)
-            if data:
-                self.plc_input_buffer = data
-                return True
         return False
 
     async def wait_for_status(
