@@ -30,12 +30,12 @@ class Driver(object):
         self.reserved_status_bits: list[int] = [10, 15] + list(range(18, 31))
         self.reserved_control_bits: list[int] = [10, 15] + list(range(17, 30))
 
-        supported_params = str(
-            files(__package__).joinpath("config/supported_parameters.json")
+        readable_params = str(
+            files(__package__).joinpath("config/readable_parameters.json")
         )
-        with open(supported_params, "r") as f:
-            self.supported_parameters: dict[str, dict[str, Union[int, str]]] = (
-                json.load(f)
+        with open(readable_params, "r") as f:
+            self.readable_parameters: dict[str, dict[str, Union[int, str]]] = json.load(
+                f
             )
 
         self.plc_input_buffer: bytearray = bytearray(bytes.fromhex("00" * 16))
@@ -153,13 +153,13 @@ class Driver(object):
 
     def read_module_parameter(self, param: str) -> bytearray:
         result = bytearray()
-        if param not in self.supported_parameters:
+        if param not in self.readable_parameters:
             return result
 
         if self.mb_client and self.mb_client.connected:
             pdu = self.mb_client.read_holding_registers(
                 address=int(param, 16) - 1,
-                count=self.supported_parameters[param]["registers"],
+                count=self.readable_parameters[param]["registers"],
                 slave=self.mb_device_id,
                 no_response_expected=False,
             )
@@ -179,7 +179,7 @@ class Driver(object):
 
         if result:
             current_size = len(result)
-            desired_size = int(self.supported_parameters[param]["registers"]) * 2
+            desired_size = int(self.readable_parameters[param]["registers"]) * 2
             if current_size < desired_size:
                 result.extend([0] * (desired_size - current_size))  # zero-pad
 

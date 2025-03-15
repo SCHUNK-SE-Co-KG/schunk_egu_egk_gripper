@@ -207,7 +207,7 @@ def test_driver_supports_reading_module_parameters():
     driver = Driver()
 
     # Can't read when not connected
-    for param in driver.supported_parameters.keys():
+    for param in driver.readable_parameters.keys():
         assert not driver.read_module_parameter(param=param)
 
     # Reject unsupported parameters
@@ -220,7 +220,7 @@ def test_driver_supports_reading_module_parameters():
     # All params have the correct size
     for host, port in zip(["0.0.0.0", None], [8000, "/dev/ttyUSB0"]):
         driver.connect(host=host, port=port, device_id=12)
-        for key, value in driver.supported_parameters.items():
+        for key, value in driver.readable_parameters.items():
             result = driver.read_module_parameter(key)
             assert len(result) == value["registers"] * 2  # two bytes per register
         driver.disconnect()
