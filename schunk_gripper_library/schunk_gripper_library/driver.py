@@ -19,6 +19,7 @@ class Driver(object):
         self.error_byte: int = 12
         self.warning_byte: int = 14
         self.additional_byte: int = 15
+        self.module_type: str = ""
         # fmt: off
         self.valid_status_bits: list[int] = (
             list(range(0, 10)) + [11, 12, 13, 14, 16, 17, 31]
@@ -30,12 +31,17 @@ class Driver(object):
         self.reserved_status_bits: list[int] = [10, 15] + list(range(18, 31))
         self.reserved_control_bits: list[int] = [10, 15] + list(range(17, 30))
 
+        valid_module_types = str(
+            files(__package__).joinpath("config/module_types.json")
+        )
         readable_params = str(
             files(__package__).joinpath("config/readable_parameters.json")
         )
         writable_params = str(
             files(__package__).joinpath("config/writable_parameters.json")
         )
+        with open(valid_module_types, "r") as f:
+            self.valid_module_types: dict[str, str] = json.load(f)
         with open(readable_params, "r") as f:
             self.readable_parameters: dict[str, dict[str, Union[int, str]]] = json.load(
                 f
@@ -115,11 +121,14 @@ class Driver(object):
                 daemon=True,
             )
             self.polling_thread.start()
+            type_enum = struct.unpack("h", self.read_module_parameter("0x0500"))[0]
+            self.module_type = self.valid_module_types[str(type_enum)]
 
         return self.connected
 
     def disconnect(self) -> bool:
         self.connected = False
+        self.module_type = ""
         if self.polling_thread.is_alive():
             self.polling_thread.join()
 

@@ -70,3 +70,11 @@ def test_driver_knows_readable_and_writable_module_parameters():
         for value in params.values():
             assert "registers" in value and type(value["registers"]) is int
             assert "type" in value and type(value["type"]) is str
+
+
+def test_driver_knows_valid_module_types():
+    driver = Driver()
+    assert isinstance(driver.valid_module_types, dict)
+    for key, value in driver.valid_module_types.items():
+        assert isinstance(key, str)
+        assert isinstance(value, str)

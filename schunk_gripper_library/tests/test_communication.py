@@ -256,3 +256,16 @@ def test_driver_supports_writing_module_parameters():
             data = bytearray()
             assert not driver.write_module_parameter(key, data)
         driver.disconnect()
+
+
+@skip_without_gripper
+def test_connected_driver_has_module_type():
+    driver = Driver()
+    assert not driver.module_type  # empty on startup
+
+    for host, port in zip(["0.0.0.0", None], [8000, "/dev/ttyUSB0"]):
+        driver.connect(host=host, port=port, device_id=12)
+        assert driver.module_type in driver.valid_module_types.values()
+
+        driver.disconnect()
+        assert not driver.module_type  # empty after disconnect
