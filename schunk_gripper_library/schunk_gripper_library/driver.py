@@ -151,10 +151,10 @@ class Driver(object):
         desired_bits = {"5": cmd_toggle_before ^ 1, "7": 1}
         return await self.wait_for_status(bits=desired_bits)
 
-    def fetch_module_parameter(self, param: str) -> bool | int:
-        if param not in self.supported_parameters:
-            return False
+    def read_module_parameter(self, param: str) -> bytearray:
         result = bytearray()
+        if param not in self.supported_parameters:
+            return result
 
         if self.mb_client and self.mb_client.connected:
             pdu = self.mb_client.read_holding_registers(
@@ -163,28 +163,27 @@ class Driver(object):
                 slave=self.mb_device_id,
                 no_response_expected=False,
             )
-            if pdu.isError():
-                return False
-            # Parse the 2-byte registers,
+            # Parse each 2-byte register,
             # reverting pymodbus' internal big endian decoding.
-            for reg in pdu.registers:
-                result.extend(reg.to_bytes(2, byteorder="big"))
+            if not pdu.isError():
+                for reg in pdu.registers:
+                    result.extend(reg.to_bytes(2, byteorder="big"))
 
         if self.web_client and self.connected:
             params = {"inst": param, "count": "1"}
             response = self.web_client.get(
                 f"http://{self.host}:{self.port}/adi/data.json", params=params
             )
-            if not response.is_success:
-                return False
-            result = bytearray(bytes.fromhex(response.json()[0]))
+            if response.is_success:
+                result = bytearray(bytes.fromhex(response.json()[0]))
 
         if result:
-            if len(result) == 1:
-                return struct.unpack("B", result)[0]
-            if len(result) == 2:
-                return struct.unpack("h", result)[0]
-        return False
+            current_size = len(result)
+            desired_size = int(self.supported_parameters[param]["registers"]) * 2
+            if current_size < desired_size:
+                result.extend([0] * (desired_size - current_size))  # zero-pad
+
+        return result
 
     def send_plc_output(self) -> bool:
         if self.mb_client and self.mb_client.connected:
@@ -213,32 +212,11 @@ class Driver(object):
         return False
 
     def receive_plc_input(self) -> bool:
-        if self.mb_client and self.mb_client.connected:
-            with self.input_buffer_lock:
-                pdu = self.mb_client.read_holding_registers(
-                    address=int(self.plc_input, 16) - 1,
-                    count=8,
-                    slave=self.mb_device_id,
-                    no_response_expected=False,
-                )
-                if pdu.isError():
-                    return False
-                # Parse the 2-byte registers into a 16-byte array.
-                # Revert pymodbus' internal big endian decoding.
-                data = bytearray()
-                for reg in pdu.registers:
-                    data.extend(reg.to_bytes(2, byteorder="big"))
+        with self.input_buffer_lock:
+            data = self.read_module_parameter(self.plc_input)
+            if data:
                 self.plc_input_buffer = data
                 return True
-
-        if self.web_client and self.connected:
-            params = {"inst": self.plc_input, "count": "1"}
-            response = self.web_client.get(
-                f"http://{self.host}:{self.port}/adi/data.json", params=params
-            )
-            self.set_plc_input(response.json()[0])
-            return response.is_success
-
         return False
 
     async def wait_for_status(

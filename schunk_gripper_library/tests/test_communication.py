@@ -203,25 +203,24 @@ def test_driver_supports_sending_and_receiving_after_switching_protocols():
 
 
 @skip_without_gripper
-def test_driver_supports_fetching_module_parameters():
+def test_driver_supports_reading_module_parameters():
     driver = Driver()
 
-    # Can't fetch when not connected
+    # Can't read when not connected
     for param in driver.supported_parameters.keys():
-        assert not driver.fetch_module_parameter(param=param)
+        assert not driver.read_module_parameter(param=param)
 
     # Reject unsupported parameters
     for host, port in zip(["0.0.0.0", None], [8000, "/dev/ttyUSB0"]):
         for param in ["not-ok", "?!#" "-1"]:
             driver.connect(host=host, port=port, device_id=12)
-            assert not driver.fetch_module_parameter(param)
+            assert not driver.read_module_parameter(param)
         driver.disconnect()
 
-    # All params have the correct type
+    # All params have the correct size
     for host, port in zip(["0.0.0.0", None], [8000, "/dev/ttyUSB0"]):
         driver.connect(host=host, port=port, device_id=12)
         for key, value in driver.supported_parameters.items():
-            result = driver.fetch_module_parameter(key)
-            if value["type"] == "enum":
-                assert type(result) is int
+            result = driver.read_module_parameter(key)
+            assert len(result) == value["registers"] * 2  # two bytes per register
         driver.disconnect()
