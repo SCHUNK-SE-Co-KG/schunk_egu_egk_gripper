@@ -33,8 +33,15 @@ class Driver(object):
         readable_params = str(
             files(__package__).joinpath("config/readable_parameters.json")
         )
+        writable_params = str(
+            files(__package__).joinpath("config/writable_parameters.json")
+        )
         with open(readable_params, "r") as f:
             self.readable_parameters: dict[str, dict[str, Union[int, str]]] = json.load(
+                f
+            )
+        with open(writable_params, "r") as f:
+            self.writable_parameters: dict[str, dict[str, Union[int, str]]] = json.load(
                 f
             )
 
@@ -185,31 +192,41 @@ class Driver(object):
 
         return result
 
-    def send_plc_output(self) -> bool:
+    def write_module_parameter(self, param: str, data: bytearray) -> bool:
+        if param not in self.writable_parameters:
+            return False
+        expected_size = self.writable_parameters[param]["registers"] * 2
+        if len(data) != expected_size:
+            return False
+
         if self.mb_client and self.mb_client.connected:
-            with self.output_buffer_lock:
-                # Turn the 16-byte array into a list of 2-byte registers.
-                # Pymodbus uses big endian internally for their encoding.
-                values = [
-                    int.from_bytes(self.plc_output_buffer[i : i + 2], byteorder="big")
-                    for i in range(0, len(self.plc_output_buffer), 2)
-                ]
-                pdu = self.mb_client.write_registers(
-                    address=int(self.plc_output, 16) - 1,  # Modbus convention
-                    values=values,
-                    slave=self.mb_device_id,
-                    no_response_expected=False,
-                )
+            # Turn the bytearray into a list of 2-byte registers.
+            # Pymodbus uses big endian internally for their encoding.
+            param_size = int(self.writable_parameters[param]["registers"]) * 2
+            values = [
+                int.from_bytes(data[i : i + 2], byteorder="big")
+                for i in range(0, param_size, 2)
+            ]
+            pdu = self.mb_client.write_registers(
+                address=int(param, 16) - 1,  # Modbus convention
+                values=values,
+                slave=self.mb_device_id,
+                no_response_expected=False,
+            )
             return not pdu.isError()
 
         if self.web_client and self.connected:
-            data = {"inst": self.plc_output, "value": self.get_plc_output()}
+            payload = {"inst": param, "value": data.hex().upper()}
             response = self.web_client.post(
-                url=f"http://{self.host}:{self.port}/adi/update.json", data=data
+                url=f"http://{self.host}:{self.port}/adi/update.json", data=payload
             )
             return response.is_success
 
         return False
+
+    def send_plc_output(self) -> bool:
+        with self.output_buffer_lock:
+            return self.write_module_parameter(self.plc_output, self.plc_output_buffer)
 
     def receive_plc_input(self) -> bool:
         with self.input_buffer_lock:
