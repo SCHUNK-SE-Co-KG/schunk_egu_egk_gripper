@@ -1,0 +1,4 @@
+{
+    "0x0040": {"registers": 8, "type": "uint32 int32 uint32 uint32"},
+    "0x0500": {"registers": 1, "type": "enum"}
+}

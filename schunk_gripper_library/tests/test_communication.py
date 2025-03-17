@@ -200,3 +200,72 @@ def test_driver_supports_sending_and_receiving_after_switching_protocols():
             assert driver.send_plc_output()
             assert driver.receive_plc_input()
             driver.disconnect()
+
+
+@skip_without_gripper
+def test_driver_supports_reading_module_parameters():
+    driver = Driver()
+
+    # Can't read when not connected
+    for param in driver.readable_parameters.keys():
+        assert not driver.read_module_parameter(param=param)
+
+    # Reject unsupported parameters
+    for host, port in zip(["0.0.0.0", None], [8000, "/dev/ttyUSB0"]):
+        for param in ["not-ok", "?!#" "-1"]:
+            driver.connect(host=host, port=port, device_id=12)
+            assert not driver.read_module_parameter(param)
+        driver.disconnect()
+
+    # All params have the correct size
+    for host, port in zip(["0.0.0.0", None], [8000, "/dev/ttyUSB0"]):
+        driver.connect(host=host, port=port, device_id=12)
+        for key, value in driver.readable_parameters.items():
+            result = driver.read_module_parameter(key)
+            assert len(result) == value["registers"] * 2  # two bytes per register
+        driver.disconnect()
+
+
+@skip_without_gripper
+def test_driver_supports_writing_module_parameters():
+    driver = Driver()
+
+    # Can't write when not connected
+    data = bytearray()
+    assert not driver.write_module_parameter("0x0048", data)
+
+    # Reject unsupported parameters
+    for host, port in zip(["0.0.0.0", None], [8000, "/dev/ttyUSB0"]):
+        for param in ["not-existent", "1234" "0x0"]:
+            driver.connect(host=host, port=port, device_id=12)
+            assert not driver.write_module_parameter(param, bytearray())
+        driver.disconnect()
+
+    # Data arguments must have the correct sizes
+    for host, port in zip(["0.0.0.0", None], [8000, "/dev/ttyUSB0"]):
+        driver.connect(host=host, port=port, device_id=12)
+
+        # Correct
+        for key, value in driver.writable_parameters.items():
+            byte_size = value["registers"] * 2
+            data = bytearray(bytes.fromhex("00" * byte_size))
+            assert driver.write_module_parameter(key, data)
+
+        # Incorrect
+        for key, value in driver.writable_parameters.items():
+            data = bytearray()
+            assert not driver.write_module_parameter(key, data)
+        driver.disconnect()
+
+
+@skip_without_gripper
+def test_connected_driver_has_module_type():
+    driver = Driver()
+    assert not driver.module_type  # empty on startup
+
+    for host, port in zip(["0.0.0.0", None], [8000, "/dev/ttyUSB0"]):
+        driver.connect(host=host, port=port, device_id=12)
+        assert driver.module_type in driver.valid_module_types.values()
+
+        driver.disconnect()
+        assert not driver.module_type  # empty after disconnect
