@@ -38,7 +38,7 @@ class Driver(Node):
         self.get_logger().info("on_configure() is called.")
         self.get_logger().info(f"Connecting on port {self.port}")
         if not self.gripper.connect(
-            protocol="modbus",
+            host="",
             port=self.get_parameter_or("port", "/dev/ttyUSB0").value,
             device_id=self.get_parameter_or("device_id", 12).value,
         ):
