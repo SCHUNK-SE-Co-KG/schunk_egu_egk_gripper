@@ -68,7 +68,8 @@ class Driver(object):
     def connect(
         self,
         host: str = "",
-        port: int | str = 80,
+        port: int = 80,
+        serial_port: str = "/dev/ttyUSB0",
         device_id: int | None = None,
         update_cycle: float = 0.05,
     ) -> bool:
@@ -95,7 +96,7 @@ class Driver(object):
 
         # Modbus
         else:
-            if not isinstance(port, str):
+            if not isinstance(serial_port, str):
                 return False
             if not isinstance(device_id, int):
                 return False
@@ -103,7 +104,7 @@ class Driver(object):
                 return False
             self.mb_device_id = device_id
             self.mb_client = ModbusSerialClient(
-                port=port,
+                port=serial_port,
                 baudrate=115200,
                 parity="N",
                 stopbits=1,
