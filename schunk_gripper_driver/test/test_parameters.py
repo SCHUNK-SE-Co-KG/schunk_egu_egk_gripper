@@ -16,13 +16,53 @@
 import rclpy
 from rclpy.node import Node
 from rcl_interfaces.srv import GetParameters, SetParameters
+from rcl_interfaces.msg import Parameter, ParameterValue, ParameterType
 from schunk_gripper_library.tests.conftest import skip_without_gripper
-from collections import OrderedDict
 
 
 @skip_without_gripper
 def test_driver_has_expected_parameters_after_startup(driver):
-    node = Node("test_parameters")
+    node = Node("test_startup_parameters")
+    get_params_client = node.create_client(
+        GetParameters, "/schunk/driver/get_parameters"
+    )
+    assert get_params_client.wait_for_service(timeout_sec=2)
+
+    default_parameters = [
+        Parameter(
+            name="host",
+            value=ParameterValue(type=ParameterType.PARAMETER_STRING, string_value=""),
+        ),
+        Parameter(
+            name="port",
+            value=ParameterValue(
+                type=ParameterType.PARAMETER_INTEGER, integer_value=80
+            ),
+        ),
+        Parameter(
+            name="serial_port",
+            value=ParameterValue(
+                type=ParameterType.PARAMETER_STRING, string_value="/dev/ttyUSB0"
+            ),
+        ),
+        Parameter(
+            name="device_id",
+            value=ParameterValue(
+                type=ParameterType.PARAMETER_INTEGER, integer_value=12
+            ),
+        ),
+    ]
+    names = [param.name for param in default_parameters]
+    future = get_params_client.call_async(GetParameters.Request(names=names))
+    rclpy.spin_until_future_complete(node, future)
+
+    for param, expected in zip(default_parameters, future.result().values):
+        assert param.value == expected
+
+
+@skip_without_gripper
+def test_driver_supports_setting_parameters(driver):
+    node = Node("test_setting_parameters")
     get_params_client = node.create_client(
         GetParameters, "/schunk/driver/get_parameters"
     )
@@ -32,18 +72,39 @@ def test_driver_has_expected_parameters_after_startup(driver):
     assert get_params_client.wait_for_service(timeout_sec=2)
     assert set_params_client.wait_for_service(timeout_sec=2)
 
-    expected = OrderedDict(
-        {"host": "", "port": 80, "serial_port": "/dev/ttyUSB0", "device_id": 12}
-    )
-    future = get_params_client.call_async(GetParameters.Request(names=expected.keys()))
+    parameters = [
+        Parameter(
+            name="host",
+            value=ParameterValue(
+                type=ParameterType.PARAMETER_STRING, string_value="0.0.0.0"
+            ),
+        ),
+        Parameter(
+            name="port",
+            value=ParameterValue(
+                type=ParameterType.PARAMETER_INTEGER, integer_value=1234
+            ),
+        ),
+        Parameter(
+            name="serial_port",
+            value=ParameterValue(
+                type=ParameterType.PARAMETER_STRING, string_value="/dev/serial-port"
+            ),
+        ),
+        Parameter(
+            name="device_id",
+            value=ParameterValue(
+                type=ParameterType.PARAMETER_INTEGER, integer_value=123
+            ),
+        ),
+    ]
+    names = [param.name for param in parameters]
+
+    future = set_params_client.call_async(SetParameters.Request(parameters=parameters))
     rclpy.spin_until_future_complete(node, future)
 
-    for result, value in zip(future.result().values, expected.values()):
-        if result.type == 1:
-            assert result.bool_value == value
-        if result.type == 2:
-            assert result.integer_value == value
-        if result.type == 3:
-            assert result.double_value == value
-        if result.type == 4:
-            assert result.string_value == value
+    future = get_params_client.call_async(GetParameters.Request(names=names))
+    rclpy.spin_until_future_complete(node, future)
+
+    for param, expected in zip(parameters, future.result().values):
+        assert param.value == expected
