@@ -61,6 +61,8 @@ class Driver(object):
         self.web_client: Client | None = None
         self.host: str = "0.0.0.0"
         self.port: int = 80
+        self.mb_client_lock: Lock = Lock()
+        self.web_client_lock: Lock = Lock()
         self.connected: bool = False
         self.polling_thread: Thread = Thread()
         self.update_cycle: float = 0.05  # sec
@@ -86,13 +88,14 @@ class Driver(object):
                 return False
             self.host = host
             self.port = port
-            self.web_client = Client(timeout=1.0)
-            try:
-                self.connected = self.web_client.get(
-                    f"http://{host}:{port}/adi/data.json"
-                ).is_success
-            except (ConnectError, ConnectTimeout):
-                self.connected = False
+            with self.web_client_lock:
+                self.web_client = Client(timeout=1.0)
+                try:
+                    self.connected = self.web_client.get(
+                        f"http://{host}:{port}/adi/data.json"
+                    ).is_success
+                except (ConnectError, ConnectTimeout):
+                    self.connected = False
 
         # Modbus
         else:
@@ -103,16 +106,17 @@ class Driver(object):
             if isinstance(device_id, int) and device_id < 0:
                 return False
             self.mb_device_id = device_id
-            self.mb_client = ModbusSerialClient(
-                port=serial_port,
-                baudrate=115200,
-                parity="N",
-                stopbits=1,
-                trace_connect=self._trace_connect,
-                trace_packet=self._trace_packet,
-                trace_pdu=self._trace_pdu,
-            )
-            self.connected = self.mb_client.connect()
+            with self.mb_client_lock:
+                self.mb_client = ModbusSerialClient(
+                    port=serial_port,
+                    baudrate=115200,
+                    parity="N",
+                    stopbits=1,
+                    trace_connect=self._trace_connect,
+                    trace_packet=self._trace_packet,
+                    trace_pdu=self._trace_pdu,
+                )
+                self.connected = self.mb_client.connect()
 
         if self.connected:
             self.update_cycle = update_cycle
@@ -134,10 +138,12 @@ class Driver(object):
             self.polling_thread.join()
 
         if self.mb_client and self.mb_client.connected:
-            self.mb_client.close()
+            with self.mb_client_lock:
+                self.mb_client.close()
 
         if self.web_client:
-            self.web_client = None
+            with self.web_client_lock:
+                self.web_client = None
 
         return True
 
@@ -186,12 +192,13 @@ class Driver(object):
             return result
 
         if self.mb_client and self.mb_client.connected:
-            pdu = self.mb_client.read_holding_registers(
-                address=int(param, 16) - 1,
-                count=self.readable_parameters[param]["registers"],
-                slave=self.mb_device_id,
-                no_response_expected=False,
-            )
+            with self.mb_client_lock:
+                pdu = self.mb_client.read_holding_registers(
+                    address=int(param, 16) - 1,
+                    count=self.readable_parameters[param]["registers"],
+                    slave=self.mb_device_id,
+                    no_response_expected=False,
+                )
             # Parse each 2-byte register,
             # reverting pymodbus' internal big endian decoding.
             if not pdu.isError():
@@ -200,9 +207,10 @@ class Driver(object):
 
         if self.web_client and self.connected:
             params = {"inst": param, "count": "1"}
-            response = self.web_client.get(
-                f"http://{self.host}:{self.port}/adi/data.json", params=params
-            )
+            with self.web_client_lock:
+                response = self.web_client.get(
+                    f"http://{self.host}:{self.port}/adi/data.json", params=params
+                )
             if response.is_success:
                 result = bytearray(bytes.fromhex(response.json()[0]))
 
@@ -229,19 +237,21 @@ class Driver(object):
                 int.from_bytes(data[i : i + 2], byteorder="big")
                 for i in range(0, param_size, 2)
             ]
-            pdu = self.mb_client.write_registers(
-                address=int(param, 16) - 1,  # Modbus convention
-                values=values,
-                slave=self.mb_device_id,
-                no_response_expected=False,
-            )
+            with self.mb_client_lock:
+                pdu = self.mb_client.write_registers(
+                    address=int(param, 16) - 1,  # Modbus convention
+                    values=values,
+                    slave=self.mb_device_id,
+                    no_response_expected=False,
+                )
             return not pdu.isError()
 
         if self.web_client and self.connected:
             payload = {"inst": param, "value": data.hex().upper()}
-            response = self.web_client.post(
-                url=f"http://{self.host}:{self.port}/adi/update.json", data=payload
-            )
+            with self.web_client_lock:
+                response = self.web_client.post(
+                    url=f"http://{self.host}:{self.port}/adi/update.json", data=payload
+                )
             return response.is_success
 
         return False

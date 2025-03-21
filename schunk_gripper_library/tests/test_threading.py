@@ -105,8 +105,10 @@ def test_concurrent_output_buffer_reads_and_writes_dont_deadlock():
 @skip_without_gripper
 def test_concurrent_receive_calls_dont_deadlock():
     driver = Driver()
-    for host, port in zip(["0.0.0.0", None], [8000, "/dev/ttyUSB0"]):
-        driver.connect(host=host, port=port, device_id=12)
+    for host, port, serial_port in zip(
+        ["0.0.0.0", None], [8000, None], [None, "/dev/ttyUSB0"]
+    ):
+        driver.connect(host=host, port=port, serial_port=serial_port, device_id=12)
         nr_iterations = 10
 
         def receive():
@@ -127,11 +129,47 @@ def test_concurrent_receive_calls_dont_deadlock():
 
 
 @skip_without_gripper
+def test_concurrent_parameter_reads_and_writes_dont_deadlock():
+    driver = Driver()
+    for host, port, serial_port in zip(
+        ["0.0.0.0", None], [8000, None], [None, "/dev/ttyUSB0"]
+    ):
+        driver.connect(host=host, port=port, serial_port=serial_port, device_id=12)
+        nr_iterations = 10
+
+        def read():
+            for n in range(nr_iterations):
+                assert driver.read_module_parameter(param="0x0500")
+
+        def write():
+            for n in range(nr_iterations):
+                assert driver.write_module_parameter(
+                    param="0x0048", data=bytearray(bytes.fromhex("00" * 16))
+                )
+
+        threads = []
+        for i in range(10):
+            reading_thread = Thread(target=read, daemon=True)
+            reading_thread.start()
+            threads.append(reading_thread)
+
+            writing_thread = Thread(target=write, daemon=True)
+            writing_thread.start()
+            threads.append(writing_thread)
+
+        for thread in threads:
+            thread.join()
+            assert not thread.is_alive()
+
+
+@skip_without_gripper
 def test_driver_runs_receiving_background_thread():
     driver = Driver()
-    for host, port in zip(["0.0.0.0", None], [8000, "/dev/ttyUSB0"]):
+    for host, port, serial_port in zip(
+        ["0.0.0.0", None], [8000, None], [None, "/dev/ttyUSB0"]
+    ):
         assert not driver.polling_thread.is_alive()
-        driver.connect(host=host, port=port, device_id=12)
+        driver.connect(host=host, port=port, serial_port=serial_port, device_id=12)
         assert driver.polling_thread.is_alive()
         time.sleep(1)  # Let it run a little
         driver.disconnect()
@@ -141,8 +179,16 @@ def test_driver_runs_receiving_background_thread():
 @skip_without_gripper
 def test_driver_updates_with_specified_cycle():
     driver = Driver()
-    for host, port in zip(["0.0.0.0", None], [8000, "/dev/ttyUSB0"]):
+    for host, port, serial_port in zip(
+        ["0.0.0.0", None], [8000, None], [None, "/dev/ttyUSB0"]
+    ):
         update_cycle = 0.1
-        driver.connect(host=host, port=port, device_id=12, update_cycle=update_cycle)
+        driver.connect(
+            host=host,
+            port=port,
+            serial_port=serial_port,
+            device_id=12,
+            update_cycle=update_cycle,
+        )
         assert pytest.approx(driver.update_cycle) == update_cycle
         driver.disconnect()
