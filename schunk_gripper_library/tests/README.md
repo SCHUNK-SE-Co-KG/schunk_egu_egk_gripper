@@ -20,6 +20,17 @@ coverage report  # for console output
 coverage html    # for web-based output
 ```
 
+## Testing for thread safety
+This is an interesting topic on its own, see e.g.
+- [py-free-threading](https://py-free-threading.github.io/debugging/)
+- [the GIL](https://opensource.com/article/17/4/grok-gil)
+- [changes in python 3.13](https://docs.python.org/3/howto/free-threading-python.html)
+
+```bash
+pip install pytest-repeat
+PYTHON_GIL=0 pytest --count=10 test_threading.py
+```
+
 ## Modbus unit testing
 
 Special test fixtures will create two pseudo-terminals that are connected with each other,
