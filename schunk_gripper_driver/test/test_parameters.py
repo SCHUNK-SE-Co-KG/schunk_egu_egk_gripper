@@ -15,9 +15,28 @@
 # --------------------------------------------------------------------------------
 import rclpy
 from rclpy.node import Node
-from rcl_interfaces.srv import GetParameters, SetParameters
+from rcl_interfaces.srv import GetParameters, SetParameters, ListParameters
 from rcl_interfaces.msg import Parameter, ParameterValue, ParameterType
 from schunk_gripper_library.tests.conftest import skip_without_gripper
+
+
+DRIVER_PARAMETERS = ["host", "port", "serial_port", "device_id"]
+
+
+@skip_without_gripper
+def test_whether_we_cover_all_driver_parameters(driver):
+    node = Node("test_startup_parameters")
+    list_params_client = node.create_client(
+        ListParameters, "/schunk/driver/list_parameters"
+    )
+    assert list_params_client.wait_for_service(timeout_sec=2)
+
+    # Meta-check if we test all our node parameters
+    future = list_params_client.call_async(ListParameters.Request())
+    rclpy.spin_until_future_complete(node, future)
+    assert (
+        len(DRIVER_PARAMETERS) == len(future.result().result.names) - 1
+    )  # There's a default node parameter: `use_sim_time``
 
 
 @skip_without_gripper
@@ -52,10 +71,10 @@ def test_driver_has_expected_parameters_after_startup(driver):
             ),
         ),
     ]
-    names = [param.name for param in default_parameters]
-    future = get_params_client.call_async(GetParameters.Request(names=names))
+    future = get_params_client.call_async(
+        GetParameters.Request(names=DRIVER_PARAMETERS)
+    )
     rclpy.spin_until_future_complete(node, future)
-
     for param, expected in zip(default_parameters, future.result().values):
         assert param.value == expected
 
@@ -98,12 +117,13 @@ def test_driver_supports_setting_parameters(driver):
             ),
         ),
     ]
-    names = [param.name for param in parameters]
 
     future = set_params_client.call_async(SetParameters.Request(parameters=parameters))
     rclpy.spin_until_future_complete(node, future)
 
-    future = get_params_client.call_async(GetParameters.Request(names=names))
+    future = get_params_client.call_async(
+        GetParameters.Request(names=DRIVER_PARAMETERS)
+    )
     rclpy.spin_until_future_complete(node, future)
 
     for param, expected in zip(parameters, future.result().values):
