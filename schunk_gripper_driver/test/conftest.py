@@ -22,6 +22,9 @@ from launch.substitutions import PathJoinSubstitution
 from launch_ros.substitutions import FindPackageShare
 import launch_pytest
 from lifecycle_msgs.srv import ChangeState, GetState
+from rcl_interfaces.srv import SetParameters
+from rcl_interfaces.msg import Parameter, ParameterValue, ParameterType
+
 from rclpy.node import Node
 
 
@@ -52,11 +55,15 @@ class LifecycleInterface(object):
         self.change_state_client = self.node.create_client(
             ChangeState, "/schunk/driver/change_state"
         )
-        self.change_state_client.wait_for_service(timeout_sec=2)
         self.get_state_client = self.node.create_client(
             GetState, "/schunk/driver/get_state"
         )
+        self.set_params_client = self.node.create_client(
+            SetParameters, "/schunk/driver/set_parameters"
+        )
+        self.change_state_client.wait_for_service(timeout_sec=2)
         self.get_state_client.wait_for_service(timeout_sec=2)
+        self.set_params_client.wait_for_service(timeout_sec=2)
 
     def change_state(self, transition_id):
         req = ChangeState.Request()
@@ -75,6 +82,39 @@ class LifecycleInterface(object):
         existing = getattr(self.node, "get_service_names_and_types")()
         advertised = [i[0] for i in existing]
         return service in advertised
+
+    def use_protocol(self, protocol: str) -> bool:
+        if protocol not in ["modbus", "tcpip"]:
+            return False
+        if protocol == "modbus":
+            parameters = [
+                Parameter(
+                    name="host",
+                    value=ParameterValue(
+                        type=ParameterType.PARAMETER_STRING, string_value=""  # empty
+                    ),
+                )
+            ]
+        if protocol == "tcpip":
+            parameters = [
+                Parameter(
+                    name="host",
+                    value=ParameterValue(
+                        type=ParameterType.PARAMETER_STRING, string_value="0.0.0.0"
+                    ),
+                ),
+                Parameter(
+                    name="port",
+                    value=ParameterValue(
+                        type=ParameterType.PARAMETER_INTEGER, integer_value=8000
+                    ),
+                ),
+            ]
+        future = self.set_params_client.call_async(
+            SetParameters.Request(parameters=parameters)
+        )
+        rclpy.spin_until_future_complete(self.node, future)
+        return True
 
 
 @pytest.fixture(scope="module")

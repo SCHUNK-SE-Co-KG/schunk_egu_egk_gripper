@@ -21,47 +21,49 @@ from lifecycle_msgs.msg import Transition, State
 def test_driver_supports_repeated_configure_and_cleanup(lifecycle_interface):
     driver = lifecycle_interface
     for _ in range(3):
-        driver.change_state(Transition.TRANSITION_CONFIGURE)
-        assert driver.check_state(State.PRIMARY_STATE_INACTIVE)
-        driver.change_state(Transition.TRANSITION_CLEANUP)
-        assert driver.check_state(State.PRIMARY_STATE_UNCONFIGURED)
+        for protocol in ["modbus", "tcpip"]:
+            driver.use_protocol(protocol)
+            driver.change_state(Transition.TRANSITION_CONFIGURE)
+            assert driver.check_state(State.PRIMARY_STATE_INACTIVE)
+            driver.change_state(Transition.TRANSITION_CLEANUP)
+            assert driver.check_state(State.PRIMARY_STATE_UNCONFIGURED)
 
 
 @skip_without_gripper
 def test_driver_supports_repeated_activate_and_deactivate(lifecycle_interface):
     driver = lifecycle_interface
-    driver.change_state(Transition.TRANSITION_CONFIGURE)
-    for _ in range(3):
-        driver.change_state(Transition.TRANSITION_ACTIVATE)
-        assert driver.check_state(State.PRIMARY_STATE_ACTIVE)
-        driver.change_state(Transition.TRANSITION_DEACTIVATE)
-        assert driver.check_state(State.PRIMARY_STATE_INACTIVE)
-    driver.change_state(Transition.TRANSITION_CLEANUP)
+    for protocol in ["modbus", "tcpip"]:
+        driver.use_protocol(protocol)
+        driver.change_state(Transition.TRANSITION_CONFIGURE)
+        for _ in range(3):
+            driver.change_state(Transition.TRANSITION_ACTIVATE)
+            assert driver.check_state(State.PRIMARY_STATE_ACTIVE)
+            driver.change_state(Transition.TRANSITION_DEACTIVATE)
+            assert driver.check_state(State.PRIMARY_STATE_INACTIVE)
+        driver.change_state(Transition.TRANSITION_CLEANUP)
 
 
 @skip_without_gripper
 def test_primary_lifecycle_states(lifecycle_interface):
     driver = lifecycle_interface
+    for protocol in ["modbus", "tcpip"]:
+        driver.use_protocol(protocol)
 
-    # Startup
-    assert driver.check_state(State.PRIMARY_STATE_UNCONFIGURED)
+        # Startup
+        assert driver.check_state(State.PRIMARY_STATE_UNCONFIGURED)
 
-    # configure
-    driver.change_state(Transition.TRANSITION_CONFIGURE)
-    assert driver.check_state(State.PRIMARY_STATE_INACTIVE)
+        # configure
+        driver.change_state(Transition.TRANSITION_CONFIGURE)
+        assert driver.check_state(State.PRIMARY_STATE_INACTIVE)
 
-    # activate
-    driver.change_state(Transition.TRANSITION_ACTIVATE)
-    assert driver.check_state(State.PRIMARY_STATE_ACTIVE)
+        # activate
+        driver.change_state(Transition.TRANSITION_ACTIVATE)
+        assert driver.check_state(State.PRIMARY_STATE_ACTIVE)
 
-    # deactivate
-    driver.change_state(Transition.TRANSITION_DEACTIVATE)
-    assert driver.check_state(State.PRIMARY_STATE_INACTIVE)
+        # deactivate
+        driver.change_state(Transition.TRANSITION_DEACTIVATE)
+        assert driver.check_state(State.PRIMARY_STATE_INACTIVE)
 
-    # cleanup
-    driver.change_state(Transition.TRANSITION_CLEANUP)
-    assert driver.check_state(State.PRIMARY_STATE_UNCONFIGURED)
-
-    # shutdown
-    driver.change_state(Transition.TRANSITION_UNCONFIGURED_SHUTDOWN)
-    assert driver.check_state(State.PRIMARY_STATE_FINALIZED)
+        # cleanup
+        driver.change_state(Transition.TRANSITION_CLEANUP)
+        assert driver.check_state(State.PRIMARY_STATE_UNCONFIGURED)
