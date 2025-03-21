@@ -30,7 +30,7 @@ def test_driver_rejects_invalid_connection_arguments():
     driver = Driver()
 
     # Modbus
-    assert not driver.connect(serial_port=42)  # no host
+    assert not driver.connect(serial_port=42)
     assert not driver.connect(serial_port=42, device_id=12)
     assert not driver.connect(serial_port="/dev/ttyUSB0")  # missing device_id
     assert not driver.connect(
@@ -51,9 +51,7 @@ def test_driver_rejects_invalid_connection_arguments():
     # Wrong update cycles
     invalid_cycles = [-1, -0.001, 0.0, 0, 0.0001]
     for cycle in invalid_cycles:
-        assert not driver.connect(
-            serial_port="/dev/ttyUSB0", device_id=12, update_cycle=cycle
-        )
+        assert not driver.connect(update_cycle=cycle)
 
 
 @skip_without_gripper

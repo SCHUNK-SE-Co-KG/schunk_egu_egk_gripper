@@ -73,9 +73,11 @@ class Driver(object):
         port: int = 80,
         serial_port: str = "/dev/ttyUSB0",
         device_id: int | None = None,
-        update_cycle: float = 0.05,
+        update_cycle: float | None = 0.05,
     ) -> bool:
-        if update_cycle < 0.001:
+        if isinstance(update_cycle, float) and update_cycle < 0.001:
+            return False
+        if isinstance(update_cycle, int) and update_cycle <= 0:
             return False
         if self.connected:
             return False
@@ -119,13 +121,14 @@ class Driver(object):
                 self.connected = self.mb_client.connect()
 
         if self.connected:
-            self.update_cycle = update_cycle
-            self.polling_thread = Thread(
-                target=asyncio.run,
-                args=(self._module_update(self.update_cycle),),
-                daemon=True,
-            )
-            self.polling_thread.start()
+            if update_cycle:
+                self.update_cycle = update_cycle
+                self.polling_thread = Thread(
+                    target=asyncio.run,
+                    args=(self._module_update(self.update_cycle),),
+                    daemon=True,
+                )
+                self.polling_thread.start()
             type_enum = struct.unpack("h", self.read_module_parameter("0x0500"))[0]
             self.module_type = self.valid_module_types[str(type_enum)]
 

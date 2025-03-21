@@ -192,3 +192,23 @@ def test_driver_updates_with_specified_cycle():
         )
         assert pytest.approx(driver.update_cycle) == update_cycle
         driver.disconnect()
+
+
+@skip_without_gripper
+def test_driver_skips_background_thread_without_update_cycle():
+    driver = Driver()
+    for host, port, serial_port in zip(
+        ["0.0.0.0", None], [8000, None], [None, "/dev/ttyUSB0"]
+    ):
+        for _ in range(3):
+            as_before = driver.update_cycle
+            driver.connect(
+                host=host,
+                port=port,
+                serial_port=serial_port,
+                device_id=12,
+                update_cycle=None,
+            )
+            assert not driver.polling_thread.is_alive()
+            assert pytest.approx(driver.update_cycle) == as_before
+            driver.disconnect()
