@@ -21,6 +21,8 @@ from rclpy.lifecycle import Node, State, TransitionCallbackReturn
 from schunk_gripper_library.driver import Driver as GripperDriver
 from std_srvs.srv import Trigger
 import asyncio
+from threading import Thread
+import time
 
 
 class Driver(Node):
@@ -83,6 +85,14 @@ class Driver(Node):
 
     def on_shutdown(self, state: State) -> TransitionCallbackReturn:
         self.get_logger().info("on_shutdown() is called.")
+
+        def kill() -> None:
+            time.sleep(0.1)
+            self.destroy_node()
+            rclpy.shutdown()
+
+        destroy = Thread(target=kill, daemon=True)
+        destroy.start()
         return TransitionCallbackReturn.SUCCESS
 
     def status_update(self):

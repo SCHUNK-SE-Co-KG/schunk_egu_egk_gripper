@@ -55,6 +55,7 @@ def generate_launch_description():
                     {"port": LaunchConfiguration("port")},
                     {"device_id": LaunchConfiguration("device_id")},
                 ],
+                respawn=True,
                 output="both",
             )
         ]
