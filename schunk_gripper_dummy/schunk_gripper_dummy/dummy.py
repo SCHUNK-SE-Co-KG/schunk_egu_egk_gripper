@@ -308,7 +308,8 @@ class Dummy(object):
         if self.get_control_bit(0) == 0:  # fail-safe behavior
             self.set_status_bit(bit=7, value=True)
             self.set_status_bit(bit=0, value=False)
-            self.set_status_diagnostics("D9")
+            self.set_status_error("D9")
+            self.set_status_diagnostics("00")
 
         # Controlled stop
         if self.get_control_bit(1) == 1:

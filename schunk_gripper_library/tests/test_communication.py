@@ -9,7 +9,7 @@ def test_driver_implements_connect_and_disconnect():
 
     # Modbus
     device_id = 12  # SChUNK default
-    assert driver.connect(port="/dev/ttyUSB0", device_id=device_id)
+    assert driver.connect(serial_port="/dev/ttyUSB0", device_id=device_id)
     assert driver.mb_device_id == device_id
     assert driver.mb_client.connected
     assert driver.disconnect()
@@ -30,15 +30,17 @@ def test_driver_rejects_invalid_connection_arguments():
     driver = Driver()
 
     # Modbus
-    assert not driver.connect(port=42)  # no host
-    assert not driver.connect(port=42, device_id=12)
-    assert not driver.connect(port="/dev/ttyUSB0")  # missing device_id
+    assert not driver.connect(serial_port=42)
+    assert not driver.connect(serial_port=42, device_id=12)
+    assert not driver.connect(serial_port="/dev/ttyUSB0")  # missing device_id
     assert not driver.connect(
-        port="/dev/ttyUSB0", device_id="12"
+        serial_port="/dev/ttyUSB0", device_id="12"
     )  # wrong device_id type
-    assert not driver.connect(port="not ok", device_id=-1)
-    assert not driver.connect(port="not ok", device_id=0)
-    assert not driver.connect(port="non-existent", device_id=12)  # non-existent port
+    assert not driver.connect(serial_port="not ok", device_id=-1)
+    assert not driver.connect(serial_port="not ok", device_id=0)
+    assert not driver.connect(
+        serial_port="non-existent", device_id=12
+    )  # non-existent port
 
     # TCP/IP
     assert not driver.connect(host="0.0.0.0", port=-10)
@@ -49,15 +51,19 @@ def test_driver_rejects_invalid_connection_arguments():
     # Wrong update cycles
     invalid_cycles = [-1, -0.001, 0.0, 0, 0.0001]
     for cycle in invalid_cycles:
-        assert not driver.connect("/dev/ttyUSB0", device_id=12, update_cycle=cycle)
+        assert not driver.connect(update_cycle=cycle)
 
 
 @skip_without_gripper
 def test_driver_supports_repeated_connects_and_disconnects():
     driver = Driver()
-    for host, port in zip(["0.0.0.0", None], [8000, "/dev/ttyUSB0"]):
+    for host, port, serial_port in zip(
+        ["0.0.0.0", None], [8000, None], [None, "/dev/ttyUSB0"]
+    ):
         for _ in range(3):
-            assert driver.connect(host=host, port=port, device_id=12)
+            assert driver.connect(
+                host=host, port=port, serial_port=serial_port, device_id=12
+            )
             assert driver.disconnect()
 
 
@@ -74,8 +80,12 @@ def test_driver_supports_repeated_switching_between_protocols():
 @skip_without_gripper
 def test_driver_rejects_new_connect_without_disconnect():
     driver = Driver()
-    for host, port in zip(["0.0.0.0", None], [8000, "/dev/ttyUSB0"]):
-        assert driver.connect(host=host, port=port, device_id=12)
+    for host, port, serial_port in zip(
+        ["0.0.0.0", None], [8000, None], [None, "/dev/ttyUSB0"]
+    ):
+        assert driver.connect(
+            host=host, port=port, serial_port=serial_port, device_id=12
+        )
         assert not driver.connect(host=host, port=port, device_id=12)
         driver.disconnect()
 
@@ -84,8 +94,10 @@ def test_driver_rejects_new_connect_without_disconnect():
 def test_driver_supports_repeated_disconnects():
     driver = Driver()
     assert driver.disconnect()
-    for host, port in zip(["0.0.0.0", None], [8000, "/dev/ttyUSB0"]):
-        driver.connect(host=host, port=port, device_id=12)
+    for host, port, serial_port in zip(
+        ["0.0.0.0", None], [8000, None], [None, "/dev/ttyUSB0"]
+    ):
+        driver.connect(host=host, port=port, serial_port=serial_port, device_id=12)
         for _ in range(3):
             assert driver.disconnect()
 
@@ -104,8 +116,10 @@ def test_driver_implements_sending_plc_output():
 @skip_without_gripper
 def test_driver_supports_repeated_sending():
     driver = Driver()
-    for host, port in zip(["0.0.0.0", None], [8000, "/dev/ttyUSB0"]):
-        driver.connect(host=host, port=port, device_id=12)
+    for host, port, serial_port in zip(
+        ["0.0.0.0", None], [8000, None], [None, "/dev/ttyUSB0"]
+    ):
+        driver.connect(host=host, port=port, serial_port=serial_port, device_id=12)
         for _ in range(5):
             assert driver.send_plc_output()
         driver.disconnect()
@@ -120,9 +134,11 @@ def test_driver_rejects_sending_when_not_connected():
 @skip_without_gripper
 def test_driver_implements_receiving_plc_input():
     driver = Driver()
-    for host, port in zip(["0.0.0.0", None], [8000, "/dev/ttyUSB0"]):
+    for host, port, serial_port in zip(
+        ["0.0.0.0", None], [8000, None], [None, "/dev/ttyUSB0"]
+    ):
         before = driver.get_plc_input()
-        driver.connect(host=host, port=port, device_id=12)
+        driver.connect(host=host, port=port, serial_port=serial_port, device_id=12)
         assert driver.receive_plc_input()
         after = driver.get_plc_input()
         assert after != before
@@ -132,8 +148,10 @@ def test_driver_implements_receiving_plc_input():
 @skip_without_gripper
 def test_driver_supports_repeated_receiving():
     driver = Driver()
-    for host, port in zip(["0.0.0.0", None], [8000, "/dev/ttyUSB0"]):
-        driver.connect(host=host, port=port, device_id=12)
+    for host, port, serial_port in zip(
+        ["0.0.0.0", None], [8000, None], [None, "/dev/ttyUSB0"]
+    ):
+        driver.connect(host=host, port=port, serial_port=serial_port, device_id=12)
         for _ in range(5):
             assert driver.receive_plc_input()
         driver.disconnect()
@@ -142,8 +160,10 @@ def test_driver_supports_repeated_receiving():
 @skip_without_gripper
 def test_driver_supports_waiting_for_desired_status():
     driver = Driver()
-    for host, port in zip(["0.0.0.0", None], [8000, "/dev/ttyUSB0"]):
-        driver.connect(host=host, port=port, device_id=12)
+    for host, port, serial_port in zip(
+        ["0.0.0.0", None], [8000, None], [None, "/dev/ttyUSB0"]
+    ):
+        driver.connect(host=host, port=port, serial_port=serial_port, device_id=12)
 
         # Timeout for bitsets that don't come
         impossible_bits = {"0": 1, "7": 1}  # operational + error
@@ -195,8 +215,10 @@ def test_driver_supports_waiting_for_desired_status():
 def test_driver_supports_sending_and_receiving_after_switching_protocols():
     driver = Driver()
     for _ in range(3):
-        for host, port in zip(["0.0.0.0", None], [8000, "/dev/ttyUSB0"]):
-            driver.connect(host=host, port=port, device_id=12)
+        for host, port, serial_port in zip(
+            ["0.0.0.0", None], [8000, None], [None, "/dev/ttyUSB0"]
+        ):
+            driver.connect(host=host, port=port, serial_port=serial_port, device_id=12)
             assert driver.send_plc_output()
             assert driver.receive_plc_input()
             driver.disconnect()
@@ -211,15 +233,19 @@ def test_driver_supports_reading_module_parameters():
         assert not driver.read_module_parameter(param=param)
 
     # Reject unsupported parameters
-    for host, port in zip(["0.0.0.0", None], [8000, "/dev/ttyUSB0"]):
+    for host, port, serial_port in zip(
+        ["0.0.0.0", None], [8000, None], [None, "/dev/ttyUSB0"]
+    ):
         for param in ["not-ok", "?!#" "-1"]:
-            driver.connect(host=host, port=port, device_id=12)
+            driver.connect(host=host, port=port, serial_port=serial_port, device_id=12)
             assert not driver.read_module_parameter(param)
         driver.disconnect()
 
     # All params have the correct size
-    for host, port in zip(["0.0.0.0", None], [8000, "/dev/ttyUSB0"]):
-        driver.connect(host=host, port=port, device_id=12)
+    for host, port, serial_port in zip(
+        ["0.0.0.0", None], [8000, None], [None, "/dev/ttyUSB0"]
+    ):
+        driver.connect(host=host, port=port, serial_port=serial_port, device_id=12)
         for key, value in driver.readable_parameters.items():
             result = driver.read_module_parameter(key)
             assert len(result) == value["registers"] * 2  # two bytes per register
@@ -235,15 +261,19 @@ def test_driver_supports_writing_module_parameters():
     assert not driver.write_module_parameter("0x0048", data)
 
     # Reject unsupported parameters
-    for host, port in zip(["0.0.0.0", None], [8000, "/dev/ttyUSB0"]):
+    for host, port, serial_port in zip(
+        ["0.0.0.0", None], [8000, None], [None, "/dev/ttyUSB0"]
+    ):
         for param in ["not-existent", "1234" "0x0"]:
-            driver.connect(host=host, port=port, device_id=12)
+            driver.connect(host=host, port=port, serial_port=serial_port, device_id=12)
             assert not driver.write_module_parameter(param, bytearray())
         driver.disconnect()
 
     # Data arguments must have the correct sizes
-    for host, port in zip(["0.0.0.0", None], [8000, "/dev/ttyUSB0"]):
-        driver.connect(host=host, port=port, device_id=12)
+    for host, port, serial_port in zip(
+        ["0.0.0.0", None], [8000, None], [None, "/dev/ttyUSB0"]
+    ):
+        driver.connect(host=host, port=port, serial_port=serial_port, device_id=12)
 
         # Correct
         for key, value in driver.writable_parameters.items():
@@ -263,8 +293,10 @@ def test_connected_driver_has_module_type():
     driver = Driver()
     assert not driver.module_type  # empty on startup
 
-    for host, port in zip(["0.0.0.0", None], [8000, "/dev/ttyUSB0"]):
-        driver.connect(host=host, port=port, device_id=12)
+    for host, port, serial_port in zip(
+        ["0.0.0.0", None], [8000, None], [None, "/dev/ttyUSB0"]
+    ):
+        driver.connect(host=host, port=port, serial_port=serial_port, device_id=12)
         assert driver.module_type in driver.valid_module_types.values()
 
         driver.disconnect()

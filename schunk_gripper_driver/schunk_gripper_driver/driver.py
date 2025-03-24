@@ -17,30 +17,31 @@
 
 import rclpy
 
-from rclpy.lifecycle import Node
-from rclpy.lifecycle import State
-from rclpy.lifecycle import TransitionCallbackReturn
+from rclpy.lifecycle import Node, State, TransitionCallbackReturn
 from schunk_gripper_library.driver import Driver as GripperDriver
 from std_srvs.srv import Trigger
 import asyncio
+from threading import Thread
+import time
 
 
 class Driver(Node):
 
     def __init__(self, node_name: str, **kwargs):
         super().__init__(node_name, **kwargs)
-        self.declare_parameter("port", rclpy.Parameter.Type.STRING)
-        self.declare_parameter("device_id", rclpy.Parameter.Type.INTEGER)
-        self.port = self.get_parameter_or("port", "/dev/ttyUSB0").value
+        self.declare_parameter("host", "")
+        self.declare_parameter("port", 80)
+        self.declare_parameter("serial_port", "/dev/ttyUSB0")
+        self.declare_parameter("device_id", 12)
         self.gripper = GripperDriver()
 
     def on_configure(self, state: State) -> TransitionCallbackReturn:
         self.get_logger().info("on_configure() is called.")
-        self.get_logger().info(f"Connecting on port {self.port}")
         if not self.gripper.connect(
-            protocol="modbus",
-            port=self.get_parameter_or("port", "/dev/ttyUSB0").value,
-            device_id=self.get_parameter_or("device_id", 12).value,
+            host=self.get_parameter("host").value,
+            port=self.get_parameter("port").value,
+            serial_port=self.get_parameter("serial_port").value,
+            device_id=self.get_parameter("device_id").value,
         ):
             self.get_logger().warn("Gripper connect failed")
             return TransitionCallbackReturn.FAILURE
@@ -84,6 +85,14 @@ class Driver(Node):
 
     def on_shutdown(self, state: State) -> TransitionCallbackReturn:
         self.get_logger().info("on_shutdown() is called.")
+
+        def kill() -> None:
+            time.sleep(0.1)
+            self.destroy_node()
+            rclpy.shutdown()
+
+        destroy = Thread(target=kill, daemon=True)
+        destroy.start()
         return TransitionCallbackReturn.SUCCESS
 
     def status_update(self):

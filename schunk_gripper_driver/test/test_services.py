@@ -24,51 +24,59 @@ import rclpy
 @skip_without_gripper
 def test_driver_advertises_services_when_configured(lifecycle_interface):
     driver = lifecycle_interface
-    service_list = ["/schunk/driver/acknowledge", "/schunk/driver/fast_stop"]
-    # In unconfigured state
-    for service in service_list:
-        assert not driver.exists(service)
+    for protocol in ["modbus", "tcpip"]:
+        driver.use_protocol(protocol)
+        service_list = ["/schunk/driver/acknowledge", "/schunk/driver/fast_stop"]
+        # In unconfigured state
+        for service in service_list:
+            assert not driver.exists(service)
 
-    # Should appear after configure
-    driver.change_state(Transition.TRANSITION_CONFIGURE)
-    for service in service_list:
-        driver.exists(service)
+        # Should appear after configure
+        driver.change_state(Transition.TRANSITION_CONFIGURE)
+        for service in service_list:
+            driver.exists(service)
 
-    # Should disappear after cleanup
-    driver.change_state(Transition.TRANSITION_CLEANUP)
-    for service in service_list:
-        not driver.exists(service)
+        # Should disappear after cleanup
+        driver.change_state(Transition.TRANSITION_CLEANUP)
+        for service in service_list:
+            not driver.exists(service)
 
 
 @skip_without_gripper
 def test_driver_implements_acknowledge(lifecycle_interface):
-    lifecycle_interface.change_state(Transition.TRANSITION_CONFIGURE)
+    driver = lifecycle_interface
+    for protocol in ["modbus", "tcpip"]:
+        driver.use_protocol(protocol)
+        driver.change_state(Transition.TRANSITION_CONFIGURE)
 
-    node = Node("check_acknowledge")
-    client = node.create_client(Trigger, "/schunk/driver/acknowledge")
-    client.wait_for_service(timeout_sec=2)
-    future = client.call_async(Trigger.Request())
-    rclpy.spin_until_future_complete(node, future)
-    lifecycle_interface.change_state(Transition.TRANSITION_CLEANUP)
+        node = Node("check_acknowledge")
+        client = node.create_client(Trigger, "/schunk/driver/acknowledge")
+        client.wait_for_service(timeout_sec=2)
+        future = client.call_async(Trigger.Request())
+        rclpy.spin_until_future_complete(node, future)
+        driver.change_state(Transition.TRANSITION_CLEANUP)
 
-    assert future.result().success
-    expected_msg = (
-        "error_code: 0x0, warning_code: 0x0, additional_code: 0x0"  # everything ok
-    )
-    assert future.result().message == expected_msg
+        assert future.result().success
+        expected_msg = (
+            "error_code: 0x0, warning_code: 0x0, additional_code: 0x0"  # everything ok
+        )
+        assert future.result().message == expected_msg
 
 
 @skip_without_gripper
 def test_driver_implements_fast_stop(lifecycle_interface):
-    lifecycle_interface.change_state(Transition.TRANSITION_CONFIGURE)
+    driver = lifecycle_interface
+    for protocol in ["modbus", "tcpip"]:
+        driver.use_protocol(protocol)
+        driver.change_state(Transition.TRANSITION_CONFIGURE)
 
-    node = Node("check_fast_stop")
-    client = node.create_client(Trigger, "/schunk/driver/fast_stop")
-    client.wait_for_service(timeout_sec=2)
-    future = client.call_async(Trigger.Request())
-    rclpy.spin_until_future_complete(node, future)
-    lifecycle_interface.change_state(Transition.TRANSITION_CLEANUP)
+        node = Node("check_fast_stop")
+        client = node.create_client(Trigger, "/schunk/driver/fast_stop")
+        client.wait_for_service(timeout_sec=2)
+        future = client.call_async(Trigger.Request())
+        rclpy.spin_until_future_complete(node, future)
+        driver.change_state(Transition.TRANSITION_CLEANUP)
 
-    assert future.result().success
-    expected_msg = "error_code: 0xD9, warning_code: 0x0, additional_code: 0x0"
-    assert future.result().message == expected_msg
+        assert future.result().success
+        expected_msg = "error_code: 0xD9, warning_code: 0x0, additional_code: 0x0"
+        assert future.result().message == expected_msg

@@ -19,9 +19,18 @@ from launch_ros.actions import Node
 from launch.actions import DeclareLaunchArgument
 from launch.substitutions import LaunchConfiguration
 
-
+host = DeclareLaunchArgument(
+    "host",
+    default_value="",
+    description="The gripper's TCP/IP host address",
+)
 port = DeclareLaunchArgument(
     "port",
+    default_value="80",
+    description="The gripper's TCP/IP port",
+)
+serial_port = DeclareLaunchArgument(
+    "serial_port",
     default_value="/dev/ttyUSB0",
     description="The gripper's serial port",
 )
@@ -30,7 +39,7 @@ device_id = DeclareLaunchArgument(
     default_value="12",
     description="The gripper's Modbus device id",
 )
-args = [port, device_id]
+args = [host, port, serial_port, device_id]
 
 
 def generate_launch_description():
@@ -46,6 +55,7 @@ def generate_launch_description():
                     {"port": LaunchConfiguration("port")},
                     {"device_id": LaunchConfiguration("device_id")},
                 ],
+                respawn=True,
                 output="both",
             )
         ]
