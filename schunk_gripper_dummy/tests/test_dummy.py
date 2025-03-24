@@ -143,7 +143,7 @@ def test_dummy_performs_fast_stop():
     dummy.set_control_bit(bit=0, value=False)  # fail-safe behavior
     dummy.process_control_bits()
     assert dummy.get_status_bit(bit=7) == 1  # error
-    assert dummy.get_status_diagnostics() == "D9"  # ERR_FAST_STOP
+    assert dummy.get_status_error() == "D9"  # ERR_FAST_STOP
 
 
 def test_dummy_performs_controlled_stop():
