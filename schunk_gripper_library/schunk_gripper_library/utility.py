@@ -3,6 +3,7 @@ from queue import PriorityQueue
 from concurrent.futures import Future
 from functools import partial
 import time
+import asyncio
 
 
 class Task(object):
@@ -57,5 +58,7 @@ class Scheduler(object):
             if not task:
                 break
             result = task.func()
+            if asyncio.iscoroutine(result):
+                result = asyncio.run(result)
             task.future.set_result(result)
             self.tasks.task_done()
