@@ -2,7 +2,7 @@ from ..schunk_gripper_library.utility import Task, Scheduler
 import threading
 from queue import PriorityQueue
 from functools import partial
-from concurrent.futures import Future
+import time
 
 
 def YES() -> bool:
@@ -14,11 +14,10 @@ def NO() -> bool:
 
 
 def test_tasks_have_expected_initial_values():
-    task1 = Task()
-    assert task1.func is None
-    assert task1.future is None
-    task2 = Task(func=partial(YES), future=Future())
-    assert task2
+    task = Task()
+    assert task.func is None
+    assert task.future is None
+    assert task.stamp < time.time()
 
 
 def test_tasks_have_boolean_meaning():
@@ -26,6 +25,13 @@ def test_tasks_have_boolean_meaning():
     assert not task
     task.func = "some function"
     assert task
+
+
+def test_tasks_support_less_than_and_greater_than_operators():
+    task1 = Task()
+    task2 = Task()
+    assert task1 < task2
+    assert task2 > task1
 
 
 def test_scheduler_runs_internal_worker_thread_when_started():
@@ -63,7 +69,7 @@ def test_scheduler_clears_tasks_on_stop():
     assert scheduler.tasks.empty()
 
 
-def test_scheduler_executes_tasks():
+def test_scheduler_can_execute_tasks():
     scheduler = Scheduler()
     scheduler.start()
     assert scheduler.execute(func=partial(YES)).result()
@@ -84,4 +90,23 @@ def test_scheduler_rejects_tasks_with_invalid_priority():
     invalid_priorities = [0, -1, "asap", 3]
     scheduler.start()
     for priority in invalid_priorities:
-        assert not scheduler.execute(func=YES, priority=priority).result()
+        assert not scheduler.execute(func=partial(YES), priority=priority).result()
+
+
+def test_scheduler_supports_task_execution_from_several_threads():
+    scheduler = Scheduler()
+    scheduler.start()
+    threads = []
+
+    def repeatedly_execute():
+        for _ in range(5):
+            assert scheduler.execute(func=partial(YES)).result()
+            time.sleep(0.01)  # make sure threads overlap a little
+
+    for _ in range(10):
+        thread = threading.Thread(target=repeatedly_execute)
+        thread.start()
+        threads.append(thread)
+    for thread in threads:
+        thread.join()
+    scheduler.stop()

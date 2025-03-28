@@ -2,17 +2,25 @@ from threading import Thread
 from queue import PriorityQueue
 from concurrent.futures import Future
 from functools import partial
+import time
 
 
 class Task(object):
     def __init__(self, future: Future | None = None, func: partial | None = None):
         self.future: Future | None = future
         self.func: partial | None = func
+        self.stamp: float = time.time()
 
     def __bool__(self):
         if self.func is None:
             return False
         return True
+
+    def __lt__(self, other: "Task"):
+        return self.stamp < other.stamp
+
+    def __gt__(self, other: "Task"):
+        return self.stamp > other.stamp
 
 
 class Scheduler(object):
