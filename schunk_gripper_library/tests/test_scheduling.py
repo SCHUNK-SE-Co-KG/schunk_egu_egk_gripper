@@ -110,3 +110,45 @@ def test_scheduler_supports_task_execution_from_several_threads():
     for thread in threads:
         thread.join()
     scheduler.stop()
+
+
+def test_scheduler_executes_tasks_according_to_their_priorities():
+    scheduler = Scheduler()
+    scheduler.start()
+    global low_priority_finished
+    global high_priority_finished
+
+    def fill_scheduler_queue():
+        def wait():
+            time.sleep(1)
+            return True
+
+        for _ in range(3):
+            scheduler.execute(func=partial(wait))
+
+    def low_priority():
+        assert scheduler.execute(func=partial(YES), priority=2).result()
+        global low_priority_finished
+        low_priority_finished = time.time()
+
+    def high_priority():
+        assert scheduler.execute(func=partial(YES), priority=1).result()
+        global high_priority_finished
+        high_priority_finished = time.time()
+
+    # Block the scheduler's task queue for some time so that
+    # new tasks can be re-arranged.
+    thread_fill_scheduler = threading.Thread(target=fill_scheduler_queue, daemon=True)
+    thread_fill_scheduler.start()
+
+    thread_low_priority = threading.Thread(target=low_priority, daemon=True)
+    thread_low_priority.start()
+
+    thread_high_priority = threading.Thread(target=high_priority, daemon=True)
+    thread_high_priority.start()  # should finish first
+
+    thread_fill_scheduler.join()
+    thread_low_priority.join()
+    thread_high_priority.join()
+    scheduler.stop()
+    assert high_priority_finished < low_priority_finished
