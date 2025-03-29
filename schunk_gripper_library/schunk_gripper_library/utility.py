@@ -63,16 +63,20 @@ class Scheduler(object):
             return False
         task = Task(func=func, future=None)
         Thread(
-            target=self._cyclic_add,
-            kwargs={"task": task, "cycle_time": cycle_time, "priority": priority},
+            target=asyncio.run,
+            args=(
+                self._cyclic_add(task=task, cycle_time=cycle_time, priority=priority),
+            ),
             daemon=True,
         ).start()
         return True
 
-    def _cyclic_add(self, task: Task, cycle_time: float, priority: int = 2) -> None:
+    async def _cyclic_add(
+        self, task: Task, cycle_time: float, priority: int = 2
+    ) -> None:
         while self.worker_thread.is_alive():
             self.tasks.put((priority, task))
-            time.sleep(cycle_time)
+            await asyncio.sleep(cycle_time)
 
     def _process(self):
         while True:

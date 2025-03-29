@@ -211,3 +211,22 @@ def test_scheduler_rejects_invalid_arguments_for_cyclic_execution():
         assert not scheduler.cyclic_execute(func=partial(YES), cycle_time=cycle_time)
 
     scheduler.stop()
+
+
+def test_scheduler_manages_cyclic_execution_from_various_threads():
+    scheduler = Scheduler()
+    scheduler.start()
+
+    def run():
+        assert scheduler.cyclic_execute(func=partial(YES), cycle_time=0.01)
+
+    threads = []
+    for _ in range(10):
+        thread = threading.Thread(target=run, daemon=True)
+        thread.start()
+        threads.append(thread)
+
+    time.sleep(1)  # run a little
+    scheduler.stop()
+    for thread in threads:
+        thread.join()
