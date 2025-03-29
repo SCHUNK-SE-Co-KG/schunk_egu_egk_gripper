@@ -52,6 +52,28 @@ class Scheduler(object):
         self.tasks.put((priority, task))
         return future
 
+    def cyclic_execute(
+        self, func: partial, cycle_time: float, priority: int = 2
+    ) -> bool:
+        if not self.worker_thread.is_alive():
+            return False
+        if not cycle_time or not cycle_time > 0:
+            return False
+        if priority not in [1, 2]:
+            return False
+        task = Task(func=func, future=None)
+        Thread(
+            target=self._cyclic_add,
+            kwargs={"task": task, "cycle_time": cycle_time, "priority": priority},
+            daemon=True,
+        ).start()
+        return True
+
+    def _cyclic_add(self, task: Task, cycle_time: float, priority: int = 2) -> None:
+        while self.worker_thread.is_alive():
+            self.tasks.put((priority, task))
+            time.sleep(cycle_time)
+
     def _process(self):
         while True:
             _, task = self.tasks.get()
@@ -60,5 +82,6 @@ class Scheduler(object):
             result = task.func()
             if asyncio.iscoroutine(result):
                 result = asyncio.run(result)
-            task.future.set_result(result)
+            if task.future:
+                task.future.set_result(result)
             self.tasks.task_done()

@@ -165,3 +165,49 @@ def test_scheduler_supports_executing_coroutines():
 
     assert scheduler.execute(func=partial(coroutine)).result()
     scheduler.stop()
+
+
+def test_scheduler_can_execute_cyclic_tasks():
+    scheduler = Scheduler()
+    scheduler.start()
+    global counter
+    counter = 0
+    runs = 10
+
+    def func():
+        global counter
+        counter += 1
+
+    cycle_time = 0.1
+    assert scheduler.cyclic_execute(func=partial(func), cycle_time=cycle_time)
+    time.sleep(runs * cycle_time)
+    scheduler.stop()
+    assert runs - 1 <= counter <= runs + 1  # account for timing issues in a non-RTOS
+
+
+def test_scheduler_rejects_cyclic_execution_when_not_started():
+    scheduler = Scheduler()
+    for _ in range(3):
+        assert not scheduler.cyclic_execute(func=partial(YES), cycle_time=1.0)
+    scheduler.start()
+    assert scheduler.cyclic_execute(func=partial(YES), cycle_time=1.0)
+    scheduler.stop()
+    for _ in range(3):
+        assert not scheduler.cyclic_execute(func=partial(YES), cycle_time=1.0)
+
+
+def test_scheduler_rejects_invalid_arguments_for_cyclic_execution():
+    scheduler = Scheduler()
+    scheduler.start()
+
+    invalid_priorities = [0, -1, "asap", 3]
+    for priority in invalid_priorities:
+        assert not scheduler.cyclic_execute(
+            func=partial(YES), priority=priority, cycle_time=1.0
+        )
+
+    invalid_cycle_times = [0, -1, 0.0, None]
+    for cycle_time in invalid_cycle_times:
+        assert not scheduler.cyclic_execute(func=partial(YES), cycle_time=cycle_time)
+
+    scheduler.stop()
