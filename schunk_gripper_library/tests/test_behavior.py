@@ -44,7 +44,6 @@ def test_fast_stop():
         driver.disconnect()
 
 
-# pytest.mark.skip
 @skip_without_gripper
 def test_move_to_absolute_position():
     test_position = 30000
@@ -69,6 +68,38 @@ def test_move_to_absolute_position():
 
         assert asyncio.run(
             driver.move_to_absolute_position(
+                position=test_position, velocity=test_velocity, gpe=test_gpe
+            )
+        )
+
+        assert driver.disconnect()
+
+
+@skip_without_gripper
+def test_move_to_relative_position():
+    test_position = -50000
+    test_velocity = 73000
+    test_gpe = True
+
+    driver = Driver()
+
+    for host, port, serial_port in zip(
+        ["0.0.0.0", None], [8000, None], [None, "/dev/ttyUSB0"]
+    ):
+        # not connected
+        assert not asyncio.run(
+            driver.move_to_relative_position(
+                position=test_position, velocity=test_velocity, gpe=test_gpe
+            )
+        )
+
+        # after connection
+        assert driver.connect(
+            host=host, port=port, serial_port=serial_port, device_id=12
+        )
+
+        assert asyncio.run(
+            driver.move_to_relative_position(
                 position=test_position, velocity=test_velocity, gpe=test_gpe
             )
         )
