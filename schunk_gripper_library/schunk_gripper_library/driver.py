@@ -211,7 +211,7 @@ class Driver(object):
 
     async def move_to_relative_position(
         self, position: int, velocity: int, use_gpe: bool
-    ):
+    ) -> bool:
         if not self.connected:
             return False
 
