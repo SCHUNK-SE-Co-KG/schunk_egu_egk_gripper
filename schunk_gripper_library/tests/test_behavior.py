@@ -105,3 +105,22 @@ def test_move_to_relative_position():
         )
 
         assert driver.disconnect()
+
+
+@skip_without_gripper
+def test_stop():
+    driver = Driver()
+    for host, port, serial_port in zip(
+        ["0.0.0.0", None], [8000, None], [None, "/dev/ttyUSB0"]
+    ):
+        # Not connected
+        assert not asyncio.run(driver.stop())
+
+        # after connection
+        assert driver.connect(
+            host=host, port=port, serial_port=serial_port, device_id=12
+        )
+        assert asyncio.run(driver.acknowledge())
+
+        assert asyncio.run(driver.stop())
+        assert driver.disconnect()
