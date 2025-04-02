@@ -182,9 +182,6 @@ class Driver(object):
     ) -> bool:
         if not self.connected:
             return False
-
-        await self.acknowledge()
-
         self.clear_plc_output()
         self.send_plc_output()
 
