@@ -57,7 +57,7 @@ def test_move_to_absolute_position():
         # not connected
         assert not asyncio.run(
             driver.move_to_absolute_position(
-                position=test_position, velocity=test_velocity, gpe=test_gpe
+                position=test_position, velocity=test_velocity, use_gpe=test_gpe
             )
         )
 
@@ -65,10 +65,10 @@ def test_move_to_absolute_position():
         assert driver.connect(
             host=host, port=port, serial_port=serial_port, device_id=12
         )
-
+        assert asyncio.run(driver.acknowledge())
         assert asyncio.run(
             driver.move_to_absolute_position(
-                position=test_position, velocity=test_velocity, gpe=test_gpe
+                position=test_position, velocity=test_velocity, use_gpe=test_gpe
             )
         )
 
@@ -89,7 +89,7 @@ def test_move_to_relative_position():
         # not connected
         assert not asyncio.run(
             driver.move_to_relative_position(
-                position=test_position, velocity=test_velocity, gpe=test_gpe
+                position=test_position, velocity=test_velocity, use_gpe=test_gpe
             )
         )
 
@@ -97,10 +97,10 @@ def test_move_to_relative_position():
         assert driver.connect(
             host=host, port=port, serial_port=serial_port, device_id=12
         )
-
+        assert asyncio.run(driver.acknowledge())
         assert asyncio.run(
             driver.move_to_relative_position(
-                position=test_position, velocity=test_velocity, gpe=test_gpe
+                position=test_position, velocity=test_velocity, use_gpe=test_gpe
             )
         )
 

@@ -178,7 +178,7 @@ class Driver(object):
         return await self.wait_for_status(bits=desired_bits)
 
     async def move_to_absolute_position(
-        self, position: int, velocity: int, gpe: bool
+        self, position: int, velocity: int, use_gpe: bool
     ) -> bool:
         if not self.connected:
             return False
@@ -187,7 +187,7 @@ class Driver(object):
 
         cmd_toggle_before = self.get_status_bit(bit=5)
         self.set_control_bit(bit=13, value=True)
-        self.set_control_bit(bit=31, value=gpe)
+        self.set_control_bit(bit=31, value=use_gpe)
         self.set_target_position(position)
         self.set_target_speed(velocity)
 
@@ -195,7 +195,9 @@ class Driver(object):
         desired_bits = {"5": cmd_toggle_before ^ 1, "13": 1, "4": 1}
         return await self.wait_for_status(bits=desired_bits)
 
-    async def move_to_relative_position(self, position: int, velocity: int, gpe: bool):
+    async def move_to_relative_position(
+        self, position: int, velocity: int, use_gpe: bool
+    ):
         if not self.connected:
             return False
 
@@ -204,7 +206,7 @@ class Driver(object):
 
         cmd_toggle_before = self.get_status_bit(bit=5)
         self.set_control_bit(bit=14, value=True)
-        self.set_control_bit(bit=31, value=gpe)
+        self.set_control_bit(bit=31, value=use_gpe)
         self.set_target_position(position)
         self.set_target_speed(velocity)
 
