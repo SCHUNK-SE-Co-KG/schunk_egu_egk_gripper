@@ -188,22 +188,16 @@ class Driver(object):
         cmd_toggle_before = self.get_status_bit(bit=5)
         self.set_control_bit(bit=13, value=True)
         self.set_control_bit(bit=31, value=gpe)
-
         self.set_target_position(position)
         self.set_target_speed(velocity)
 
         self.send_plc_output()
         desired_bits = {"5": cmd_toggle_before ^ 1, "13": 1, "4": 1}
-
-        self.receive_plc_input()
-
         return await self.wait_for_status(bits=desired_bits)
 
     async def move_to_relative_position(self, position: int, velocity: int, gpe: bool):
         if not self.connected:
             return False
-
-        await self.acknowledge()
 
         self.clear_plc_output()
         self.send_plc_output()
@@ -211,14 +205,11 @@ class Driver(object):
         cmd_toggle_before = self.get_status_bit(bit=5)
         self.set_control_bit(bit=14, value=True)
         self.set_control_bit(bit=31, value=gpe)
-
         self.set_target_position(position)
         self.set_target_speed(velocity)
 
         self.send_plc_output()
         desired_bits = {"5": cmd_toggle_before ^ 1, "13": 1, "4": 1}
-
-        self.receive_plc_input()
 
         return await self.wait_for_status(bits=desired_bits)
 
