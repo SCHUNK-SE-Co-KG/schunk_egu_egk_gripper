@@ -43,6 +43,29 @@ def test_dummy_starts_in_error_state():
     assert dummy.get_status_diagnostics() == "EF"  # ERR_COMM_LOST
 
 
+def test_dummy_starts_with_cleared_control_bits():
+    dummy = Dummy()
+    for bit in dummy.valid_control_bits[1:]:  # without fast_stop
+        assert dummy.get_control_bit(bit=bit) == 0
+
+
+def test_dummy_clears_control_bits_after_processing():
+    dummy = Dummy()
+    for bit in dummy.valid_control_bits[1:]:  # without fast_stop
+        dummy.set_control_bit(bit=bit, value=True)
+        dummy.process_control_bits()
+        assert dummy.get_control_bit(bit=bit) == 0
+
+
+def test_dummy_offers_an_acknowledge_method():
+    dummy = Dummy()
+    dummy.acknowledge()
+    assert dummy.get_status_bit(0) == 1  # ready
+    assert dummy.get_status_bit(7) == 0  # no error
+    assert dummy.get_status_error() == "0"
+    assert dummy.get_status_diagnostics() == "0"
+
+
 def test_dummy_is_ready_after_acknowledge():
     dummy = Dummy()
     dummy.set_control_bit(bit=2, value=True)
@@ -72,12 +95,34 @@ def test_dummy_does_not_toggle_command_received_bit_when_clearing():
     assert after == before
 
 
+def test_dummy_rejects_commands_when_in_error():
+    dummy = Dummy()
+    bits = [
+        8,  # jog mode -
+        9,  # jog mode +
+        12,  # grip
+        13,  # move to abs
+        14,  # move to rel
+        16,  # grip at exp
+        30,  # brake test
+    ]
+    for bit in bits:
+        dummy.set_control_bit(bit=bit, value=True)
+        dummy.process_control_bits()
+
+        # Module stays in error
+        assert dummy.get_status_bit(bit=7) == 1
+        assert dummy.get_status_bit(bit=0) == 0
+        assert dummy.get_status_bit(bit=4) == 0
+
+
 def test_dummy_moves_to_absolute_position():
     dummy = Dummy()
+    dummy.acknowledge()
     target_positions = [12345, 10555, 77000, 1500]  # mu
     target_speeds = [50300, 40000, 10500, 20999]  # mu / s
     for target_pos, target_speed in zip(target_positions, target_speeds):
-        control_double_word = "00200000"  # bit 13
+        control_double_word = "01200000"  # bit 13
         set_position = bytes(struct.pack("i", target_pos)).hex().upper()
         set_speed = bytes(struct.pack("i", target_speed)).hex().upper()
         gripping_force = "00000000"
@@ -96,9 +141,10 @@ def test_dummy_moves_to_absolute_position():
 
 def test_dummy_moves_to_relative_position():
     dummy = Dummy()
+    dummy.acknowledge()
     target_pos = -5000  # mu
     target_speed = 12000  # mu / s
-    control_double_word = "00400000"  # bit 14
+    control_double_word = "01400000"  # bit 14
     set_position = bytes(struct.pack("i", target_pos)).hex().upper()
     set_speed = bytes(struct.pack("i", target_speed)).hex().upper()
     gripping_force = "00000000"
@@ -117,6 +163,7 @@ def test_dummy_moves_to_relative_position():
 
 def test_dummy_updates_internal_state_when_moving():
     dummy = Dummy()
+    dummy.acknowledge()
     query = {"offset": 15, "count": 3}  # actual position, speed, and current
     before = dummy.get_data(query)
 
@@ -133,6 +180,7 @@ def test_dummy_updates_internal_state_when_moving():
 
 def test_dummy_performs_break_test():
     dummy = Dummy()
+    dummy.acknowledge()
     dummy.set_control_bit(bit=30, value=True)
     dummy.process_control_bits()
     assert dummy.get_status_bit(bit=4) == 1  # command successfully processed
@@ -140,6 +188,7 @@ def test_dummy_performs_break_test():
 
 def test_dummy_performs_fast_stop():
     dummy = Dummy()
+    dummy.acknowledge()
     dummy.set_control_bit(bit=0, value=False)  # fail-safe behavior
     dummy.process_control_bits()
     assert dummy.get_status_bit(bit=7) == 1  # error
@@ -148,6 +197,8 @@ def test_dummy_performs_fast_stop():
 
 def test_dummy_performs_controlled_stop():
     dummy = Dummy()
+    dummy.acknowledge()
+    dummy.set_control_bit(bit=0, value=True)
     dummy.set_control_bit(bit=1, value=True)
     dummy.process_control_bits()
     assert dummy.get_status_bit(bit=13) == 1  # position reached
@@ -174,6 +225,7 @@ def test_dummy_supports_manual_release():
 
 def test_dummy_supports_prepare_for_shutdown():
     dummy = Dummy()
+    dummy.acknowledge()
     dummy.set_control_bit(bit=3, value=True)
     dummy.process_control_bits()
     assert dummy.get_status_bit(bit=2) == 1  # ready for shutdown
@@ -181,6 +233,7 @@ def test_dummy_supports_prepare_for_shutdown():
 
 def test_dummy_supports_release_workpiece():
     dummy = Dummy()
+    dummy.acknowledge()
     dummy.set_control_bit(bit=11, value=True)
     dummy.process_control_bits()
     assert dummy.get_status_bit(bit=4) == 1  # command successfully processed
@@ -192,6 +245,7 @@ def test_dummy_supports_release_workpiece():
 
 def test_dummy_supports_softreset():
     dummy = Dummy()
+    dummy.acknowledge()
     dummy.start()  # fake some system uptime
     initial = dummy.get_system_uptime()
     time.sleep(1.5)
@@ -208,6 +262,7 @@ def test_dummy_supports_softreset():
 
 def test_dummy_supports_grip():
     dummy = Dummy()
+    dummy.acknowledge()
     dummy.set_control_bit(bit=12, value=True)  # grip workpiece
     dummy.process_control_bits()
     assert dummy.get_status_bit(bit=12) == 1  # workpiece gripped
@@ -216,6 +271,7 @@ def test_dummy_supports_grip():
 
 def test_dummy_supports_grip_at_position():
     dummy = Dummy()
+    dummy.acknowledge()
     dummy.set_control_bit(bit=16, value=True)  # grip workpiece at expected position
     dummy.process_control_bits()
     assert dummy.get_status_bit(bit=12) == 1  # workpiece gripped

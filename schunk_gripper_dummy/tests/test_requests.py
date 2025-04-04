@@ -83,7 +83,7 @@ def test_dummy_stores_post_requests():
     msg = "00112233445566778899AABBCCDDEEFF"
     data = {"inst": dummy.plc_output, "value": msg}
     dummy.post(data)
-    assert dummy.get_plc_output() == [msg]
+    assert dummy.data[dummy.plc_output] == [msg]
 
     # Using general variables
     msg = "AABBCCDD"

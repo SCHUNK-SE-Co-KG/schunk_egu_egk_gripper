@@ -5,16 +5,14 @@ import pytest
 # [1]: https://stb.cloud.schunk.com/media/IM0046706.PDF
 
 
-def test_dummy_initializes_plc_data_buffers():
+def test_dummy_initializes_plc_input_buffer():
     dummy = Dummy()
     assert dummy.data[dummy.plc_input][0] == dummy.plc_input_buffer.hex().upper()
-    assert dummy.data[dummy.plc_output][0] == dummy.plc_output_buffer.hex().upper()
 
 
-def test_dummy_returns_plc_data():
+def test_dummy_returns_plc_input_data():
     dummy = Dummy()
     assert dummy.data[dummy.plc_input] == dummy.get_plc_input()
-    assert dummy.data[dummy.plc_output] == dummy.get_plc_output()
 
 
 def test_dummy_rejects_writing_reserved_status_bits():
