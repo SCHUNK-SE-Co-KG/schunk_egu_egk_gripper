@@ -10,6 +10,8 @@ from httpx import Client, ConnectError, ConnectTimeout
 from importlib.resources import files
 from typing import Union
 import json
+from ..schunk_gripper_library.utility import Scheduler
+from functools import partial
 
 
 class Driver(object):
@@ -192,22 +194,41 @@ class Driver(object):
         return await self.wait_for_status(bits=desired_bits, timeout_sec=10)
 
     async def move_to_absolute_position(
-        self, position: int, velocity: int, use_gpe: bool
+        self,
+        position: int,
+        velocity: int,
+        use_gpe: bool,
+        scheduler: Scheduler | None = None,
     ) -> bool:
         if not self.connected:
             return False
-        self.clear_plc_output()
-        self.send_plc_output()
 
-        cmd_toggle_before = self.get_status_bit(bit=5)
-        self.set_control_bit(bit=13, value=True)
-        self.set_control_bit(bit=31, value=use_gpe)
-        self.set_target_position(position)
-        self.set_target_speed(velocity)
+        async def start():
+            self.clear_plc_output()
+            self.send_plc_output()
+            cmd_toggle_before = self.get_status_bit(bit=5)
+            self.set_control_bit(bit=13, value=True)
+            self.set_control_bit(bit=31, value=use_gpe)
+            self.set_target_position(position)
+            self.set_target_speed(velocity)
+            self.send_plc_output()
+            desired_bits = {"5": cmd_toggle_before ^ 1}
+            return await self.wait_for_status(bits=desired_bits)
 
-        self.send_plc_output()
-        desired_bits = {"5": cmd_toggle_before ^ 1, "13": 1, "4": 1}
-        return await self.wait_for_status(bits=desired_bits)
+        async def check():
+            desired_bits = {"13": 1, "4": 1}
+            return await self.wait_for_status(bits=desired_bits)
+
+        if scheduler:
+            if not scheduler.execute(func=partial(start)).result():
+                return False
+            await asyncio.sleep(2)
+            return scheduler.execute(func=partial(check)).result()
+        else:
+            if not await start():
+                return False
+            await asyncio.sleep(2)
+            return await check()
 
     async def move_to_relative_position(
         self, position: int, velocity: int, use_gpe: bool
