@@ -301,3 +301,38 @@ def test_connected_driver_has_module_type():
 
         driver.disconnect()
         assert not driver.module_type  # empty after disconnect
+
+
+def test_driver_can_check_for_gpe_support():
+    driver = Driver()
+    assert not driver.gpe_available()  # when unconnected
+
+    types_with_gpe = [
+        "EGU_50_M_B",
+        "EGK_25_M_B",
+        "EZU_40_M_B",
+        "xyz_00_M_B",
+    ]
+    types_without_gpe = [
+        "EGU_80_N_B",
+        "EGK_40_N_B",
+        "EGU_70_N_SD",
+        "EGH",
+        "UG4_DIO_80",
+        "_",
+        "123x",
+        "?#\0\n",
+        "EGU_40_m_B",
+        "0x0048",
+        "EGU_M_40_B",
+        "_EGU_40_M_B",
+        "MMM_not_ok",
+    ]
+
+    for type in types_with_gpe:
+        driver.module_type = type
+        assert driver.gpe_available()
+
+    for type in types_without_gpe:
+        driver.module_type = type
+        assert not driver.gpe_available()

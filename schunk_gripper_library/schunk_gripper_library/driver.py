@@ -262,6 +262,16 @@ class Driver(object):
         with self.output_buffer_lock:
             return self.write_module_parameter(self.plc_output, self.plc_output_buffer)
 
+    def gpe_available(self) -> bool:
+        if not self.module_type:
+            return False
+        keys = self.module_type.split("_")
+        if len(keys) < 3:
+            return False
+        if keys[2] == "M":
+            return True
+        return False
+
     def read_module_parameter(self, param: str) -> bytearray:
         result = bytearray()
         if param not in self.readable_parameters:
