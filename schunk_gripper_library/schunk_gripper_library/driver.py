@@ -10,7 +10,7 @@ from httpx import Client, ConnectError, ConnectTimeout
 from importlib.resources import files
 from typing import Union
 import json
-from ..schunk_gripper_library.utility import Scheduler
+from .utility import Scheduler
 from functools import partial
 
 
