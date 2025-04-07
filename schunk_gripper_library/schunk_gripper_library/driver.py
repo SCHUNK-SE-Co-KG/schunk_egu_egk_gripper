@@ -556,6 +556,19 @@ class Driver(object):
         with self.output_buffer_lock:
             return struct.unpack("i", self.plc_output_buffer[8:12])[0]  # um/s
 
+    def set_gripping_force(self, gripping_force: int) -> bool:
+        with self.output_buffer_lock:
+            if not isinstance(gripping_force, int):
+                return False
+            if gripping_force < 0:
+                return False
+            self.plc_output_buffer[12:16] = bytes(struct.pack("i", gripping_force))
+            return True
+
+    def get_gripping_force(self) -> int:
+        with self.output_buffer_lock:
+            return struct.unpack("i", self.plc_output_buffer[12:16])[0]
+
     def get_actual_position(self) -> int:  # um
         with self.input_buffer_lock:
             return struct.unpack("i", self.plc_input_buffer[4:8])[0]
