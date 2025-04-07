@@ -313,6 +313,34 @@ class Driver(object):
         duration_sec = abs(position_abs) / velocity
         return duration_sec
 
+    async def grip_workpiece(
+        self,
+        gripping_force: int,
+        use_gpe: bool,
+        gripping_velocity: int = 0,
+        grip_inside: bool = False,
+        grip_outside: bool = False,
+    ) -> bool:
+        if not self.connected:
+            return False
+
+        if grip_outside == grip_inside:
+            return False
+
+        self.clear_plc_output()
+        self.send_plc_output()
+
+        cmd_toggle_before = self.get_status_bit(bit=5)
+        self.set_control_bit(bit=12, value=True)
+        self.set_control_bit(bit=7, value=True if grip_inside else False)
+        self.set_control_bit(bit=31, value=use_gpe)
+        self.set_target_speed(gripping_velocity)
+        self.set_gripping_force(gripping_force)
+
+        self.send_plc_output()
+        desired_bits = {"5": cmd_toggle_before ^ 1, "4": 1, "12": 1}
+        return await self.wait_for_status(bits=desired_bits)
+
     def receive_plc_input(self) -> bool:
         with self.input_buffer_lock:
             data = self.read_module_parameter(self.plc_input)
