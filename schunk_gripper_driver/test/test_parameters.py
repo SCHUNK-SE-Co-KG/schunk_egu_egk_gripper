@@ -17,7 +17,7 @@ import rclpy
 from rclpy.node import Node
 from rcl_interfaces.srv import GetParameters, SetParameters, ListParameters
 from rcl_interfaces.msg import Parameter, ParameterValue, ParameterType
-from schunk_gripper_library.tests.conftest import skip_without_gripper
+from schunk_gripper_library.utility import skip_without_gripper
 
 
 DRIVER_PARAMETERS = ["host", "port", "serial_port", "device_id"]

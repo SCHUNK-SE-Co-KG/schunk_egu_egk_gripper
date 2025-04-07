@@ -1,4 +1,4 @@
-from ..schunk_gripper_library.driver import Driver
+from schunk_gripper_library.driver import Driver
 
 
 def test_driver_initializes_plc_data_buffers():

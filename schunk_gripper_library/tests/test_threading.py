@@ -1,6 +1,6 @@
-from ..schunk_gripper_library.driver import Driver
+from schunk_gripper_library.driver import Driver
 from threading import Thread
-from ..tests.conftest import skip_without_gripper
+from schunk_gripper_library.utility import skip_without_gripper
 import time
 import pytest
 

@@ -1,4 +1,4 @@
-from ..schunk_gripper_library.utility import Task, Scheduler
+from schunk_gripper_library.utility import Task, Scheduler
 import threading
 from queue import PriorityQueue
 from functools import partial

@@ -1,5 +1,5 @@
-from ..schunk_gripper_library.driver import Driver
-from ..tests.conftest import skip_without_gripper
+from schunk_gripper_library.driver import Driver
+from schunk_gripper_library.utility import skip_without_gripper
 import asyncio
 
 

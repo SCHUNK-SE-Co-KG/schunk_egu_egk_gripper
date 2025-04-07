@@ -14,7 +14,7 @@
 # this program. If not, see <https://www.gnu.org/licenses/>.
 # --------------------------------------------------------------------------------
 
-from schunk_gripper_library.tests.conftest import skip_without_gripper
+from schunk_gripper_library.utility import skip_without_gripper
 from lifecycle_msgs.msg import Transition
 from std_srvs.srv import Trigger
 from rclpy.node import Node

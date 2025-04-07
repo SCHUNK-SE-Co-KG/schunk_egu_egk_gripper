@@ -13,7 +13,7 @@
 # You should have received a copy of the GNU General Public License along with
 # this program. If not, see <https://www.gnu.org/licenses/>.
 # --------------------------------------------------------------------------------
-from schunk_gripper_library.tests.conftest import skip_without_gripper
+from schunk_gripper_library.utility import skip_without_gripper
 from lifecycle_msgs.msg import Transition, State
 
 

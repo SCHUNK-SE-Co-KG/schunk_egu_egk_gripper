@@ -4,6 +4,9 @@ from concurrent.futures import Future
 from functools import partial
 import time
 import asyncio
+from pathlib import Path
+from httpx import Client, ConnectTimeout, ConnectError
+import pytest
 
 
 class Task(object):
@@ -89,3 +92,22 @@ class Scheduler(object):
             if task.future:
                 task.future.set_result(result)
             self.tasks.task_done()
+
+
+def gripper_available():
+    client = Client()
+    try:
+        webserver_up = client.get(
+            "http://0.0.0.0:8000/adi/data.json", timeout=1.0
+        ).is_success
+    except (ConnectTimeout, ConnectError):
+        webserver_up = False
+    modbus_server_up = Path("/dev/ttyUSB0").exists() or ""
+    if webserver_up and modbus_server_up:
+        return True
+    return False
+
+
+skip_without_gripper = pytest.mark.skipif(
+    not gripper_available(), reason="No gripper/simulator available"
+)
