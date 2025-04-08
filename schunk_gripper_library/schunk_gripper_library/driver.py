@@ -234,7 +234,7 @@ class Driver(object):
         self.send_plc_output()
 
         desired_bits = {"5": cmd_toggle_before ^ 1, "13": 1, "4": 1}
-        return await self.wait_for_status(bits=desired_bits, timeout_sec=10)
+        return await self.wait_for_status(bits=desired_bits)
 
     async def move_to_absolute_position(
         self,
@@ -339,6 +339,27 @@ class Driver(object):
 
         self.send_plc_output()
         desired_bits = {"5": cmd_toggle_before ^ 1, "4": 1, "12": 1}
+        return await self.wait_for_status(bits=desired_bits)
+
+    async def release_workpiece(self) -> bool:
+        if not self.connected:
+            return False
+
+        self.clear_plc_output()
+        self.send_plc_output()
+
+        cmd_toggle_before = self.get_status_bit(bit=5)
+        self.set_control_bit(bit=11, value=True)
+        self.send_plc_output()
+
+        desired_bits = {
+            "5": cmd_toggle_before ^ 1,
+            "4": 1,
+            "13": 1,
+            "14": 0,
+            "12": 0,
+            "17": 0,
+        }
         return await self.wait_for_status(bits=desired_bits)
 
     def receive_plc_input(self) -> bool:
