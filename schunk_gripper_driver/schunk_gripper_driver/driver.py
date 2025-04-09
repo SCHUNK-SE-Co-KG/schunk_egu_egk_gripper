@@ -33,18 +33,30 @@ class Driver(Node):
         self.declare_parameter("port", 80)
         self.declare_parameter("serial_port", "/dev/ttyUSB0")
         self.declare_parameter("device_id", 12)
-        self.gripper = GripperDriver()
+        self.grippers = []
+        gripper = {
+            "host": self.get_parameter("host").value,
+            "port": self.get_parameter("port").value,
+            "serial_port": self.get_parameter("serial_port").value,
+            "device_id": self.get_parameter("device_id").value,
+            "driver": None,
+        }
+        self.grippers.append(gripper)
 
     def on_configure(self, state: State) -> TransitionCallbackReturn:
         self.get_logger().info("on_configure() is called.")
-        if not self.gripper.connect(
-            host=self.get_parameter("host").value,
-            port=self.get_parameter("port").value,
-            serial_port=self.get_parameter("serial_port").value,
-            device_id=self.get_parameter("device_id").value,
-        ):
-            self.get_logger().warn("Gripper connect failed")
-            return TransitionCallbackReturn.FAILURE
+        for idx, gripper in enumerate(self.grippers):
+            driver = GripperDriver()
+            if not driver.connect(
+                host=gripper["host"],
+                port=gripper["port"],
+                serial_port=gripper["serial_port"],
+                device_id=gripper["device_id"],
+            ):
+                self.get_logger().warn(f"Gripper connect failed: {gripper}")
+                return TransitionCallbackReturn.FAILURE
+            else:
+                self.grippers[idx]["driver"] = driver
 
         # Services
         self.acknowledge_srv = self.create_service(
