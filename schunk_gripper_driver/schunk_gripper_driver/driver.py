@@ -48,16 +48,15 @@ class Driver(Node):
     def list_devices(self) -> list[str]:
         devices = []
         for gripper in self.grippers:
-            if gripper["driver"]:
-                id = f"{gripper['driver'].module_type}_1"
-                while id in devices:
-                    count = int(id.split("_")[-1]) + 1
-                    id = id[:-2] + f"_{count}"
+            id = gripper["gripper_id"]
+            if id:
                 devices.append(id)
         return devices
 
     def on_configure(self, state: State) -> TransitionCallbackReturn:
         self.get_logger().info("on_configure() is called.")
+
+        # Connect each gripper
         for idx, gripper in enumerate(self.grippers):
             driver = GripperDriver()
             if not driver.connect(
@@ -71,7 +70,17 @@ class Driver(Node):
             else:
                 self.grippers[idx]["driver"] = driver
 
-        # Services
+        # Set unique gripper IDs
+        devices = []
+        for idx, gripper in enumerate(self.grippers):
+            id = f"{gripper['driver'].module_type}_1"
+            while id in devices:
+                count = int(id.split("_")[-1]) + 1
+                id = id[:-2] + f"_{count}"
+            devices.append(id)
+            self.grippers[idx]["gripper_id"] = id
+
+        # Driver-wide services
         self.list_devices_srv = self.create_service(
             ListDevices, "~/list_devices", self._list_devices_cb
         )
