@@ -17,7 +17,7 @@
 from schunk_gripper_library.utility import skip_without_gripper
 from lifecycle_msgs.msg import Transition, State
 from std_srvs.srv import Trigger
-from schunk_gripper_interfaces.srv import ListDevices  # type: ignore [attr-defined]
+from schunk_gripper_interfaces.srv import ListGrippers  # type: ignore [attr-defined]
 from rclpy.node import Node
 import rclpy
 import time
@@ -28,45 +28,45 @@ def test_driver_advertises_services(lifecycle_interface):
     driver = lifecycle_interface
     for _ in range(3):
 
-        list_devices = "/schunk/driver/list_devices"
+        list_grippers = "/schunk/driver/list_grippers"
         until_change_takes_effect = 0.1
 
         # After startup -> unconfigured
         assert driver.check_state(State.PRIMARY_STATE_UNCONFIGURED)
-        assert not driver.exists(list_devices)
+        assert not driver.exists(list_grippers)
 
         # After configure -> inactive
         driver.change_state(Transition.TRANSITION_CONFIGURE)
         time.sleep(until_change_takes_effect)
-        assert driver.exists(list_devices)
+        assert driver.exists(list_grippers)
 
         # After activate -> active
         driver.change_state(Transition.TRANSITION_ACTIVATE)
         time.sleep(until_change_takes_effect)
-        assert driver.exists(list_devices)
+        assert driver.exists(list_grippers)
 
         # After deactivate -> inactive
         driver.change_state(Transition.TRANSITION_DEACTIVATE)
         time.sleep(until_change_takes_effect)
-        assert driver.exists(list_devices)
+        assert driver.exists(list_grippers)
 
         # After cleanup -> unconfigured
         driver.change_state(Transition.TRANSITION_CLEANUP)
         time.sleep(until_change_takes_effect)
-        assert not driver.exists(list_devices)
+        assert not driver.exists(list_grippers)
 
 
 @skip_without_gripper
-def test_driver_implements_list_devices(lifecycle_interface):
+def test_driver_implements_list_grippers(lifecycle_interface):
     driver = lifecycle_interface
     driver.change_state(Transition.TRANSITION_CONFIGURE)
 
-    node = Node("check_list_devices")
-    client = node.create_client(ListDevices, "/schunk/driver/list_devices")
+    node = Node("check_list_grippers")
+    client = node.create_client(ListGrippers, "/schunk/driver/list_grippers")
     assert client.wait_for_service(timeout_sec=2)
-    future = client.call_async(ListDevices.Request())
+    future = client.call_async(ListGrippers.Request())
     rclpy.spin_until_future_complete(node, future)
-    assert len(future.result().devices) >= 1
+    assert len(future.result().grippers) >= 1
     driver.change_state(Transition.TRANSITION_CLEANUP)
 
 
@@ -79,7 +79,7 @@ def test_driver_implements_acknowledge(lifecycle_interface):
 
         node = Node("check_acknowledge")
         client = node.create_client(Trigger, "/schunk/driver/acknowledge")
-        client.wait_for_service(timeout_sec=2)
+        assert client.wait_for_service(timeout_sec=2)
         future = client.call_async(Trigger.Request())
         rclpy.spin_until_future_complete(node, future)
         driver.change_state(Transition.TRANSITION_CLEANUP)
@@ -100,7 +100,7 @@ def test_driver_implements_fast_stop(lifecycle_interface):
 
         node = Node("check_fast_stop")
         client = node.create_client(Trigger, "/schunk/driver/fast_stop")
-        client.wait_for_service(timeout_sec=2)
+        assert client.wait_for_service(timeout_sec=2)
         future = client.call_async(Trigger.Request())
         rclpy.spin_until_future_complete(node, future)
         driver.change_state(Transition.TRANSITION_CLEANUP)

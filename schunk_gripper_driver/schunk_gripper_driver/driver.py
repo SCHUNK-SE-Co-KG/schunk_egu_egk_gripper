@@ -19,7 +19,7 @@ import rclpy
 
 from rclpy.lifecycle import Node, State, TransitionCallbackReturn
 from schunk_gripper_library.driver import Driver as GripperDriver
-from schunk_gripper_interfaces.srv import ListDevices  # type: ignore [attr-defined]
+from schunk_gripper_interfaces.srv import ListGrippers  # type: ignore [attr-defined]
 from std_srvs.srv import Trigger
 import asyncio
 from threading import Thread
@@ -45,7 +45,7 @@ class Driver(Node):
         }
         self.grippers.append(gripper)
 
-    def list_devices(self) -> list[str]:
+    def list_grippers(self) -> list[str]:
         devices = []
         for gripper in self.grippers:
             id = gripper["gripper_id"]
@@ -81,8 +81,8 @@ class Driver(Node):
             self.grippers[idx]["gripper_id"] = id
 
         # Driver-wide services
-        self.list_devices_srv = self.create_service(
-            ListDevices, "~/list_devices", self._list_devices_cb
+        self.list_grippers_srv = self.create_service(
+            ListGrippers, "~/list_grippers", self._list_grippers_cb
         )
 
         return TransitionCallbackReturn.SUCCESS
@@ -121,7 +121,7 @@ class Driver(Node):
             gripper["driver"] = None
 
         # Release services
-        if not self.destroy_service(self.list_devices_srv):
+        if not self.destroy_service(self.list_grippers_srv):
             return TransitionCallbackReturn.FAILURE
 
         return TransitionCallbackReturn.SUCCESS
@@ -139,11 +139,11 @@ class Driver(Node):
         return TransitionCallbackReturn.SUCCESS
 
     # Service callbacks
-    def _list_devices_cb(
-        self, request: ListDevices.Request, response: ListDevices.Response
+    def _list_grippers_cb(
+        self, request: ListGrippers.Request, response: ListGrippers.Response
     ):
-        self.get_logger().info("---> Get gripper IDs")
-        response.devices = self.list_devices()
+        self.get_logger().info("---> List gripper IDs")
+        response.grippers = self.list_grippers()
         return response
 
     def _acknowledge_cb(self, request: Trigger.Request, response: Trigger.Response):

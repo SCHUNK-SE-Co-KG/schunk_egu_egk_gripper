@@ -43,10 +43,10 @@ def test_driver_manages_individual_drivers_for_each_gripper(ros2):
 
 
 @skip_without_gripper
-def test_driver_offers_list_of_connected_devices(ros2):
+def test_driver_offers_list_of_connected_grippers(ros2):
     driver = Driver("driver")
 
-    def assert_device_ids(device_ids: list[str]) -> None:
+    def assert_gripper_ids(device_ids: list[str]) -> None:
         # Device IDs should contain the module type and a trailing count, e.g.
         # EGK_40_M_B_1, EGK_40_M_B_2
         for id in device_ids:
@@ -56,14 +56,14 @@ def test_driver_offers_list_of_connected_devices(ros2):
             assert nr >= 1
 
     # When unconfigured
-    assert driver.list_devices() == []
+    assert driver.list_grippers() == []
 
     # When inactive
     driver.on_configure(state=None)
-    assert len(driver.list_devices()) >= 1  # default setting
-    assert_device_ids(driver.list_devices())
+    assert len(driver.list_grippers()) >= 1  # default setting
+    assert_gripper_ids(driver.list_grippers())
 
     # When active
     driver.on_activate(state=None)
-    assert len(driver.list_devices()) >= 1
-    assert_device_ids(driver.list_devices())
+    assert len(driver.list_grippers()) >= 1
+    assert_gripper_ids(driver.list_grippers())
