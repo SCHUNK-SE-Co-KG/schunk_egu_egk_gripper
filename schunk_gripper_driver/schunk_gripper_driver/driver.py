@@ -117,8 +117,8 @@ class Driver(Node):
         self.get_logger().info("on_deactivate() is called.")
 
         # Release gripper-specific services
-        for service in self.gripper_services:
-            self.destroy_service(service)
+        for idx, _ in enumerate(self.gripper_services):
+            self.destroy_service(self.gripper_services[idx])
         self.gripper_services.clear()
 
         return super().on_deactivate(state)

@@ -24,12 +24,20 @@ import time
 
 
 @skip_without_gripper
-def test_driver_advertises_services(lifecycle_interface):
+def test_driver_advertises_state_depending_services(lifecycle_interface):
     driver = lifecycle_interface
-    for _ in range(3):
+    list_grippers = "/schunk/driver/list_grippers"
+    main_services = ["acknowledge", "fast_stop"]
+    until_change_takes_effect = 0.1
 
-        list_grippers = "/schunk/driver/list_grippers"
-        until_change_takes_effect = 0.1
+    def exist(services: list[str]) -> bool:
+        for gripper in driver.list_grippers():
+            for service in services:
+                if not driver.exists(f"/schunk/driver/{gripper}/{service}"):
+                    return False
+        return True
+
+    for _ in range(3):
 
         # After startup -> unconfigured
         assert driver.check_state(State.PRIMARY_STATE_UNCONFIGURED)
@@ -39,16 +47,19 @@ def test_driver_advertises_services(lifecycle_interface):
         driver.change_state(Transition.TRANSITION_CONFIGURE)
         time.sleep(until_change_takes_effect)
         assert driver.exists(list_grippers)
+        assert not exist(main_services)
 
         # After activate -> active
         driver.change_state(Transition.TRANSITION_ACTIVATE)
         time.sleep(until_change_takes_effect)
         assert driver.exists(list_grippers)
+        assert exist(main_services)
 
         # After deactivate -> inactive
         driver.change_state(Transition.TRANSITION_DEACTIVATE)
         time.sleep(until_change_takes_effect)
         assert driver.exists(list_grippers)
+        assert not exist(main_services)
 
         # After cleanup -> unconfigured
         driver.change_state(Transition.TRANSITION_CLEANUP)
