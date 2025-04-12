@@ -1,7 +1,0 @@
----
-float32 absolute_position
-bool released_workpiece
----
-float32 absolute_position
-float32 velocity_of_movement
-float32 motor_current

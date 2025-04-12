@@ -1,9 +1,9 @@
 <?xml version="1.0"?>
 <?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
 <package format="3">
-  <name>schunk_egu_egk_gripper_interfaces</name>
-  <version>1.0.0</version>
-  <description>Provides interface descriptions to communicate with SCHUNK EGU/EGK grippers over ROS 2</description>
+  <name>schunk_gripper_interfaces</name>
+  <version>0.0.1</version>
+  <description>Provides interface descriptions to communicate with SCHUNK grippers over ROS 2</description>
   <maintainer email="stefan.scherzinger@de.schunk.com">Stefan Scherzinger</maintainer>
   <license>GPL-3.0-or-later</license>
 
@@ -13,10 +13,6 @@
   <exec_depend>rosidl_default_runtime</exec_depend>
 
   <depend>std_msgs</depend>
-  <depend>action_msgs</depend>
-  <depend>control_msgs</depend>
-  <depend>sensor_msgs</depend>
-  <depend>diagnostic_msgs</depend>
 
   <test_depend>ament_lint_auto</test_depend>
   <test_depend>ament_cmake_copyright</test_depend>
