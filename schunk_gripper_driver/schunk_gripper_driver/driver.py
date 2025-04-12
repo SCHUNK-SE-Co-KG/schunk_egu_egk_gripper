@@ -24,6 +24,7 @@ from std_srvs.srv import Trigger
 import asyncio
 from threading import Thread
 import time
+from rclpy.service import Service
 
 
 class Driver(Node):
@@ -44,6 +45,7 @@ class Driver(Node):
             "gripper_id": None,
         }
         self.grippers.append(gripper)
+        self.gripper_services: list[Service] = []
 
     def list_grippers(self) -> list[str]:
         devices = []
@@ -90,27 +92,34 @@ class Driver(Node):
     def on_activate(self, state: State) -> TransitionCallbackReturn:
         self.get_logger().info("on_activate() is called.")
 
-        # Services
-        self.acknowledge_srv = self.create_service(
-            Trigger, "~/acknowledge", self._acknowledge_cb
-        )
-        self.fast_stop_srv = self.create_service(
-            Trigger, "~/fast_stop", self._fast_stop_cb
-        )
+        # Gripper-specific services
+        for gripper in self.grippers:
+            self.gripper_services.append(
+                self.create_service(
+                    Trigger,
+                    f"~/{gripper['gripper_id']}/acknowledge",
+                    self._acknowledge_cb,
+                )
+            )
+            self.gripper_services.append(
+                self.create_service(
+                    Trigger, f"~/{gripper['gripper_id']}/fast_stop", self._fast_stop_cb
+                )
+            )
 
         # Acknowledge
         for gripper in self.grippers:
             asyncio.run(gripper["driver"].acknowledge())
+
         return super().on_activate(state)
 
     def on_deactivate(self, state: State) -> TransitionCallbackReturn:
         self.get_logger().info("on_deactivate() is called.")
 
-        # Release services
-        if not self.destroy_service(self.acknowledge_srv):
-            return TransitionCallbackReturn.FAILURE
-        if not self.destroy_service(self.fast_stop_srv):
-            return TransitionCallbackReturn.FAILURE
+        # Release gripper-specific services
+        for service in self.gripper_services:
+            self.destroy_service(service)
+        self.gripper_services.clear()
 
         return super().on_deactivate(state)
 
@@ -120,7 +129,7 @@ class Driver(Node):
             gripper["driver"].disconnect()
             gripper["driver"] = None
 
-        # Release services
+        # Release driver-wide services
         if not self.destroy_service(self.list_grippers_srv):
             return TransitionCallbackReturn.FAILURE
 

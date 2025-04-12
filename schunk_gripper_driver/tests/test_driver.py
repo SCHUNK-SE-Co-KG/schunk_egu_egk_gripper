@@ -67,3 +67,25 @@ def test_driver_offers_list_of_connected_grippers(ros2):
     driver.on_activate(state=None)
     assert len(driver.list_grippers()) >= 1
     assert_gripper_ids(driver.list_grippers())
+
+    # Finish
+    driver.on_deactivate(state=None)
+    driver.on_cleanup(state=None)
+
+
+@skip_without_gripper
+def test_driver_manages_services_for_each_gripper(ros2):
+    driver = Driver("driver")
+
+    for _ in range(3):
+        assert driver.gripper_services == []
+        driver.on_configure(state=None)
+        assert driver.gripper_services == []
+
+        driver.on_activate(state=None)
+        assert len(driver.gripper_services) >= 1
+
+        driver.on_deactivate(state=None)
+        assert driver.gripper_services == []
+        driver.on_cleanup
+        assert driver.gripper_services == []
