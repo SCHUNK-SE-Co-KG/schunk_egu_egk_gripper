@@ -22,15 +22,48 @@ def test_driver_manages_a_list_of_grippers(ros2):
     driver = Driver("driver")
     assert len(driver.grippers) == 1
     assert isinstance(driver.grippers[0], dict)
-    entries = ["host", "port", "serial_port", "device_id", "driver"]
+    entries = ["host", "port", "serial_port", "device_id", "driver", "gripper_id"]
     for entry in entries:
         assert entry in driver.grippers[0]
     assert driver.grippers[0]["driver"] is None
+    assert driver.grippers[0]["gripper_id"] is None
 
 
 @skip_without_gripper
-def test_driver_connects_each_gripper_on_configure(ros2):
+def test_driver_manages_individual_drivers_for_each_gripper(ros2):
     driver = Driver("driver")
+
     driver.on_configure(state=None)
     for gripper in driver.grippers:
         assert isinstance(gripper["driver"], GripperDriver)
+
+    driver.on_cleanup(state=None)
+    for gripper in driver.grippers:
+        assert gripper["driver"] is None
+
+
+@skip_without_gripper
+def test_driver_offers_list_of_connected_devices(ros2):
+    driver = Driver("driver")
+
+    def assert_device_ids(device_ids: list[str]) -> None:
+        # Device IDs should contain the module type and a trailing count, e.g.
+        # EGK_40_M_B_1, EGK_40_M_B_2
+        for id in device_ids:
+            module_type = id[:-2]
+            assert module_type in GripperDriver().valid_module_types.values()
+            nr = int(id.split("_")[-1])
+            assert nr >= 1
+
+    # When unconfigured
+    assert driver.list_devices() == []
+
+    # When inactive
+    driver.on_configure(state=None)
+    assert len(driver.list_devices()) >= 1  # default setting
+    assert_device_ids(driver.list_devices())
+
+    # When active
+    driver.on_activate(state=None)
+    assert len(driver.list_devices()) >= 1
+    assert_device_ids(driver.list_devices())

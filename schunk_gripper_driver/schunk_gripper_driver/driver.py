@@ -19,6 +19,7 @@ import rclpy
 
 from rclpy.lifecycle import Node, State, TransitionCallbackReturn
 from schunk_gripper_library.driver import Driver as GripperDriver
+from schunk_gripper_interfaces.srv import ListDevices  # type: ignore [attr-defined]
 from std_srvs.srv import Trigger
 import asyncio
 from threading import Thread
@@ -40,8 +41,20 @@ class Driver(Node):
             "serial_port": self.get_parameter("serial_port").value,
             "device_id": self.get_parameter("device_id").value,
             "driver": None,
+            "gripper_id": None,
         }
         self.grippers.append(gripper)
+
+    def list_devices(self) -> list[str]:
+        devices = []
+        for gripper in self.grippers:
+            if gripper["driver"]:
+                id = f"{gripper['driver'].module_type}_1"
+                while id in devices:
+                    count = int(id.split("_")[-1]) + 1
+                    id = id[:-2] + f"_{count}"
+                devices.append(id)
+        return devices
 
     def on_configure(self, state: State) -> TransitionCallbackReturn:
         self.get_logger().info("on_configure() is called.")
@@ -59,6 +72,16 @@ class Driver(Node):
                 self.grippers[idx]["driver"] = driver
 
         # Services
+        self.list_devices_srv = self.create_service(
+            ListDevices, "~/list_devices", self._list_devices_cb
+        )
+
+        return TransitionCallbackReturn.SUCCESS
+
+    def on_activate(self, state: State) -> TransitionCallbackReturn:
+        self.get_logger().info("on_activate() is called.")
+
+        # Services
         self.acknowledge_srv = self.create_service(
             Trigger, "~/acknowledge", self._acknowledge_cb
         )
@@ -66,31 +89,30 @@ class Driver(Node):
             Trigger, "~/fast_stop", self._fast_stop_cb
         )
 
-        # State update
-        self.timer = self.create_timer(0.5, self.status_update)
-
-        # Clear control bits
-        self.gripper.clear_plc_output()
-        self.gripper.set_control_bit(bit=0, value=True)
-        self.gripper.send_plc_output()
-        return TransitionCallbackReturn.SUCCESS
-
-    def on_activate(self, state: State) -> TransitionCallbackReturn:
-        self.get_logger().info("on_activate() is called.")
+        # Acknowledge
+        for gripper in self.grippers:
+            asyncio.run(gripper["driver"].acknowledge())
         return super().on_activate(state)
 
     def on_deactivate(self, state: State) -> TransitionCallbackReturn:
         self.get_logger().info("on_deactivate() is called.")
-        return super().on_deactivate(state)
-
-    def on_cleanup(self, state: State) -> TransitionCallbackReturn:
-        self.get_logger().info("on_cleanup() is called.")
-        self.gripper.disconnect()
 
         # Release services
         if not self.destroy_service(self.acknowledge_srv):
             return TransitionCallbackReturn.FAILURE
         if not self.destroy_service(self.fast_stop_srv):
+            return TransitionCallbackReturn.FAILURE
+
+        return super().on_deactivate(state)
+
+    def on_cleanup(self, state: State) -> TransitionCallbackReturn:
+        self.get_logger().info("on_cleanup() is called.")
+        for gripper in self.grippers:
+            gripper["driver"].disconnect()
+            gripper["driver"] = None
+
+        # Release services
+        if not self.destroy_service(self.list_devices_srv):
             return TransitionCallbackReturn.FAILURE
 
         return TransitionCallbackReturn.SUCCESS
@@ -107,10 +129,14 @@ class Driver(Node):
         destroy.start()
         return TransitionCallbackReturn.SUCCESS
 
-    def status_update(self):
-        self.get_logger().info(f"---> Status update: {self.gripper.get_plc_input()}")
-
     # Service callbacks
+    def _list_devices_cb(
+        self, request: ListDevices.Request, response: ListDevices.Response
+    ):
+        self.get_logger().info("---> Get gripper IDs")
+        response.devices = self.list_devices()
+        return response
+
     def _acknowledge_cb(self, request: Trigger.Request, response: Trigger.Response):
         self.get_logger().info("---> Acknowledge")
         response.success = asyncio.run(self.gripper.acknowledge())

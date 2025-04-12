@@ -15,31 +15,59 @@
 # --------------------------------------------------------------------------------
 
 from schunk_gripper_library.utility import skip_without_gripper
-from lifecycle_msgs.msg import Transition
+from lifecycle_msgs.msg import Transition, State
 from std_srvs.srv import Trigger
+from schunk_gripper_interfaces.srv import ListDevices  # type: ignore [attr-defined]
 from rclpy.node import Node
 import rclpy
+import time
 
 
 @skip_without_gripper
-def test_driver_advertises_services_when_configured(lifecycle_interface):
+def test_driver_advertises_services(lifecycle_interface):
     driver = lifecycle_interface
-    for protocol in ["modbus", "tcpip"]:
-        driver.use_protocol(protocol)
-        service_list = ["/schunk/driver/acknowledge", "/schunk/driver/fast_stop"]
-        # In unconfigured state
-        for service in service_list:
-            assert not driver.exists(service)
+    for _ in range(3):
 
-        # Should appear after configure
+        list_devices = "/schunk/driver/list_devices"
+        until_change_takes_effect = 0.1
+
+        # After startup -> unconfigured
+        assert driver.check_state(State.PRIMARY_STATE_UNCONFIGURED)
+        assert not driver.exists(list_devices)
+
+        # After configure -> inactive
         driver.change_state(Transition.TRANSITION_CONFIGURE)
-        for service in service_list:
-            driver.exists(service)
+        time.sleep(until_change_takes_effect)
+        assert driver.exists(list_devices)
 
-        # Should disappear after cleanup
+        # After activate -> active
+        driver.change_state(Transition.TRANSITION_ACTIVATE)
+        time.sleep(until_change_takes_effect)
+        assert driver.exists(list_devices)
+
+        # After deactivate -> inactive
+        driver.change_state(Transition.TRANSITION_DEACTIVATE)
+        time.sleep(until_change_takes_effect)
+        assert driver.exists(list_devices)
+
+        # After cleanup -> unconfigured
         driver.change_state(Transition.TRANSITION_CLEANUP)
-        for service in service_list:
-            not driver.exists(service)
+        time.sleep(until_change_takes_effect)
+        assert not driver.exists(list_devices)
+
+
+@skip_without_gripper
+def test_driver_implements_list_devices(lifecycle_interface):
+    driver = lifecycle_interface
+    driver.change_state(Transition.TRANSITION_CONFIGURE)
+
+    node = Node("check_list_devices")
+    client = node.create_client(ListDevices, "/schunk/driver/list_devices")
+    assert client.wait_for_service(timeout_sec=2)
+    future = client.call_async(ListDevices.Request())
+    rclpy.spin_until_future_complete(node, future)
+    assert len(future.result().devices) >= 1
+    driver.change_state(Transition.TRANSITION_CLEANUP)
 
 
 @skip_without_gripper
