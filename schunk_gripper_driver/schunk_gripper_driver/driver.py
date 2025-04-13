@@ -55,6 +55,12 @@ class Driver(Node):
                 devices.append(id)
         return devices
 
+    def needs_synchronize(self, gripper: dict[str, str]) -> bool:
+        serial_ports = [gripper["serial_port"] for gripper in self.grippers]
+        if serial_ports.count(gripper["serial_port"]) > 1:
+            return True
+        return False
+
     def on_configure(self, state: State) -> TransitionCallbackReturn:
         self.get_logger().info("on_configure() is called.")
 

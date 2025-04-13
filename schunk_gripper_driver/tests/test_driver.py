@@ -89,3 +89,28 @@ def test_driver_manages_services_for_each_gripper(ros2):
         assert driver.gripper_services == []
         driver.on_cleanup
         assert driver.gripper_services == []
+
+
+def test_driver_checks_if_grippers_need_synchronization():
+    driver = Driver("driver")  # with default gripper
+
+    # Same serial port
+    gripper = {
+        "serial_port": "/dev/ttyUSB0",
+    }
+    driver.grippers.append(gripper)
+    assert driver.needs_synchronize(gripper)
+
+    # Unique serial port
+    serial_ports = {
+        "/dev/unique-port",
+        None,
+        "",
+        "/dev/ttyUSB1",
+        "/dev/ttyUSB01",
+        "/dev/ttyUSB\0",
+    }
+    for serial_port in serial_ports:
+        gripper = {"serial_port": serial_port}
+        driver.grippers.append(gripper)
+        assert not driver.needs_synchronize(gripper)
