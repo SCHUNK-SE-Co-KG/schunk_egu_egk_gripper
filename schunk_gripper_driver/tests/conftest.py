@@ -23,7 +23,6 @@ from launch_ros.substitutions import FindPackageShare
 import launch_pytest
 from lifecycle_msgs.srv import ChangeState, GetState
 from rcl_interfaces.srv import SetParameters
-from rcl_interfaces.msg import Parameter, ParameterValue, ParameterType
 from schunk_gripper_interfaces.srv import ListGrippers  # type: ignore [attr-defined]
 
 from rclpy.node import Node
@@ -96,39 +95,6 @@ class LifecycleInterface(object):
         rclpy.spin_until_future_complete(self.node, future)
         grippers = future.result().grippers
         return grippers
-
-    def use_protocol(self, protocol: str) -> bool:
-        if protocol not in ["modbus", "tcpip"]:
-            return False
-        if protocol == "modbus":
-            parameters = [
-                Parameter(
-                    name="host",
-                    value=ParameterValue(
-                        type=ParameterType.PARAMETER_STRING, string_value=""  # empty
-                    ),
-                )
-            ]
-        if protocol == "tcpip":
-            parameters = [
-                Parameter(
-                    name="host",
-                    value=ParameterValue(
-                        type=ParameterType.PARAMETER_STRING, string_value="0.0.0.0"
-                    ),
-                ),
-                Parameter(
-                    name="port",
-                    value=ParameterValue(
-                        type=ParameterType.PARAMETER_INTEGER, integer_value=8000
-                    ),
-                ),
-            ]
-        future = self.set_params_client.call_async(
-            SetParameters.Request(parameters=parameters)
-        )
-        rclpy.spin_until_future_complete(self.node, future)
-        return True
 
 
 @pytest.fixture(scope="module")

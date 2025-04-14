@@ -25,6 +25,7 @@ import asyncio
 from threading import Thread
 import time
 from rclpy.service import Service
+from functools import partial
 
 
 class Driver(Node):
@@ -99,17 +100,20 @@ class Driver(Node):
         self.get_logger().info("on_activate() is called.")
 
         # Gripper-specific services
-        for gripper in self.grippers:
+        for idx, _ in enumerate(self.grippers):
+            gripper = self.grippers[idx]
             self.gripper_services.append(
                 self.create_service(
                     Trigger,
                     f"~/{gripper['gripper_id']}/acknowledge",
-                    self._acknowledge_cb,
+                    partial(self._acknowledge_cb, gripper=gripper["driver"]),
                 )
             )
             self.gripper_services.append(
                 self.create_service(
-                    Trigger, f"~/{gripper['gripper_id']}/fast_stop", self._fast_stop_cb
+                    Trigger,
+                    f"~/{gripper['gripper_id']}/fast_stop",
+                    partial(self._fast_stop_cb, gripper=gripper["driver"]),
                 )
             )
 

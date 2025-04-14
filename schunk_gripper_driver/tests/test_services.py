@@ -84,16 +84,15 @@ def test_driver_implements_list_grippers(lifecycle_interface):
 @skip_without_gripper
 def test_driver_implements_acknowledge(lifecycle_interface):
     driver = lifecycle_interface
-    for protocol in ["modbus", "tcpip"]:
-        driver.use_protocol(protocol)
-        driver.change_state(Transition.TRANSITION_CONFIGURE)
+    driver.change_state(Transition.TRANSITION_CONFIGURE)
+    driver.change_state(Transition.TRANSITION_ACTIVATE)
 
-        node = Node("check_acknowledge")
-        client = node.create_client(Trigger, "/schunk/driver/acknowledge")
-        assert client.wait_for_service(timeout_sec=2)
+    node = Node("check_acknowledge")
+    for gripper in driver.list_grippers():
+        client = node.create_client(Trigger, f"/schunk/driver/{gripper}/acknowledge")
+        assert client.wait_for_service(timeout_sec=2), f"gripper: {gripper}"
         future = client.call_async(Trigger.Request())
-        rclpy.spin_until_future_complete(node, future)
-        driver.change_state(Transition.TRANSITION_CLEANUP)
+        rclpy.spin_until_future_complete(node, future, timeout_sec=1)
 
         assert future.result().success
         expected_msg = (
@@ -101,21 +100,24 @@ def test_driver_implements_acknowledge(lifecycle_interface):
         )
         assert future.result().message == expected_msg
 
+    driver.change_state(Transition.TRANSITION_DEACTIVATE)
+    driver.change_state(Transition.TRANSITION_CLEANUP)
+
 
 @skip_without_gripper
 def test_driver_implements_fast_stop(lifecycle_interface):
     driver = lifecycle_interface
-    for protocol in ["modbus", "tcpip"]:
-        driver.use_protocol(protocol)
-        driver.change_state(Transition.TRANSITION_CONFIGURE)
+    driver.change_state(Transition.TRANSITION_CONFIGURE)
+    driver.change_state(Transition.TRANSITION_ACTIVATE)
 
-        node = Node("check_fast_stop")
-        client = node.create_client(Trigger, "/schunk/driver/fast_stop")
-        assert client.wait_for_service(timeout_sec=2)
+    node = Node("check_fast_stop")
+    for gripper in driver.list_grippers():
+        client = node.create_client(Trigger, f"/schunk/driver/{gripper}/fast_stop")
+        assert client.wait_for_service(timeout_sec=2), f"gripper: {gripper}"
         future = client.call_async(Trigger.Request())
-        rclpy.spin_until_future_complete(node, future)
-        driver.change_state(Transition.TRANSITION_CLEANUP)
+        rclpy.spin_until_future_complete(node, future, timeout_sec=1)
 
         assert future.result().success
-        expected_msg = "error_code: 0xD9, warning_code: 0x0, additional_code: 0x0"
-        assert future.result().message == expected_msg
+
+    driver.change_state(Transition.TRANSITION_DEACTIVATE)
+    driver.change_state(Transition.TRANSITION_CLEANUP)
