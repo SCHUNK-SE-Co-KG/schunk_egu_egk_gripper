@@ -16,6 +16,7 @@
 from schunk_gripper_driver.driver import Driver
 from schunk_gripper_library.utility import skip_without_gripper
 from schunk_gripper_library.driver import Driver as GripperDriver
+from std_srvs.srv import Trigger
 
 
 def test_driver_manages_a_list_of_grippers(ros2):
@@ -114,3 +115,27 @@ def test_driver_checks_if_grippers_need_synchronization():
         gripper = {"serial_port": serial_port}
         driver.grippers.append(gripper)
         assert not driver.needs_synchronize(gripper)
+
+
+@skip_without_gripper
+def test_driver_offers_callbacks_for_acknowledge_and_fast_stop(ros2):
+    driver = Driver("driver")
+    driver.on_configure(state=None)
+    driver.on_activate(state=None)
+
+    req = Trigger.Request()
+    res = Trigger.Response()
+    for idx, _ in enumerate(driver.grippers):
+        gripper = driver.grippers[idx]["driver"]
+        gripper_id = driver.grippers[idx]["gripper_id"]
+        assert driver._acknowledge_cb(
+            request=req, response=res, gripper=gripper
+        ), f"gripper_id: {gripper_id}"
+        assert res.success
+        assert driver._fast_stop_cb(
+            request=req, response=res, gripper=gripper
+        ), f"gripper_id: {gripper_id}"
+        assert res.success
+
+    driver.on_deactivate(state=None)
+    driver.on_cleanup(state=None)

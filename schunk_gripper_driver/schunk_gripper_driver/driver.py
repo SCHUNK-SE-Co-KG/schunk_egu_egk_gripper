@@ -113,10 +113,6 @@ class Driver(Node):
                 )
             )
 
-        # Acknowledge
-        for gripper in self.grippers:
-            asyncio.run(gripper["driver"].acknowledge())
-
         return super().on_activate(state)
 
     def on_deactivate(self, state: State) -> TransitionCallbackReturn:
@@ -161,16 +157,26 @@ class Driver(Node):
         response.grippers = self.list_grippers()
         return response
 
-    def _acknowledge_cb(self, request: Trigger.Request, response: Trigger.Response):
+    def _acknowledge_cb(
+        self,
+        request: Trigger.Request,
+        response: Trigger.Response,
+        gripper: GripperDriver,
+    ):
         self.get_logger().info("---> Acknowledge")
-        response.success = asyncio.run(self.gripper.acknowledge())
-        response.message = self.gripper.get_status_diagnostics()
+        response.success = asyncio.run(gripper.acknowledge())
+        response.message = gripper.get_status_diagnostics()
         return response
 
-    def _fast_stop_cb(self, request: Trigger.Request, response: Trigger.Response):
+    def _fast_stop_cb(
+        self,
+        request: Trigger.Request,
+        response: Trigger.Response,
+        gripper: GripperDriver,
+    ):
         self.get_logger().info("---> Fast stop")
-        response.success = asyncio.run(self.gripper.fast_stop())
-        response.message = self.gripper.get_status_diagnostics()
+        response.success = asyncio.run(gripper.fast_stop())
+        response.message = gripper.get_status_diagnostics()
         return response
 
 
