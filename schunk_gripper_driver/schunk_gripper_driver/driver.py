@@ -26,6 +26,7 @@ from threading import Thread
 import time
 from rclpy.service import Service
 from functools import partial
+from schunk_gripper_library.utility import Scheduler
 
 
 class Driver(Node):
@@ -36,6 +37,7 @@ class Driver(Node):
         self.declare_parameter("port", 80)
         self.declare_parameter("serial_port", "/dev/ttyUSB0")
         self.declare_parameter("device_id", 12)
+        self.scheduler: Scheduler = Scheduler()
         self.grippers = []
         gripper = {
             "host": self.get_parameter("host").value,
@@ -64,6 +66,7 @@ class Driver(Node):
 
     def on_configure(self, state: State) -> TransitionCallbackReturn:
         self.get_logger().info("on_configure() is called.")
+        self.scheduler.start()
 
         # Connect each gripper
         for idx, gripper in enumerate(self.grippers):
@@ -131,6 +134,7 @@ class Driver(Node):
 
     def on_cleanup(self, state: State) -> TransitionCallbackReturn:
         self.get_logger().info("on_cleanup() is called.")
+        self.scheduler.stop()
         for gripper in self.grippers:
             gripper["driver"].disconnect()
             gripper["driver"] = None

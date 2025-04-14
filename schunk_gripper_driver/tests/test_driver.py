@@ -139,3 +139,22 @@ def test_driver_offers_callbacks_for_acknowledge_and_fast_stop(ros2):
 
     driver.on_deactivate(state=None)
     driver.on_cleanup(state=None)
+
+
+@skip_without_gripper
+def test_driver_schedules_concurrent_tasks(ros2):
+    driver = Driver("driver")
+    assert driver.scheduler is not None
+
+    def scheduler_running() -> bool:
+        return driver.scheduler.worker_thread.is_alive()
+
+    assert not scheduler_running()
+    driver.on_configure(state=None)
+    assert scheduler_running()
+    driver.on_activate(state=None)
+    assert scheduler_running()
+    driver.on_deactivate(state=None)
+    assert scheduler_running()
+    driver.on_cleanup(state=None)
+    assert not scheduler_running()
