@@ -58,6 +58,35 @@ class Driver(Node):
                 devices.append(id)
         return devices
 
+    def add_gripper(
+        self, host: str = "", port: int = 0, serial_port: str = "", device_id: int = 0
+    ) -> bool:
+        if (host and not port) or (port and not host):
+            return False
+        if (serial_port and not device_id) or (device_id and not serial_port):
+            return False
+        for gripper in self.grippers:
+            if host:
+                if host == gripper["host"] and port == gripper["port"]:
+                    return False
+            else:
+                if (
+                    serial_port == gripper["serial_port"]
+                    and device_id == gripper["device_id"]
+                ):
+                    return False
+        self.grippers.append(
+            {
+                "host": host,
+                "port": port,
+                "serial_port": serial_port,
+                "device_id": device_id,
+                "driver": None,
+                "gripper_id": None,
+            }
+        )
+        return True
+
     def needs_synchronize(self, gripper: dict[str, str]) -> bool:
         serial_ports = [gripper["serial_port"] for gripper in self.grippers]
         if serial_ports.count(gripper["serial_port"]) > 1:

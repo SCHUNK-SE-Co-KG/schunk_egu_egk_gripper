@@ -158,3 +158,53 @@ def test_driver_schedules_concurrent_tasks(ros2):
     assert scheduler_running()
     driver.on_cleanup(state=None)
     assert not scheduler_running()
+
+
+def test_driver_offers_adding_grippers(ros2):
+    driver = Driver("driver")
+    driver.grippers.clear()
+    assert driver.add_gripper(
+        host="0.0.0.0", port=8000, serial_port="/dev/ttyUSB0", device_id=12
+    )
+    assert len(driver.grippers) == 1
+
+    # Incomplete arguments
+    driver.grippers.clear()
+    assert not driver.add_gripper(host="0.0.0.0")
+    assert not driver.add_gripper(port=8000)
+    assert not driver.add_gripper(serial_port="/dev/ttyUSB0")
+    assert not driver.add_gripper(device_id=12)
+    assert len(driver.grippers) == 0
+
+    # Valid arguments
+    driver.grippers.clear()
+    assert driver.add_gripper(host="0.0.0.0", port=8000)
+    assert driver.add_gripper(serial_port="/dev/ttyUSB0", device_id=12)
+    assert len(driver.grippers) == 2
+
+
+def test_driver_rejects_adding_duplicate_grippers(ros2):
+    driver = Driver("driver")
+    driver.grippers.clear()
+    unique_setups = [
+        {"host": "1", "port": 1},
+        {"host": "2", "port": 2},
+        # TCP/IP takes preference when both are given
+        {"host": "2", "port": 3, "serial_port": "/", "device_id": 12},
+        {"host": "2", "port": 4, "serial_port": "/", "device_id": 12},
+        {"serial_port": "/dev/1", "device_id": 12},
+        {"serial_port": "/dev/2", "device_id": 13},
+    ]
+    for setup in unique_setups:
+        assert driver.add_gripper(**setup)
+
+    driver.grippers.clear()
+    driver.add_gripper(host="1", port=1, serial_port="/dev/1", device_id=12)
+    overlapping_setups = [
+        {"host": "1", "port": 1},
+        {"host": "1", "port": 1, "serial_port": "/dev/1"},
+        {"port": 1, "serial_port": "/dev/1", "device_id": 12},
+        {"serial_port": "/dev/1", "device_id": 12},
+    ]
+    for setup in overlapping_setups:
+        assert not driver.add_gripper(**setup)
