@@ -88,11 +88,11 @@ def test_driver_manages_services_for_each_gripper(ros2):
 
         driver.on_deactivate(state=None)
         assert driver.gripper_services == []
-        driver.on_cleanup
+        driver.on_cleanup(state=None)
         assert driver.gripper_services == []
 
 
-def test_driver_checks_if_grippers_need_synchronization():
+def test_driver_checks_if_grippers_need_synchronization(ros2):
     driver = Driver("driver")  # with default gripper
 
     # Same serial port
