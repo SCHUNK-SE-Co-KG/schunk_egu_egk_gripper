@@ -87,6 +87,10 @@ class Driver(Node):
         )
         return True
 
+    def reset_grippers(self) -> bool:
+        self.grippers.clear()
+        return True
+
     def needs_synchronize(self, gripper: dict[str, str]) -> bool:
         serial_ports = [gripper["serial_port"] for gripper in self.grippers]
         if serial_ports.count(gripper["serial_port"]) > 1:

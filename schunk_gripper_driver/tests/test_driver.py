@@ -208,3 +208,14 @@ def test_driver_rejects_adding_duplicate_grippers(ros2):
     ]
     for setup in overlapping_setups:
         assert not driver.add_gripper(**setup)
+
+
+def test_driver_offers_resetting_grippers(ros2):
+    driver = Driver("driver")
+    assert len(driver.grippers) == 1
+    assert driver.reset_grippers()
+    assert len(driver.grippers) == 0
+
+    # Repeated reset
+    for _ in range(3):
+        assert driver.reset_grippers()
