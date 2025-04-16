@@ -30,7 +30,7 @@ import time
 def test_driver_advertises_state_depending_services(lifecycle_interface):
     driver = lifecycle_interface
     list_grippers = ["/schunk/driver/list_grippers"]
-    config_services = ["/schunk/driver/add_gripper"]
+    config_services = ["/schunk/driver/add_gripper", "/schunk/driver/reset_grippers"]
     gripper_services = ["acknowledge", "fast_stop"]
     until_change_takes_effect = 0.1
 
@@ -45,7 +45,7 @@ def test_driver_advertises_state_depending_services(lifecycle_interface):
 
         # After startup -> unconfigured
         driver.check_state(State.PRIMARY_STATE_UNCONFIGURED)
-        assert driver.exist(config_services), f"run: {run}"
+        assert driver.exist(config_services)
         assert not driver.exist(list_grippers)
 
         # After configure -> inactive
@@ -91,26 +91,42 @@ def test_driver_implements_list_grippers(lifecycle_interface):
 
 
 @skip_without_gripper
-def test_driver_implements_add_gripper(driver):
-    node = Node("check_add_gripper")
-    client = node.create_client(AddGripper, "/schunk/driver/add_gripper")
-    assert client.wait_for_service(timeout_sec=2)
+def test_driver_implements_adding_and_resetting_grippers(driver):
+    node = Node("check_adding_and_resetting_grippers")
+    add_client = node.create_client(AddGripper, "/schunk/driver/add_gripper")
+    reset_client = node.create_client(Trigger, "/schunk/driver/reset_grippers")
+    assert add_client.wait_for_service(timeout_sec=2)
+    assert reset_client.wait_for_service(timeout_sec=2)
 
     # Empty request
     request = AddGripper.Request()
-    future = client.call_async(request)
+    future = add_client.call_async(request)
     rclpy.spin_until_future_complete(node, future)
     assert not future.result().success
 
-    # Valid TCP/IP gripper
-    request = AddGripper.Request()
-    request.host = "0.0.0.0"
-    request.port = 8000
-    future = client.call_async(request)
-    rclpy.spin_until_future_complete(node, future)
-    assert future.result().success
+    for _ in range(3):
 
-    # We now have both a Modbus and TCP/IP gripper for further tests
+        # Reset gripper list
+        request = Trigger.Request()
+        future = reset_client.call_async(request)
+        rclpy.spin_until_future_complete(node, future)
+        assert future.result().success
+
+        # Add Modbus gripper
+        request = AddGripper.Request()
+        request.serial_port = "/dev/ttyUSB0"
+        request.device_id = 12
+        future = add_client.call_async(request)
+        rclpy.spin_until_future_complete(node, future)
+        assert future.result().success
+
+        # Add TCP/IP gripper
+        request = AddGripper.Request()
+        request.host = "0.0.0.0"
+        request.port = 8000
+        future = add_client.call_async(request)
+        rclpy.spin_until_future_complete(node, future)
+        assert future.result().success
 
 
 @skip_without_gripper

@@ -57,6 +57,9 @@ class Driver(Node):
         self.add_gripper_srv = self.create_service(
             AddGripper, "~/add_gripper", self._add_gripper_cb
         )
+        self.reset_grippers_srv = self.create_service(
+            Trigger, "~/reset_grippers", self._reset_grippers_cb
+        )
 
     def list_grippers(self) -> list[str]:
         devices = []
@@ -142,6 +145,7 @@ class Driver(Node):
 
         # Deactivate setup services
         self.destroy_service(self.add_gripper_srv)
+        self.destroy_service(self.reset_grippers_srv)
 
         return TransitionCallbackReturn.SUCCESS
 
@@ -193,6 +197,9 @@ class Driver(Node):
         self.add_gripper_srv = self.create_service(
             AddGripper, "~/add_gripper", self._add_gripper_cb
         )
+        self.reset_grippers_srv = self.create_service(
+            Trigger, "~/reset_grippers", self._reset_grippers_cb
+        )
 
         return TransitionCallbackReturn.SUCCESS
 
@@ -218,6 +225,10 @@ class Driver(Node):
             serial_port=request.serial_port,
             device_id=request.device_id,
         )
+        return response
+
+    def _reset_grippers_cb(self, request: Trigger.Request, response: Trigger.Response):
+        response.success = self.reset_grippers()
         return response
 
     def _list_grippers_cb(
