@@ -1,0 +1,7 @@
+string host
+uint16 port
+string serial_port
+uint8 device_id
+---
+bool success
+string message
