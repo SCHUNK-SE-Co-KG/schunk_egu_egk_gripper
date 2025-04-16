@@ -19,7 +19,10 @@ import rclpy
 
 from rclpy.lifecycle import Node, State, TransitionCallbackReturn
 from schunk_gripper_library.driver import Driver as GripperDriver
-from schunk_gripper_interfaces.srv import ListGrippers  # type: ignore [attr-defined]
+from schunk_gripper_interfaces.srv import (  # type: ignore [attr-defined]
+    ListGrippers,
+    AddGripper,
+)
 from std_srvs.srv import Trigger
 import asyncio
 from threading import Thread
@@ -50,6 +53,11 @@ class Driver(Node):
         self.grippers.append(gripper)
         self.gripper_services: list[Service] = []
 
+        # Setup services
+        self.add_gripper_srv = self.create_service(
+            AddGripper, "~/add_gripper", self._add_gripper_cb
+        )
+
     def list_grippers(self) -> list[str]:
         devices = []
         for gripper in self.grippers:
@@ -61,6 +69,8 @@ class Driver(Node):
     def add_gripper(
         self, host: str = "", port: int = 0, serial_port: str = "", device_id: int = 0
     ) -> bool:
+        if not any([host, port, serial_port, device_id]):
+            return False
         if (host and not port) or (port and not host):
             return False
         if (serial_port and not device_id) or (device_id and not serial_port):
@@ -125,10 +135,13 @@ class Driver(Node):
             devices.append(id)
             self.grippers[idx]["gripper_id"] = id
 
-        # Driver-wide services
+        # Info services
         self.list_grippers_srv = self.create_service(
             ListGrippers, "~/list_grippers", self._list_grippers_cb
         )
+
+        # Deactivate setup services
+        self.destroy_service(self.add_gripper_srv)
 
         return TransitionCallbackReturn.SUCCESS
 
@@ -172,9 +185,14 @@ class Driver(Node):
             gripper["driver"].disconnect()
             gripper["driver"] = None
 
-        # Release driver-wide services
+        # Release info services
         if not self.destroy_service(self.list_grippers_srv):
             return TransitionCallbackReturn.FAILURE
+
+        # Reactivate setup services
+        self.add_gripper_srv = self.create_service(
+            AddGripper, "~/add_gripper", self._add_gripper_cb
+        )
 
         return TransitionCallbackReturn.SUCCESS
 
@@ -191,6 +209,17 @@ class Driver(Node):
         return TransitionCallbackReturn.SUCCESS
 
     # Service callbacks
+    def _add_gripper_cb(
+        self, request: AddGripper.Request, response: AddGripper.Response
+    ):
+        response.success = self.add_gripper(
+            host=request.host,
+            port=request.port,
+            serial_port=request.serial_port,
+            device_id=request.device_id,
+        )
+        return response
+
     def _list_grippers_cb(
         self, request: ListGrippers.Request, response: ListGrippers.Response
     ):

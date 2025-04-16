@@ -168,6 +168,10 @@ def test_driver_offers_adding_grippers(ros2):
     )
     assert len(driver.grippers) == 1
 
+    # Empty arguments
+    driver.grippers.clear()
+    assert not driver.add_gripper()
+
     # Incomplete arguments
     driver.grippers.clear()
     assert not driver.add_gripper(host="0.0.0.0")

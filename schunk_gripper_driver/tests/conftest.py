@@ -82,12 +82,12 @@ class LifecycleInterface(object):
         rclpy.spin_until_future_complete(self.node, future)
         return future.result().current_state.id == state_id
 
-    def exists(self, service: str) -> bool:
+    def exist(self, services: list[str]) -> bool:
         existing = getattr(self.node, "get_service_names_and_types_by_node")(
             node_name="driver", node_namespace="/schunk"
         )
         advertised = [i[0] for i in existing]
-        return service in advertised
+        return all([service in advertised for service in services])
 
     def list_grippers(self) -> list[str]:
         req = ListGrippers.Request()

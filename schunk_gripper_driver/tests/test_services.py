@@ -17,7 +17,10 @@
 from schunk_gripper_library.utility import skip_without_gripper
 from lifecycle_msgs.msg import Transition, State
 from std_srvs.srv import Trigger
-from schunk_gripper_interfaces.srv import ListGrippers  # type: ignore [attr-defined]
+from schunk_gripper_interfaces.srv import (  # type: ignore [attr-defined]
+    ListGrippers,
+    AddGripper,
+)
 from rclpy.node import Node
 import rclpy
 import time
@@ -26,45 +29,51 @@ import time
 @skip_without_gripper
 def test_driver_advertises_state_depending_services(lifecycle_interface):
     driver = lifecycle_interface
-    list_grippers = "/schunk/driver/list_grippers"
-    main_services = ["acknowledge", "fast_stop"]
+    list_grippers = ["/schunk/driver/list_grippers"]
+    config_services = ["/schunk/driver/add_gripper"]
+    gripper_services = ["acknowledge", "fast_stop"]
     until_change_takes_effect = 0.1
 
     def exist(services: list[str]) -> bool:
         for gripper in driver.list_grippers():
             for service in services:
-                if not driver.exists(f"/schunk/driver/{gripper}/{service}"):
+                if not driver.exist([f"/schunk/driver/{gripper}/{service}"]):
                     return False
         return True
 
-    for _ in range(3):
+    for run in range(3):
 
         # After startup -> unconfigured
-        assert driver.check_state(State.PRIMARY_STATE_UNCONFIGURED)
-        assert not driver.exists(list_grippers)
+        driver.check_state(State.PRIMARY_STATE_UNCONFIGURED)
+        assert driver.exist(config_services), f"run: {run}"
+        assert not driver.exist(list_grippers)
 
         # After configure -> inactive
         driver.change_state(Transition.TRANSITION_CONFIGURE)
         time.sleep(until_change_takes_effect)
-        assert driver.exists(list_grippers)
-        assert not exist(main_services)
+        assert driver.exist(list_grippers)
+        assert not driver.exist(config_services)
+        assert not exist(gripper_services)
 
         # After activate -> active
         driver.change_state(Transition.TRANSITION_ACTIVATE)
         time.sleep(until_change_takes_effect)
-        assert driver.exists(list_grippers)
-        assert exist(main_services)
+        assert driver.exist(list_grippers)
+        assert exist(gripper_services)
+        assert not driver.exist(config_services)
 
         # After deactivate -> inactive
         driver.change_state(Transition.TRANSITION_DEACTIVATE)
         time.sleep(until_change_takes_effect)
-        assert driver.exists(list_grippers)
-        assert not exist(main_services)
+        assert driver.exist(list_grippers)
+        assert not driver.exist(config_services)
+        assert not exist(gripper_services)
 
         # After cleanup -> unconfigured
         driver.change_state(Transition.TRANSITION_CLEANUP)
         time.sleep(until_change_takes_effect)
-        assert not driver.exists(list_grippers)
+        assert driver.exist(config_services)
+        assert not driver.exist(list_grippers)
 
 
 @skip_without_gripper
@@ -79,6 +88,29 @@ def test_driver_implements_list_grippers(lifecycle_interface):
     rclpy.spin_until_future_complete(node, future)
     assert len(future.result().grippers) >= 1
     driver.change_state(Transition.TRANSITION_CLEANUP)
+
+
+@skip_without_gripper
+def test_driver_implements_add_gripper(driver):
+    node = Node("check_add_gripper")
+    client = node.create_client(AddGripper, "/schunk/driver/add_gripper")
+    assert client.wait_for_service(timeout_sec=2)
+
+    # Empty request
+    request = AddGripper.Request()
+    future = client.call_async(request)
+    rclpy.spin_until_future_complete(node, future)
+    assert not future.result().success
+
+    # Valid TCP/IP gripper
+    request = AddGripper.Request()
+    request.host = "0.0.0.0"
+    request.port = 8000
+    future = client.call_async(request)
+    rclpy.spin_until_future_complete(node, future)
+    assert future.result().success
+
+    # We now have both a Modbus and TCP/IP gripper for further tests
 
 
 @skip_without_gripper

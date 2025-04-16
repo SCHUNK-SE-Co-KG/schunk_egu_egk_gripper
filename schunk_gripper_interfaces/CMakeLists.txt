@@ -12,6 +12,7 @@ find_package(std_msgs REQUIRED)
 
 rosidl_generate_interfaces(
   ${PROJECT_NAME}
+    srv/AddGripper.srv
     srv/ListGrippers.srv
   DEPENDENCIES
     std_msgs
