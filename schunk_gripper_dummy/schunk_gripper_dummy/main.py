@@ -27,7 +27,7 @@ async def post(
     value: str = Form(...),
     elem: Optional[int] = Form(None),
     callback: Optional[str] = Form(None),
-    background_tasks: BackgroundTasks = None,
+    background_tasks: BackgroundTasks = BackgroundTasks(),
 ):
     msg = {"inst": inst, "value": value, "elem": elem, "callback": callback}
 
@@ -42,7 +42,7 @@ async def post(
 @server.get("/adi/{path}")
 async def get(request: Request):
     path = request.path_params["path"]
-    params = request.query_params
+    params = dict(request.query_params)
     if path == "info.json":
         return dummy.get_info(params)
     if path == "enum.json":

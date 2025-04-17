@@ -14,7 +14,7 @@
 # this program. If not, see <https://www.gnu.org/licenses/>.
 # --------------------------------------------------------------------------------
 
-from launch import LaunchDescription
+from launch import LaunchDescription  # type: ignore [attr-defined]
 from launch_ros.actions import Node
 from launch.actions import DeclareLaunchArgument
 from launch.substitutions import LaunchConfiguration
