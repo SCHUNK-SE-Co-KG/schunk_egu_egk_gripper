@@ -6,7 +6,7 @@ pip install --user pytest coverage
 ```
 
 ```bash
-coverage run -m pytest test/
+coverage run -m pytest tests/
 coverage report
 ```
 
