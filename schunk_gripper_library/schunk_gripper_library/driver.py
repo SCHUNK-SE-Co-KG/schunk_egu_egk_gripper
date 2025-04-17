@@ -59,7 +59,7 @@ class Driver(object):
         self.output_buffer_lock: Lock = Lock()
 
         self.mb_client: ModbusSerialClient | None = None
-        self.mb_device_id: int | None = None
+        self.mb_device_id: int = 0
         self.web_client: Client | None = None
         self.host: str = "0.0.0.0"
         self.port: int = 80
@@ -281,7 +281,7 @@ class Driver(object):
             with self.mb_client_lock:
                 pdu = self.mb_client.read_holding_registers(
                     address=int(param, 16) - 1,
-                    count=self.readable_parameters[param]["registers"],
+                    count=int(self.readable_parameters[param]["registers"]),
                     slave=self.mb_device_id,
                     no_response_expected=False,
                 )
