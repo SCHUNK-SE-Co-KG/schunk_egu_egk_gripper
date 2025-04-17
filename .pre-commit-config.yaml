@@ -32,3 +32,5 @@ repos:
     rev: 'f40886d54c729f533f864ed6ce584e920feb0af7'  # v1.15.0
     hooks:
     -   id: mypy
+        entry: mypy .
+        pass_filenames: false
