@@ -1,5 +1,4 @@
 from schunk_gripper_library.driver import Driver
-from schunk_gripper_library.utility import Scheduler
 from schunk_gripper_library.utility import skip_without_gripper
 import asyncio
 
@@ -46,73 +45,37 @@ def test_fast_stop():
 
 
 @skip_without_gripper
-def test_move_to_absolute_position():
-    test_position = 30000
-    test_velocity = 60000
-    test_gpe = False
+def test_move_to_absolute_position_fails_with_invalid_arguments():
     driver = Driver()
-    scheduler = Scheduler()
-    scheduler.start()
 
-    # Not connected
-    assert not asyncio.run(
-        driver.move_to_absolute_position(
-            position=test_position, velocity=test_velocity, use_gpe=test_gpe
-        )
-    )
-    assert not asyncio.run(
-        driver.move_to_absolute_position(
-            position=test_position,
-            velocity=test_velocity,
-            use_gpe=test_gpe,
-            scheduler=scheduler,
-        )
-    )
+    for host, port, serial_port in zip(
+        ["0.0.0.0", None], [8000, None], [None, "/dev/ttyUSB0"]
+    ):
+        # Invalid arguments
+        driver.connect(host=host, port=port, serial_port=serial_port, device_id=12)
+        asyncio.run(driver.acknowledge())
+        combinations = [
+            {"position": 0.1, "velocity": 1000},
+            {"position": -0.1, "velocity": 1000},
+            {"position": 1000, "velocity": -1.234},
+            {"position": 1000, "velocity": -5005},
+            {"position": 1000, "velocity": 177.33},
+            {"position": 1000, "velocity": 0},
+            {"position": 1000, "velocity": 0.0},
+        ]
+        for args in combinations:
+            assert not asyncio.run(driver.move_to_absolute_position(**args))
+        driver.disconnect()
 
-    # Webserver
-    host = "0.0.0.0"
-    port = 8000
 
-    driver.connect(host=host, port=port)
-    assert not asyncio.run(
-        driver.move_to_absolute_position(
-            position=test_position, velocity=test_velocity, use_gpe=test_gpe
-        )
-    )
+def test_move_to_absolute_position_fails_when_not_connected():
+    driver = Driver()
+    assert not asyncio.run(driver.move_to_absolute_position(position=100, velocity=100))
 
-    asyncio.run(driver.acknowledge())
-    assert asyncio.run(
-        driver.move_to_absolute_position(
-            position=test_position, velocity=test_velocity, use_gpe=test_gpe
-        )
-    )
-    driver.disconnect()
 
-    # Modbus
-    host = None
-    serial_port = "/dev/ttyUSB0"
-
-    driver.connect(serial_port=serial_port, device_id=12, update_cycle=None)
-    assert not asyncio.run(
-        driver.move_to_absolute_position(
-            position=test_position,
-            velocity=test_velocity,
-            use_gpe=test_gpe,
-            scheduler=scheduler,
-        )
-    )
-
-    asyncio.run(driver.acknowledge())
-    assert asyncio.run(
-        driver.move_to_absolute_position(
-            position=test_position,
-            velocity=test_velocity,
-            use_gpe=test_gpe,
-            scheduler=scheduler,
-        )
-    )
-    driver.disconnect()
-    scheduler.stop()
+@skip_without_gripper
+def test_move_to_absolute_position_succeeds_with_valid_arguments():
+    assert False
 
 
 @skip_without_gripper

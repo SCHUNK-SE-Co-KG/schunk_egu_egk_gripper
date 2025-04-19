@@ -197,10 +197,12 @@ class Driver(object):
         self,
         position: int,
         velocity: int,
-        use_gpe: bool,
+        use_gpe: bool = False,
         scheduler: Scheduler | None = None,
     ) -> bool:
         if not self.connected:
+            return False
+        if not isinstance(position, int) or not isinstance(velocity, int):
             return False
 
         async def start():
@@ -212,22 +214,23 @@ class Driver(object):
             self.set_target_position(position)
             self.set_target_speed(velocity)
             self.send_plc_output()
-            desired_bits = {"5": cmd_toggle_before ^ 1}
-            return await self.wait_for_status(bits=desired_bits)
+            desired_bits = {"5": cmd_toggle_before ^ 1, "3": 0}
+            return await self.wait_for_status(bits=desired_bits, timeout_sec=0.1)
 
         async def check():
             desired_bits = {"13": 1, "4": 1}
             return await self.wait_for_status(bits=desired_bits)
 
+        duration_sec = self.estimate_duration(position_abs=position, velocity=velocity)
         if scheduler:
             if not scheduler.execute(func=partial(start)).result():
                 return False
-            await asyncio.sleep(2)
+            await asyncio.sleep(duration_sec)
             return scheduler.execute(func=partial(check)).result()
         else:
             if not await start():
                 return False
-            await asyncio.sleep(2)
+            await asyncio.sleep(duration_sec)
             return await check()
 
     async def move_to_relative_position(
@@ -249,6 +252,18 @@ class Driver(object):
         desired_bits = {"5": cmd_toggle_before ^ 1, "13": 1, "4": 1}
 
         return await self.wait_for_status(bits=desired_bits)
+
+    def estimate_duration(
+        self,
+        position_abs: int,
+        velocity: int,
+    ) -> float:
+        if not any([position_abs, velocity]):
+            return 0.0
+        if velocity <= 0:
+            return 0.0
+        duration_sec = abs(position_abs) / velocity
+        return duration_sec
 
     def receive_plc_input(self) -> bool:
         with self.input_buffer_lock:

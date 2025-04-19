@@ -1,6 +1,7 @@
 from schunk_gripper_library.driver import Driver
 from schunk_gripper_library.utility import skip_without_gripper
 import asyncio
+import pytest
 
 
 @skip_without_gripper
@@ -336,3 +337,34 @@ def test_driver_can_check_for_gpe_support():
     for type in types_without_gpe:
         driver.module_type = type
         assert not driver.gpe_available()
+
+
+def test_driver_estimates_duration_of_lasting_operations():
+    driver = Driver()
+    combinations = [
+        # Invalid velocity arguments will lead to an invalid error,
+        # and should return at once
+        {
+            "args": {"position_abs": 30500, "velocity": 0},
+            "should_take": 0,
+        },
+        {
+            "args": {"position_abs": 30500, "velocity": -123},
+            "should_take": 0,
+        },
+        # Valid arguments
+        {
+            "args": {"position_abs": 10000, "velocity": 5000},
+            "should_take": 2.0,
+        },
+        {
+            "args": {"position_abs": -10000, "velocity": 5000},
+            "should_take": 2.0,
+        },
+    ]
+
+    for entry in combinations:
+        duration_sec = driver.estimate_duration(**entry["args"])
+        assert (
+            pytest.approx(duration_sec) == entry["should_take"]
+        ), f"args: {entry['args']}"
