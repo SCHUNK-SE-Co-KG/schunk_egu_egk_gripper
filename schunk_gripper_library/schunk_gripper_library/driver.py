@@ -204,13 +204,18 @@ class Driver(object):
             return False
         if not isinstance(position, int) or not isinstance(velocity, int):
             return False
+        if velocity <= 0:
+            return False
 
         async def start():
             self.clear_plc_output()
             self.send_plc_output()
             cmd_toggle_before = self.get_status_bit(bit=5)
             self.set_control_bit(bit=13, value=True)
-            self.set_control_bit(bit=31, value=use_gpe)
+            if self.gpe_available():
+                self.set_control_bit(bit=31, value=use_gpe)
+            else:
+                self.set_control_bit(bit=31, value=False)
             self.set_target_position(position)
             self.set_target_speed(velocity)
             self.send_plc_output()
