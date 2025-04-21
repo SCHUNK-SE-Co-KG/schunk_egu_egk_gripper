@@ -20,6 +20,7 @@ from std_srvs.srv import Trigger
 from schunk_gripper_interfaces.srv import (  # type: ignore [attr-defined]
     ListGrippers,
     AddGripper,
+    MoveToAbsolutePosition,
 )
 from rclpy.node import Node
 import rclpy
@@ -31,7 +32,7 @@ def test_driver_advertises_state_depending_services(lifecycle_interface):
     driver = lifecycle_interface
     list_grippers = ["/schunk/driver/list_grippers"]
     config_services = ["/schunk/driver/add_gripper", "/schunk/driver/reset_grippers"]
-    gripper_services = ["acknowledge", "fast_stop"]
+    gripper_services = ["acknowledge", "fast_stop", "move_to_absolute_position"]
     until_change_takes_effect = 0.1
 
     def exist(services: list[str]) -> bool:
@@ -166,6 +167,36 @@ def test_driver_implements_fast_stop(lifecycle_interface):
         rclpy.spin_until_future_complete(node, future, timeout_sec=1)
 
         assert future.result().success
+
+    driver.change_state(Transition.TRANSITION_DEACTIVATE)
+    driver.change_state(Transition.TRANSITION_CLEANUP)
+
+
+@skip_without_gripper
+def test_driver_implements_move_to_absolute_position(lifecycle_interface):
+    driver = lifecycle_interface
+    driver.change_state(Transition.TRANSITION_CONFIGURE)
+    driver.change_state(Transition.TRANSITION_ACTIVATE)
+
+    node = Node("check_move_to_absolute_position")
+    for gripper in driver.list_grippers():
+        client = node.create_client(
+            MoveToAbsolutePosition,
+            f"/schunk/driver/{gripper}/move_to_absolute_position",
+        )
+        assert client.wait_for_service(timeout_sec=2), f"gripper: {gripper}"
+
+        targets = [
+            {"position": 0.023, "velocity": 0.02},
+            {"position": 0.005, "velocity": 0.02},
+        ]
+        for target in targets:
+            request = MoveToAbsolutePosition.Request()
+            request.position = target["position"]
+            request.velocity = target["velocity"]
+            future = client.call_async(request)
+            rclpy.spin_until_future_complete(node, future, timeout_sec=3)
+            assert future.result().success, f"{future.result().message}"
 
     driver.change_state(Transition.TRANSITION_DEACTIVATE)
     driver.change_state(Transition.TRANSITION_CLEANUP)

@@ -22,6 +22,7 @@ from schunk_gripper_library.driver import Driver as GripperDriver
 from schunk_gripper_interfaces.srv import (  # type: ignore [attr-defined]
     ListGrippers,
     AddGripper,
+    MoveToAbsolutePosition,
 )
 from std_srvs.srv import Trigger
 import asyncio
@@ -169,6 +170,19 @@ class Driver(Node):
                     partial(self._fast_stop_cb, gripper=gripper["driver"]),
                 )
             )
+            self.gripper_services.append(
+                self.create_service(
+                    MoveToAbsolutePosition,
+                    f"~/{gripper['gripper_id']}/move_to_absolute_position",
+                    partial(
+                        self._move_to_absolute_position_cb, gripper=gripper["driver"]
+                    ),
+                )
+            )
+
+        # Get every gripper ready to go
+        for idx, _ in enumerate(self.grippers):
+            asyncio.run(self.grippers[idx]["driver"].acknowledge())
 
         return super().on_activate(state)
 
@@ -257,6 +271,21 @@ class Driver(Node):
     ):
         self.get_logger().info("---> Fast stop")
         response.success = asyncio.run(gripper.fast_stop())
+        response.message = gripper.get_status_diagnostics()
+        return response
+
+    def _move_to_absolute_position_cb(
+        self,
+        request: MoveToAbsolutePosition.Request,
+        response: MoveToAbsolutePosition.Response,
+        gripper: GripperDriver,
+    ):
+        self.get_logger().info("---> Move to absolute position")
+        position = int(request.position * 1e6)
+        velocity = int(request.velocity * 1e6)
+        response.success = asyncio.run(
+            gripper.move_to_absolute_position(position=position, velocity=velocity)
+        )
         response.message = gripper.get_status_diagnostics()
         return response
 
