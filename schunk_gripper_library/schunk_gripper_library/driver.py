@@ -152,32 +152,43 @@ class Driver(object):
 
         return True
 
-    async def acknowledge(self) -> bool:
+    async def acknowledge(self, scheduler: Scheduler | None = None) -> bool:
         if not self.connected:
             return False
-        self.clear_plc_output()
-        self.send_plc_output()
 
-        cmd_toggle_before = self.get_status_bit(bit=5)
-        self.set_control_bit(bit=2, value=True)
-        self.send_plc_output()
+        async def do() -> bool:
+            self.clear_plc_output()
+            self.send_plc_output()
+            cmd_toggle_before = self.get_status_bit(bit=5)
+            self.set_control_bit(bit=2, value=True)
+            self.send_plc_output()
+            desired_bits = {"0": 1, "5": cmd_toggle_before ^ 1}
+            return await self.wait_for_status(bits=desired_bits)
 
-        desired_bits = {"0": 1, "5": cmd_toggle_before ^ 1}
-        return await self.wait_for_status(bits=desired_bits)
+        if scheduler:
+            return scheduler.execute(func=partial(do)).result()
+        else:
+            return await do()
 
-    async def fast_stop(self) -> bool:
+    async def fast_stop(self, scheduler: Scheduler | None = None) -> bool:
         if not self.connected:
             return False
-        self.clear_plc_output()
-        self.send_plc_output()
 
-        cmd_toggle_before = self.get_status_bit(bit=5)
-        self.set_control_bit(
-            bit=0, value=False
-        )  # activate fast stop (inverted behavior)
-        self.send_plc_output()
-        desired_bits = {"5": cmd_toggle_before ^ 1, "7": 1}
-        return await self.wait_for_status(bits=desired_bits)
+        async def do() -> bool:
+            self.clear_plc_output()
+            self.send_plc_output()
+            cmd_toggle_before = self.get_status_bit(bit=5)
+            self.set_control_bit(
+                bit=0, value=False
+            )  # activate fast stop (inverted behavior)
+            self.send_plc_output()
+            desired_bits = {"5": cmd_toggle_before ^ 1, "7": 1}
+            return await self.wait_for_status(bits=desired_bits)
+
+        if scheduler:
+            return scheduler.execute(func=partial(do)).result()
+        else:
+            return await do()
 
     async def stop(self) -> bool:
         if not self.connected:

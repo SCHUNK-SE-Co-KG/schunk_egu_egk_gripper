@@ -50,16 +50,19 @@ def test_fast_stop():
 
 
 @skip_without_gripper
-def test_all_lasting_gripper_commands_run_with_a_scheduler():
+def test_all_gripper_commands_run_with_a_scheduler():
     driver = Driver()
     scheduler = Scheduler()
     scheduler.start()
 
     # Only relevant for Modbus
     driver.connect(serial_port="/dev/ttyUSB0", device_id=12)
-    asyncio.run(driver.acknowledge())
 
-    # Lasting commands
+    # Commands
+    assert asyncio.run(driver.fast_stop(scheduler=scheduler))
+
+    assert asyncio.run(driver.acknowledge(scheduler=scheduler))
+
     assert asyncio.run(
         driver.move_to_absolute_position(
             position=12345, velocity=10000, scheduler=scheduler
