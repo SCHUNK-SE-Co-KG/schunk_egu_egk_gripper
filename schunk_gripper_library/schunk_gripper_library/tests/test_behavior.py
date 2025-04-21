@@ -1,5 +1,5 @@
 from schunk_gripper_library.driver import Driver
-from schunk_gripper_library.utility import skip_without_gripper
+from schunk_gripper_library.utility import skip_without_gripper, Scheduler
 import asyncio
 import pytest
 
@@ -7,12 +7,14 @@ import pytest
 @skip_without_gripper
 def test_acknowledge():
     driver = Driver()
-    for host, port in zip(["0.0.0.0", None], [8000, "/dev/ttyUSB0"]):
+    for host, port, serial_port in zip(
+        ["0.0.0.0", None], [8000, None], [None, "/dev/ttyUSB0"]
+    ):
         # Not connected
         assert not asyncio.run(driver.acknowledge())
 
         # Connected
-        driver.connect(host=host, port=port, device_id=12)
+        driver.connect(host=host, port=port, serial_port=serial_port, device_id=12)
         assert asyncio.run(driver.acknowledge())
 
         # Repetitive
@@ -25,13 +27,15 @@ def test_acknowledge():
 @skip_without_gripper
 def test_fast_stop():
     driver = Driver()
-    for host, port in zip(["0.0.0.0", None], [8000, "/dev/ttyUSB0"]):
+    for host, port, serial_port in zip(
+        ["0.0.0.0", None], [8000, None], [None, "/dev/ttyUSB0"]
+    ):
 
         # Not connected
         assert not asyncio.run(driver.fast_stop())
 
         # After fresh start
-        driver.connect(host=host, port=port, device_id=12)
+        driver.connect(host=host, port=port, serial_port=serial_port, device_id=12)
         assert asyncio.run(driver.fast_stop())
 
         # From operational
@@ -43,6 +47,27 @@ def test_fast_stop():
             assert asyncio.run(driver.fast_stop())
 
         driver.disconnect()
+
+
+@skip_without_gripper
+def test_all_lasting_gripper_commands_run_with_a_scheduler():
+    driver = Driver()
+    scheduler = Scheduler()
+    scheduler.start()
+
+    # Only relevant for Modbus
+    driver.connect(serial_port="/dev/ttyUSB0", device_id=12)
+    asyncio.run(driver.acknowledge())
+
+    # Lasting commands
+    assert asyncio.run(
+        driver.move_to_absolute_position(
+            position=12345, velocity=10000, scheduler=scheduler
+        )
+    ), f"driver status: {driver.get_status_diagnostics()}"
+
+    driver.disconnect()
+    scheduler.stop()
 
 
 @skip_without_gripper
@@ -110,11 +135,6 @@ def test_move_to_absolute_position_uses_gpe_only_when_available():
         driver.move_to_absolute_position(position=5200, velocity=10000, use_gpe=True)
     )
     driver.disconnect()
-
-
-@skip_without_gripper
-def test_move_to_absolute_position_uses_scheduler():
-    assert False
 
 
 @pytest.mark.skip
