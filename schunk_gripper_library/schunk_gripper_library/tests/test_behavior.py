@@ -191,3 +191,73 @@ def test_stop():
 
         assert asyncio.run(driver.stop())
         assert driver.disconnect()
+
+
+@skip_without_gripper
+def test_grip_workpiece():
+    test_force = 60  # %
+    test_gpe = True
+    test_vel = 0
+    driver = Driver()
+    for host, port, serial_port in zip(
+        ["0.0.0.0", None], [8000, None], [None, "/dev/ttyUSB0"]
+    ):
+        # Not connected
+        assert not asyncio.run(
+            driver.grip_workpiece(
+                gripping_force=test_force, use_gpe=test_gpe, grip_inside=True
+            )
+        )
+
+        assert driver.connect(
+            host=host, port=port, serial_port=serial_port, device_id=12
+        )
+
+        assert asyncio.run(driver.acknowledge())
+
+        assert not asyncio.run(
+            driver.grip_workpiece(
+                gripping_force=test_force,
+                use_gpe=test_gpe,
+                grip_inside=False,
+                grip_outside=False,
+            )
+        )
+
+        # Modbus testing not possible, hence this skip
+        if serial_port:
+            assert driver.disconnect()
+            return
+
+        assert asyncio.run(
+            driver.grip_workpiece(
+                gripping_force=test_force,
+                use_gpe=test_gpe,
+                grip_inside=True,
+                gripping_velocity=test_vel,
+            )
+        )
+
+        assert driver.disconnect()
+
+
+@skip_without_gripper
+def test_release():
+    driver = Driver()
+    for host, port, serial_port in zip(
+        ["0.0.0.0", None], [8000, None], [None, "/dev/ttyUSB0"]
+    ):
+        if serial_port:
+            return
+        # not connected
+        assert not asyncio.run(driver.release_workpiece())
+
+        # after connection
+        assert driver.connect(
+            host=host, port=port, serial_port=serial_port, device_id=12
+        )
+        assert asyncio.run(driver.acknowledge())
+
+        assert asyncio.run(driver.release_workpiece())
+
+        assert driver.disconnect()
