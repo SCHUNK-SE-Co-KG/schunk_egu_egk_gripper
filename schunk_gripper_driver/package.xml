@@ -11,6 +11,7 @@
   <depend>launch</depend>
   <depend>launch_ros</depend>
   <depend>schunk_gripper_library</depend>
+  <depend>schunk_gripper_interfaces</depend>
   <depend>std_srvs</depend>
 
   <test_depend>launch_pytest</test_depend>

@@ -10,6 +10,40 @@ from httpx import Client, ConnectError, ConnectTimeout
 from importlib.resources import files
 from typing import Union
 import json
+from .utility import Scheduler
+from functools import partial
+from pymodbus.logging import Log
+import serial  # type: ignore [import-untyped]
+
+
+class NonExclusiveSerialClient(ModbusSerialClient):
+    def connect(self) -> bool:
+        """
+        Exact copy of the original connect() method with the sole exception of
+        using `exclusive=False` for the serial connection. We need this to have
+        several driver instances connect and speak over the same Modbus wire. A
+        high-level entity will manage concurrency with a scheduler for
+        multi-gripper scenarios.
+
+        """
+        if self.socket:  # type: ignore [has-type]
+            return True
+        try:
+            self.socket = serial.serial_for_url(
+                self.comm_params.host,
+                timeout=self.comm_params.timeout_connect,
+                bytesize=self.comm_params.bytesize,
+                stopbits=self.comm_params.stopbits,
+                baudrate=self.comm_params.baudrate,
+                parity=self.comm_params.parity,
+                exclusive=False,
+            )
+            self.socket.inter_byte_timeout = self.inter_byte_timeout
+            self.last_frame_end = None
+        except Exception as msg:
+            Log.error("{}", msg)
+            self.close()
+        return self.socket is not None
 
 
 class Driver(object):
@@ -56,8 +90,8 @@ class Driver(object):
         self.input_buffer_lock: Lock = Lock()
         self.output_buffer_lock: Lock = Lock()
 
-        self.mb_client: ModbusSerialClient | None = None
-        self.mb_device_id: int | None = None
+        self.mb_client: NonExclusiveSerialClient | None = None
+        self.mb_device_id: int = 0
         self.web_client: Client | None = None
         self.host: str = "0.0.0.0"
         self.port: int = 80
@@ -109,7 +143,7 @@ class Driver(object):
                 return False
             self.mb_device_id = device_id
             with self.mb_client_lock:
-                self.mb_client = ModbusSerialClient(
+                self.mb_client = NonExclusiveSerialClient(
                     port=serial_port,
                     baudrate=115200,
                     parity="N",
@@ -150,32 +184,43 @@ class Driver(object):
 
         return True
 
-    async def acknowledge(self) -> bool:
+    async def acknowledge(self, scheduler: Scheduler | None = None) -> bool:
         if not self.connected:
             return False
-        self.clear_plc_output()
-        self.send_plc_output()
 
-        cmd_toggle_before = self.get_status_bit(bit=5)
-        self.set_control_bit(bit=2, value=True)
-        self.send_plc_output()
+        async def do() -> bool:
+            self.clear_plc_output()
+            self.send_plc_output()
+            cmd_toggle_before = self.get_status_bit(bit=5)
+            self.set_control_bit(bit=2, value=True)
+            self.send_plc_output()
+            desired_bits = {"0": 1, "5": cmd_toggle_before ^ 1}
+            return await self.wait_for_status(bits=desired_bits)
 
-        desired_bits = {"0": 1, "5": cmd_toggle_before ^ 1}
-        return await self.wait_for_status(bits=desired_bits)
+        if scheduler:
+            return scheduler.execute(func=partial(do)).result()
+        else:
+            return await do()
 
-    async def fast_stop(self) -> bool:
+    async def fast_stop(self, scheduler: Scheduler | None = None) -> bool:
         if not self.connected:
             return False
-        self.clear_plc_output()
-        self.send_plc_output()
 
-        cmd_toggle_before = self.get_status_bit(bit=5)
-        self.set_control_bit(
-            bit=0, value=False
-        )  # activate fast stop (inverted behavior)
-        self.send_plc_output()
-        desired_bits = {"5": cmd_toggle_before ^ 1, "7": 1}
-        return await self.wait_for_status(bits=desired_bits)
+        async def do() -> bool:
+            self.clear_plc_output()
+            self.send_plc_output()
+            cmd_toggle_before = self.get_status_bit(bit=5)
+            self.set_control_bit(
+                bit=0, value=False
+            )  # activate fast stop (inverted behavior)
+            self.send_plc_output()
+            desired_bits = {"5": cmd_toggle_before ^ 1, "7": 1}
+            return await self.wait_for_status(bits=desired_bits)
+
+        if scheduler:
+            return scheduler.execute(func=partial(do)).result()
+        else:
+            return await do()
 
     async def stop(self) -> bool:
         if not self.connected:
@@ -192,22 +237,49 @@ class Driver(object):
         return await self.wait_for_status(bits=desired_bits, timeout_sec=10)
 
     async def move_to_absolute_position(
-        self, position: int, velocity: int, use_gpe: bool
+        self,
+        position: int,
+        velocity: int,
+        use_gpe: bool = False,
+        scheduler: Scheduler | None = None,
     ) -> bool:
         if not self.connected:
             return False
-        self.clear_plc_output()
-        self.send_plc_output()
+        if not isinstance(position, int) or not isinstance(velocity, int):
+            return False
+        if velocity <= 0:
+            return False
 
-        cmd_toggle_before = self.get_status_bit(bit=5)
-        self.set_control_bit(bit=13, value=True)
-        self.set_control_bit(bit=31, value=use_gpe)
-        self.set_target_position(position)
-        self.set_target_speed(velocity)
+        async def start():
+            self.clear_plc_output()
+            self.send_plc_output()
+            cmd_toggle_before = self.get_status_bit(bit=5)
+            self.set_control_bit(bit=13, value=True)
+            if self.gpe_available():
+                self.set_control_bit(bit=31, value=use_gpe)
+            else:
+                self.set_control_bit(bit=31, value=False)
+            self.set_target_position(position)
+            self.set_target_speed(velocity)
+            self.send_plc_output()
+            desired_bits = {"5": cmd_toggle_before ^ 1, "3": 0}
+            return await self.wait_for_status(bits=desired_bits, timeout_sec=0.1)
 
-        self.send_plc_output()
-        desired_bits = {"5": cmd_toggle_before ^ 1, "13": 1, "4": 1}
-        return await self.wait_for_status(bits=desired_bits)
+        async def check():
+            desired_bits = {"13": 1, "4": 1}
+            return await self.wait_for_status(bits=desired_bits)
+
+        duration_sec = self.estimate_duration(position_abs=position, velocity=velocity)
+        if scheduler:
+            if not scheduler.execute(func=partial(start)).result():
+                return False
+            await asyncio.sleep(duration_sec)
+            return scheduler.execute(func=partial(check)).result()
+        else:
+            if not await start():
+                return False
+            await asyncio.sleep(duration_sec)
+            return await check()
 
     async def move_to_relative_position(
         self, position: int, velocity: int, use_gpe: bool
@@ -229,6 +301,18 @@ class Driver(object):
 
         return await self.wait_for_status(bits=desired_bits)
 
+    def estimate_duration(
+        self,
+        position_abs: int,
+        velocity: int,
+    ) -> float:
+        if not any([position_abs, velocity]):
+            return 0.0
+        if velocity <= 0:
+            return 0.0
+        duration_sec = abs(position_abs) / velocity
+        return duration_sec
+
     def receive_plc_input(self) -> bool:
         with self.input_buffer_lock:
             data = self.read_module_parameter(self.plc_input)
@@ -241,6 +325,16 @@ class Driver(object):
         with self.output_buffer_lock:
             return self.write_module_parameter(self.plc_output, self.plc_output_buffer)
 
+    def gpe_available(self) -> bool:
+        if not self.module_type:
+            return False
+        keys = self.module_type.split("_")
+        if len(keys) < 3:
+            return False
+        if keys[2] == "M":
+            return True
+        return False
+
     def read_module_parameter(self, param: str) -> bytearray:
         result = bytearray()
         if param not in self.readable_parameters:
@@ -250,7 +344,7 @@ class Driver(object):
             with self.mb_client_lock:
                 pdu = self.mb_client.read_holding_registers(
                     address=int(param, 16) - 1,
-                    count=self.readable_parameters[param]["registers"],
+                    count=int(self.readable_parameters[param]["registers"]),
                     slave=self.mb_device_id,
                     no_response_expected=False,
                 )

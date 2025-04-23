@@ -1,0 +1,4 @@
+---
+string[] grippers  # List of grippers (IDs) currently controlled by the driver.
+                   # Each entry represents an individual sub namespace for a
+                   # gripper and its interfaces.

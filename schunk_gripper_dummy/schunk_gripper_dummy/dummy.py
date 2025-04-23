@@ -70,6 +70,7 @@ class Dummy(object):
         self.plc_input_buffer = bytearray(bytes.fromhex(self.data[self.plc_input][0]))
         self.plc_output_buffer = bytearray(bytes.fromhex(self.data[self.plc_output][0]))
         self.initial_state = [self.plc_input_buffer.hex().upper()]
+        self.clear_plc_output()
 
     def start(self) -> None:
         if self.running:
@@ -89,6 +90,12 @@ class Dummy(object):
             time.sleep(1)
         print("Done")
 
+    def acknowledge(self) -> None:
+        self.set_status_bit(bit=0, value=True)
+        self.set_status_bit(bit=7, value=False)
+        self.set_status_error("00")
+        self.set_status_diagnostics("00")
+
     def move(self, target_pos: float, target_speed: float) -> None:
         motion = LinearMotion(
             initial_pos=self.get_actual_position(),
@@ -106,10 +113,9 @@ class Dummy(object):
             time.sleep(0.01)
 
     def post(self, msg: dict) -> dict:
+        self.data[msg["inst"]] = [msg["value"]]
         if msg["inst"] == self.plc_output:
             self.plc_output_buffer = bytearray(bytes.fromhex(msg["value"]))
-        else:
-            self.data[msg["inst"]] = [msg["value"]]
 
         # Behavior
         self.process_control_bits()
@@ -299,10 +305,26 @@ class Dummy(object):
             self.set_status_bit(bit=7, value=False)
             self.set_status_error("00")
             self.set_status_diagnostics("00")
+            self.clear_plc_output()
+            return
+
+        # Manual release
+        if self.get_control_bit(5) == 1:
+            if self.get_status_bit(7) == 1:
+                self.set_status_bit(bit=8, value=True)
+            self.clear_plc_output()
+            return
+
+        # Ignore further commands when in error
+        if self.get_status_bit(7) == 1:
+            self.clear_plc_output()
+            return
 
         # Brake test
         if self.get_control_bit(30) == 1:
             self.set_status_bit(bit=4, value=True)
+            self.clear_plc_output()
+            return
 
         # Fast stop
         if self.get_control_bit(0) == 0:  # fail-safe behavior
@@ -310,20 +332,21 @@ class Dummy(object):
             self.set_status_bit(bit=0, value=False)
             self.set_status_error("D9")
             self.set_status_diagnostics("00")
+            self.clear_plc_output()
+            return
 
         # Controlled stop
         if self.get_control_bit(1) == 1:
             self.set_status_bit(bit=13, value=True)
             self.set_status_bit(bit=4, value=True)
-
-        # Manual release
-        if self.get_control_bit(5) == 1:
-            if self.get_status_bit(7) == 1:
-                self.set_status_bit(bit=8, value=True)
+            self.clear_plc_output()
+            return
 
         # Shutdown
         if self.get_control_bit(3) == 1:
             self.set_status_bit(bit=2, value=True)
+            self.clear_plc_output()
+            return
 
         # Release workpiece
         if self.get_control_bit(bit=11) == 1:
@@ -332,11 +355,15 @@ class Dummy(object):
             self.set_status_bit(bit=14, value=False)
             self.set_status_bit(bit=12, value=False)
             self.set_status_bit(bit=17, value=False)
+            self.clear_plc_output()
+            return
 
         # Soft reset
         if self.get_control_bit(bit=4) == 1:
             self.set_system_uptime(0)
             self.data[self.plc_input] = self.initial_state
+            self.clear_plc_output()
+            return
 
         # Move to absolute position
         if self.get_control_bit(bit=13) == 1:
@@ -346,6 +373,8 @@ class Dummy(object):
             )
             self.set_status_bit(bit=13, value=True)
             self.set_status_bit(bit=4, value=True)
+            self.clear_plc_output()
+            return
 
         # Move to relative position
         if self.get_control_bit(bit=14) == 1:
@@ -359,14 +388,22 @@ class Dummy(object):
             )
             self.set_status_bit(bit=13, value=True)
             self.set_status_bit(bit=4, value=True)
+            self.clear_plc_output()
+            return
 
         # Grip workpiece
         if self.get_control_bit(bit=12) == 1:
             self.set_status_bit(bit=12, value=True)
             self.set_status_bit(bit=4, value=True)
+            self.clear_plc_output()
+            return
 
         # Grip workpiece at position
         if self.get_control_bit(bit=16) == 1:
             self.set_status_bit(bit=12, value=True)
             self.set_status_bit(bit=4, value=True)
             self.set_status_bit(bit=31, value=True)
+            self.clear_plc_output()
+            return
+
+        self.clear_plc_output()
