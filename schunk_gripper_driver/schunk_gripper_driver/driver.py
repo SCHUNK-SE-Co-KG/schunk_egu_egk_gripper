@@ -31,6 +31,16 @@ import time
 from rclpy.service import Service
 from functools import partial
 from schunk_gripper_library.utility import Scheduler
+from typing import TypedDict
+
+
+class Gripper(TypedDict):
+    host: str
+    port: int
+    serial_port: str
+    device_id: int
+    driver: GripperDriver
+    gripper_id: str
 
 
 class Driver(Node):
@@ -42,14 +52,14 @@ class Driver(Node):
         self.declare_parameter("serial_port", "/dev/ttyUSB0")
         self.declare_parameter("device_id", 12)
         self.scheduler: Scheduler = Scheduler()
-        self.grippers = []
-        gripper = {
+        self.grippers: list[Gripper] = []
+        gripper: Gripper = {
             "host": self.get_parameter("host").value,
             "port": self.get_parameter("port").value,
             "serial_port": self.get_parameter("serial_port").value,
             "device_id": self.get_parameter("device_id").value,
-            "driver": None,
-            "gripper_id": None,
+            "driver": GripperDriver(),
+            "gripper_id": "",
         }
         self.grippers.append(gripper)
         self.gripper_services: list[Service] = []
@@ -95,8 +105,8 @@ class Driver(Node):
                 "port": port,
                 "serial_port": serial_port,
                 "device_id": device_id,
-                "driver": None,
-                "gripper_id": None,
+                "driver": GripperDriver(),
+                "gripper_id": "",
             }
         )
         return True
@@ -105,7 +115,7 @@ class Driver(Node):
         self.grippers.clear()
         return True
 
-    def needs_synchronize(self, gripper: dict[str, str]) -> bool:
+    def needs_synchronize(self, gripper: Gripper) -> bool:
         serial_ports = [gripper["serial_port"] for gripper in self.grippers]
         if serial_ports.count(gripper["serial_port"]) > 1:
             return True
@@ -118,11 +128,19 @@ class Driver(Node):
         # Connect each gripper
         for idx, gripper in enumerate(self.grippers):
             driver = GripperDriver()
+            if self.needs_synchronize(gripper):
+                update_cycle = None
+                self.scheduler.cyclic_execute(
+                    func=partial(driver.receive_plc_input), cycle_time=0.05
+                )
+            else:
+                update_cycle = 0.05
             if not driver.connect(
                 host=gripper["host"],
                 port=gripper["port"],
                 serial_port=gripper["serial_port"],
                 device_id=gripper["device_id"],
+                update_cycle=update_cycle,
             ):
                 self.get_logger().warn(f"Gripper connect failed: {gripper}")
                 return TransitionCallbackReturn.FAILURE
@@ -139,7 +157,7 @@ class Driver(Node):
             devices.append(id)
             self.grippers[idx]["gripper_id"] = id
 
-        # Info services
+        # Start info services
         self.list_grippers_srv = self.create_service(
             ListGrippers, "~/list_grippers", self._list_grippers_cb
         )
@@ -160,29 +178,32 @@ class Driver(Node):
                 self.create_service(
                     Trigger,
                     f"~/{gripper['gripper_id']}/acknowledge",
-                    partial(self._acknowledge_cb, gripper=gripper["driver"]),
+                    partial(self._acknowledge_cb, gripper=gripper),
                 )
             )
             self.gripper_services.append(
                 self.create_service(
                     Trigger,
                     f"~/{gripper['gripper_id']}/fast_stop",
-                    partial(self._fast_stop_cb, gripper=gripper["driver"]),
+                    partial(self._fast_stop_cb, gripper=gripper),
                 )
             )
             self.gripper_services.append(
                 self.create_service(
                     MoveToAbsolutePosition,
                     f"~/{gripper['gripper_id']}/move_to_absolute_position",
-                    partial(
-                        self._move_to_absolute_position_cb, gripper=gripper["driver"]
-                    ),
+                    partial(self._move_to_absolute_position_cb, gripper=gripper),
                 )
             )
 
         # Get every gripper ready to go
-        for idx, _ in enumerate(self.grippers):
-            asyncio.run(self.grippers[idx]["driver"].acknowledge())
+        for idx, gripper in enumerate(self.grippers):
+            if self.needs_synchronize(gripper):
+                self.scheduler.execute(
+                    func=partial(self.grippers[idx]["driver"].acknowledge)
+                )
+            else:
+                asyncio.run(self.grippers[idx]["driver"].acknowledge())
 
         return super().on_activate(state)
 
@@ -201,7 +222,7 @@ class Driver(Node):
         self.scheduler.stop()
         for gripper in self.grippers:
             gripper["driver"].disconnect()
-            gripper["driver"] = None
+            gripper["driver"] = GripperDriver()
 
         # Release info services
         if not self.destroy_service(self.list_grippers_srv):
@@ -256,37 +277,58 @@ class Driver(Node):
         self,
         request: Trigger.Request,
         response: Trigger.Response,
-        gripper: GripperDriver,
+        gripper: Gripper,
     ):
         self.get_logger().info("---> Acknowledge")
-        response.success = asyncio.run(gripper.acknowledge())
-        response.message = gripper.get_status_diagnostics()
+        if self.needs_synchronize(gripper):
+            response.success = self.scheduler.execute(
+                func=partial(gripper["driver"].acknowledge)
+            ).result()
+        else:
+            response.success = asyncio.run(gripper["driver"].acknowledge())
+        response.message = gripper["driver"].get_status_diagnostics()
         return response
 
     def _fast_stop_cb(
         self,
         request: Trigger.Request,
         response: Trigger.Response,
-        gripper: GripperDriver,
+        gripper: Gripper,
     ):
         self.get_logger().info("---> Fast stop")
-        response.success = asyncio.run(gripper.fast_stop())
-        response.message = gripper.get_status_diagnostics()
+        if self.needs_synchronize(gripper):
+            response.success = self.scheduler.execute(
+                func=partial(gripper["driver"].fast_stop)
+            ).result()
+        else:
+            response.success = asyncio.run(gripper["driver"].fast_stop())
+        response.message = gripper["driver"].get_status_diagnostics()
         return response
 
     def _move_to_absolute_position_cb(
         self,
         request: MoveToAbsolutePosition.Request,
         response: MoveToAbsolutePosition.Response,
-        gripper: GripperDriver,
+        gripper: Gripper,
     ):
         self.get_logger().info("---> Move to absolute position")
         position = int(request.position * 1e6)
         velocity = int(request.velocity * 1e6)
-        response.success = asyncio.run(
-            gripper.move_to_absolute_position(position=position, velocity=velocity)
-        )
-        response.message = gripper.get_status_diagnostics()
+        if self.needs_synchronize(gripper):
+            response.success = self.scheduler.execute(
+                func=partial(
+                    gripper["driver"].move_to_absolute_position,
+                    position=position,
+                    velocity=velocity,
+                )
+            ).result()
+        else:
+            response.success = asyncio.run(
+                gripper["driver"].move_to_absolute_position(
+                    position=position, velocity=velocity
+                )
+            )
+        response.message = gripper["driver"].get_status_diagnostics()
         return response
 
 

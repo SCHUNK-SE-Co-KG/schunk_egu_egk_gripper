@@ -13,7 +13,7 @@ import json
 from .utility import Scheduler
 from functools import partial
 from pymodbus.logging import Log
-import serial
+import serial  # type: ignore [import-untyped]
 
 
 class NonExclusiveSerialClient(ModbusSerialClient):

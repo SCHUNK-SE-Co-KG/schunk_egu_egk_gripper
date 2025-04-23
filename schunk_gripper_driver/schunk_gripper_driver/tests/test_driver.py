@@ -17,6 +17,10 @@ from schunk_gripper_driver.driver import Driver
 from schunk_gripper_library.utility import skip_without_gripper
 from schunk_gripper_library.driver import Driver as GripperDriver
 from std_srvs.srv import Trigger
+from schunk_gripper_interfaces.srv import (  # type: ignore [attr-defined]
+    AddGripper,
+    MoveToAbsolutePosition,
+)
 
 
 def test_driver_manages_a_list_of_grippers(ros2):
@@ -26,8 +30,8 @@ def test_driver_manages_a_list_of_grippers(ros2):
     entries = ["host", "port", "serial_port", "device_id", "driver", "gripper_id"]
     for entry in entries:
         assert entry in driver.grippers[0]
-    assert driver.grippers[0]["driver"] is None
-    assert driver.grippers[0]["gripper_id"] is None
+    assert isinstance(driver.grippers[0]["driver"], GripperDriver)
+    assert driver.grippers[0]["gripper_id"] == ""
 
 
 @skip_without_gripper
@@ -36,11 +40,11 @@ def test_driver_manages_individual_drivers_for_each_gripper(ros2):
 
     driver.on_configure(state=None)
     for gripper in driver.grippers:
-        assert isinstance(gripper["driver"], GripperDriver)
+        assert gripper["driver"].connected
 
     driver.on_cleanup(state=None)
     for gripper in driver.grippers:
-        assert gripper["driver"] is None
+        assert not gripper["driver"].connected
 
 
 @skip_without_gripper
@@ -126,8 +130,8 @@ def test_driver_offers_callbacks_for_acknowledge_and_fast_stop(ros2):
     req = Trigger.Request()
     res = Trigger.Response()
     for idx, _ in enumerate(driver.grippers):
-        gripper = driver.grippers[idx]["driver"]
-        gripper_id = driver.grippers[idx]["gripper_id"]
+        gripper = driver.grippers[idx]
+        gripper_id = gripper["gripper_id"]
         assert driver._acknowledge_cb(
             request=req, response=res, gripper=gripper
         ), f"gripper_id: {gripper_id}"
@@ -142,7 +146,26 @@ def test_driver_offers_callbacks_for_acknowledge_and_fast_stop(ros2):
 
 
 @skip_without_gripper
-def test_driver_schedules_concurrent_tasks(ros2):
+def test_driver_offers_callback_for_move_to_absolute_position(ros2):
+    driver = Driver("driver")
+    driver.on_configure(state=None)
+    driver.on_activate(state=None)
+
+    # Check if we can call the interface.
+    # It will fail with an empty request, but that's ok.
+    req = MoveToAbsolutePosition.Request()
+    res = MoveToAbsolutePosition.Response()
+    for idx, _ in enumerate(driver.grippers):
+        gripper = driver.grippers[idx]
+        driver._move_to_absolute_position_cb(request=req, response=res, gripper=gripper)
+        assert not res.success
+
+    driver.on_deactivate(state=None)
+    driver.on_cleanup(state=None)
+
+
+@skip_without_gripper
+def test_driver_runs_a_scheduler_for_concurrent_tasks(ros2):
     driver = Driver("driver")
     assert driver.scheduler is not None
 
@@ -223,3 +246,39 @@ def test_driver_offers_resetting_grippers(ros2):
     # Repeated reset
     for _ in range(3):
         assert driver.reset_grippers()
+
+
+@skip_without_gripper
+def test_driver_schedules_concurrent_tasks(ros2):
+    driver = Driver("driver")
+    driver.reset_grippers()
+
+    # Modbus gripper
+    gripper_1 = AddGripper.Request()
+    gripper_1.serial_port = "/dev/ttyUSB0"
+    gripper_1.device_id = 12
+    response = AddGripper.Response()
+    driver._add_gripper_cb(request=gripper_1, response=response)
+    assert response.success
+
+    # Use a tcp/ip gripper but give it the same serial port
+    # so that task scheduling kicks in.
+    gripper_2 = AddGripper.Request()
+    gripper_2.host = "0.0.0.0"
+    gripper_2.port = 8000
+    gripper_2.serial_port = "/dev/ttyUSB0"
+    gripper_2.device_id = 42
+    response = AddGripper.Response()
+    driver._add_gripper_cb(request=gripper_2, response=response)
+    assert response.success
+
+    # Grippers with a concurrent serial port can't have an update cycle.
+    driver.on_configure(state=None)
+    assert len(driver.grippers) == 2
+    assert not driver.grippers[0]["driver"].polling_thread.is_alive()
+    assert not driver.grippers[1]["driver"].polling_thread.is_alive()
+
+    driver.on_activate(state=None)
+
+    driver.on_deactivate(state=None)
+    driver.on_cleanup(state=None)
