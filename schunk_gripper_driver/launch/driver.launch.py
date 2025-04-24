@@ -52,7 +52,9 @@ def generate_launch_description():
                 executable="driver.py",
                 name="driver",
                 parameters=[
+                    {"host": LaunchConfiguration("host")},
                     {"port": LaunchConfiguration("port")},
+                    {"serial_port": LaunchConfiguration("serial_port")},
                     {"device_id": LaunchConfiguration("device_id")},
                 ],
                 respawn=True,
