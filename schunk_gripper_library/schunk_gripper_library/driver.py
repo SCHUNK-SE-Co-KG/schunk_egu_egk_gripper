@@ -609,7 +609,9 @@ class Driver(object):
         with self.output_buffer_lock:
             if not isinstance(gripping_force, int):
                 return False
-            if gripping_force < 0:
+            if gripping_force <= 0:
+                return False
+            if gripping_force > 100:
                 return False
             self.plc_output_buffer[12:16] = bytes(struct.pack("i", gripping_force))
             return True
