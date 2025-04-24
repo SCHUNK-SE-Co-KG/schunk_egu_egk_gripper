@@ -301,45 +301,64 @@ class Driver(object):
 
         return await self.wait_for_status(bits=desired_bits)
 
-    def estimate_duration(
+    async def grip(
         self,
-        position_abs: int,
-        velocity: int,
-    ) -> float:
-        if not any([position_abs, velocity]):
-            return 0.0
-        if velocity <= 0:
-            return 0.0
-        duration_sec = abs(position_abs) / velocity
-        return duration_sec
-
-    async def grip_workpiece(
-        self,
-        gripping_force: int,
-        use_gpe: bool,
-        gripping_velocity: int = 0,
-        grip_inside: bool = False,
-        grip_outside: bool = False,
+        force: int,
+        use_gpe: bool = False,
+        outward: bool = False,
+        scheduler: Scheduler | None = None,
     ) -> bool:
         if not self.connected:
             return False
-
-        if grip_outside == grip_inside:
+        if not self.set_gripping_force(force):
             return False
 
-        self.clear_plc_output()
-        self.send_plc_output()
+        async def start() -> bool:
+            self.clear_plc_output()
+            self.send_plc_output()
 
-        cmd_toggle_before = self.get_status_bit(bit=5)
-        self.set_control_bit(bit=12, value=True)
-        self.set_control_bit(bit=7, value=True if grip_inside else False)
-        self.set_control_bit(bit=31, value=use_gpe)
-        self.set_target_speed(gripping_velocity)
-        self.set_gripping_force(gripping_force)
+            cmd_toggle_before = self.get_status_bit(bit=5)
+            self.set_control_bit(bit=12, value=True)
+            self.set_control_bit(bit=7, value=outward)
+            if self.gpe_available():
+                self.set_control_bit(bit=31, value=use_gpe)
+            else:
+                self.set_control_bit(bit=31, value=False)
+            self.set_gripping_force(force)
+            self.set_target_speed(0)
+            self.send_plc_output()
+            desired_bits = {"5": cmd_toggle_before ^ 1, "3": 0}
+            return await self.wait_for_status(bits=desired_bits, timeout_sec=0.1)
 
-        self.send_plc_output()
-        desired_bits = {"5": cmd_toggle_before ^ 1, "4": 1, "12": 1}
-        return await self.wait_for_status(bits=desired_bits)
+        async def check() -> bool:
+            desired_bits = {"4": 1, "12": 1}
+            return await self.wait_for_status(bits=desired_bits)
+
+        duration_sec = self.estimate_duration(force=force)
+        if scheduler:
+            if not scheduler.execute(func=partial(start)).result():
+                return False
+            await asyncio.sleep(duration_sec)
+            return scheduler.execute(func=partial(check)).result()
+        else:
+            if not await start():
+                return False
+            await asyncio.sleep(duration_sec)
+            return await check()
+
+    def estimate_duration(
+        self,
+        position_abs: int = 0,
+        velocity: int = 0,
+        force: int = 0,
+    ) -> float:
+        if not isinstance(position_abs, int):
+            return 0.0
+        if isinstance(velocity, int) and velocity > 0:
+            return abs(position_abs) / velocity
+        if isinstance(force, int) and force > 0 and force <= 100:
+            return 1.0
+        return 0.0
 
     async def release_workpiece(self) -> bool:
         if not self.connected:

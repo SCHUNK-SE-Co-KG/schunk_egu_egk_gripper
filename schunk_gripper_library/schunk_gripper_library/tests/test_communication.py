@@ -352,7 +352,7 @@ def test_driver_estimates_duration_of_lasting_operations():
             "args": {"position_abs": 30500, "velocity": -123},
             "should_take": 0,
         },
-        # Valid arguments
+        # Valid position and velocity arguments
         {
             "args": {"position_abs": 10000, "velocity": 5000},
             "should_take": 2.0,
@@ -360,6 +360,32 @@ def test_driver_estimates_duration_of_lasting_operations():
         {
             "args": {"position_abs": -10000, "velocity": 5000},
             "should_take": 2.0,
+        },
+        # Invalid force arguments
+        {
+            "args": {"force": 75.0},
+            "should_take": 0.0,
+        },
+        {
+            "args": {"force": -70},
+            "should_take": 0.0,
+        },
+        {
+            "args": {"force": 270},
+            "should_take": 0.0,
+        },
+        # Valid force arguments
+        {
+            "args": {"force": 50},
+            "should_take": 1.0,
+        },
+        {
+            "args": {"force": 75},
+            "should_take": 1.0,
+        },
+        {
+            "args": {"force": 100},
+            "should_take": 1.0,
         },
     ]
 
