@@ -245,9 +245,9 @@ class Driver(object):
     ) -> bool:
         if not self.connected:
             return False
-        if not isinstance(position, int) or not isinstance(velocity, int):
+        if not self.set_target_position(position):
             return False
-        if velocity <= 0:
+        if not self.set_target_speed(velocity):
             return False
 
         async def start():
@@ -355,7 +355,8 @@ class Driver(object):
         if not isinstance(position_abs, int):
             return 0.0
         if isinstance(velocity, int) and velocity > 0:
-            return abs(position_abs) / velocity
+            still_to_go = position_abs - self.get_actual_position()
+            return abs(still_to_go) / velocity
         if isinstance(force, int) and force > 0 and force <= 100:
             return 1.0
         return 0.0

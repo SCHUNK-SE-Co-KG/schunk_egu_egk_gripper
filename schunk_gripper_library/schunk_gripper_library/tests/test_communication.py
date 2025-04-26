@@ -2,6 +2,7 @@ from schunk_gripper_library.driver import Driver
 from schunk_gripper_library.utility import skip_without_gripper
 import asyncio
 import pytest
+import struct
 
 
 @skip_without_gripper
@@ -341,7 +342,11 @@ def test_driver_can_check_for_gpe_support():
 
 def test_driver_estimates_duration_of_lasting_operations():
     driver = Driver()
-    combinations = [
+
+    def set_actual_position(position: int) -> None:
+        driver.plc_input_buffer[4:8] = bytes(struct.pack("i", position))
+
+    invalid_combinations = [
         # Invalid velocity arguments will lead to an invalid error,
         # and should return at once
         {
@@ -351,15 +356,6 @@ def test_driver_estimates_duration_of_lasting_operations():
         {
             "args": {"position_abs": 30500, "velocity": -123},
             "should_take": 0,
-        },
-        # Valid position and velocity arguments
-        {
-            "args": {"position_abs": 10000, "velocity": 5000},
-            "should_take": 2.0,
-        },
-        {
-            "args": {"position_abs": -10000, "velocity": 5000},
-            "should_take": 2.0,
         },
         # Invalid force arguments
         {
@@ -373,6 +369,45 @@ def test_driver_estimates_duration_of_lasting_operations():
         {
             "args": {"force": 270},
             "should_take": 0.0,
+        },
+    ]
+    for entry in invalid_combinations:
+        duration_sec = driver.estimate_duration(**entry["args"])
+        assert (
+            pytest.approx(duration_sec) == entry["should_take"]
+        ), f"args: {entry['args']}"
+
+    valid_combinations = [
+        # Valid position and velocity arguments
+        {
+            "start_pos": 0,
+            "args": {"position_abs": 10000, "velocity": 5000},
+            "should_take": 2.0,
+        },
+        {
+            "start_pos": 0,
+            "args": {"position_abs": -10000, "velocity": 5000},
+            "should_take": 2.0,
+        },
+        {
+            "start_pos": 5000,
+            "args": {"position_abs": 10000, "velocity": 5000},
+            "should_take": 1.0,  # when increasing
+        },
+        {
+            "start_pos": 15000,
+            "args": {"position_abs": 10000, "velocity": 5000},
+            "should_take": 1.0,  # when decreasing
+        },
+        {
+            "start_pos": 1000,
+            "args": {"position_abs": -1000, "velocity": 1000},
+            "should_take": 2.0,  # crossing zero
+        },
+        {
+            "start_pos": 15366,
+            "args": {"position_abs": 15366, "velocity": 12345},
+            "should_take": 0.0,  # Already there
         },
         # Valid force arguments
         {
@@ -389,8 +424,8 @@ def test_driver_estimates_duration_of_lasting_operations():
         },
     ]
 
-    for entry in combinations:
+    for entry in valid_combinations:
+        if "start_pos" in entry:
+            set_actual_position(entry["start_pos"])
         duration_sec = driver.estimate_duration(**entry["args"])
-        assert (
-            pytest.approx(duration_sec) == entry["should_take"]
-        ), f"args: {entry['args']}"
+        assert pytest.approx(duration_sec) == entry["should_take"], f"entry: {entry}"
