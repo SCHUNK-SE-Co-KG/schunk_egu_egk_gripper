@@ -54,6 +54,11 @@ class Driver(object):
         self.warning_byte: int = 14
         self.additional_byte: int = 15
         self.module_type: str = ""
+        self.module_parameters: dict = {
+            "min_pos": None,
+            "max_pos": None,
+            "max_vel": None,
+        }
         # fmt: off
         self.valid_status_bits: list[int] = (
             list(range(0, 10)) + [11, 12, 13, 14, 16, 17, 31]
@@ -166,6 +171,7 @@ class Driver(object):
             type_enum = struct.unpack("h", self.read_module_parameter("0x0500"))[0]
             self.module_type = self.valid_module_types[str(type_enum)]
 
+        self.update_module_parameters()
         return self.connected
 
     def disconnect(self) -> bool:
@@ -182,6 +188,7 @@ class Driver(object):
             with self.web_client_lock:
                 self.web_client = None
 
+        self.update_module_parameters()
         return True
 
     async def acknowledge(self, scheduler: Scheduler | None = None) -> bool:
@@ -403,6 +410,30 @@ class Driver(object):
         if keys[2] == "M":
             return True
         return False
+
+    def update_module_parameters(self) -> bool:
+
+        if not self.connected:
+            for key in self.module_parameters.keys():
+                self.module_parameters[key] = None
+            return True
+
+        # min_pos
+        if not (data := self.read_module_parameter("0x0600")):
+            return False
+        self.module_parameters["min_pos"] = int(struct.unpack("f", data)[0] * 1e3)
+
+        # max_pos
+        if not (data := self.read_module_parameter("0x0608")):
+            return False
+        self.module_parameters["max_pos"] = int(struct.unpack("f", data)[0] * 1e3)
+
+        # max_vel
+        if not (data := self.read_module_parameter("0x0630")):
+            return False
+        self.module_parameters["max_vel"] = int(struct.unpack("f", data)[0] * 1e3)
+
+        return True
 
     def read_module_parameter(self, param: str) -> bytearray:
         result = bytearray()

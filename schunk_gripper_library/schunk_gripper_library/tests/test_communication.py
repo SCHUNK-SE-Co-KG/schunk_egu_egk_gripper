@@ -429,3 +429,43 @@ def test_driver_estimates_duration_of_lasting_operations():
             set_actual_position(entry["start_pos"])
         duration_sec = driver.estimate_duration(**entry["args"])
         assert pytest.approx(duration_sec) == entry["should_take"], f"entry: {entry}"
+
+
+@skip_without_gripper
+def test_connected_driver_has_module_parameters():
+    driver = Driver()
+    params = ["max_vel", "min_pos", "max_pos"]
+    for param in params:
+        assert param in driver.module_parameters
+        assert driver.module_parameters[param] is None
+
+    driver.connect(serial_port="/dev/ttyUSB0", device_id=12)
+    for param in params:
+        assert driver.module_parameters[param] is not None
+
+    driver.disconnect()
+    for param in params:
+        assert driver.module_parameters[param] is None
+
+
+@skip_without_gripper
+def test_driver_offers_updating_internal_module_parameters():
+    driver = Driver()
+
+    # Parameters are updated when connected
+    driver.connect(serial_port="/dev/ttyUSB0", device_id=12)
+    assert driver.update_module_parameters()
+    for key, value in driver.module_parameters.items():
+        assert value is not None, f"key: {key}"
+
+    # Repetitive
+    for _ in range(3):
+        assert driver.update_module_parameters()
+        for key, value in driver.module_parameters.items():
+            assert value is not None, f"key: {key}"
+
+    # Values are reset when disconnected
+    driver.disconnect()
+    assert driver.update_module_parameters()
+    for key, value in driver.module_parameters.items():
+        assert value is None, f"key: {key}"
