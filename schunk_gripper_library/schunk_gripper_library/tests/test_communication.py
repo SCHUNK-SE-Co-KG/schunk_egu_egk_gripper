@@ -340,7 +340,7 @@ def test_driver_can_check_for_gpe_support():
         assert not driver.gpe_available()
 
 
-def test_driver_estimates_duration_of_lasting_operations():
+def test_driver_estimates_duration_of_positioning_operations():
     driver = Driver()
 
     def set_actual_position(position: int) -> None:
@@ -409,19 +409,6 @@ def test_driver_estimates_duration_of_lasting_operations():
             "args": {"position_abs": 15366, "velocity": 12345},
             "should_take": 0.0,  # Already there
         },
-        # Valid force arguments
-        {
-            "args": {"force": 50},
-            "should_take": 1.0,
-        },
-        {
-            "args": {"force": 75},
-            "should_take": 1.0,
-        },
-        {
-            "args": {"force": 100},
-            "should_take": 1.0,
-        },
     ]
 
     for entry in valid_combinations:
@@ -429,6 +416,56 @@ def test_driver_estimates_duration_of_lasting_operations():
             set_actual_position(entry["start_pos"])
         duration_sec = driver.estimate_duration(**entry["args"])
         assert pytest.approx(duration_sec) == entry["should_take"], f"entry: {entry}"
+
+
+@skip_without_gripper
+def test_driver_estimates_duration_of_grip_operations():
+    driver = Driver()
+
+    # We need gripper min and max positions.
+    # Connect without update cycle to not interfere while
+    # manually setting actual positions.
+    driver.connect(serial_port="/dev/ttyUSB0", device_id=12, update_cycle=None)
+    max_pos = driver.module_parameters["max_pos"]
+    min_pos = driver.module_parameters["min_pos"]
+
+    def set_actual_position(position: int) -> None:
+        driver.plc_input_buffer[4:8] = bytes(struct.pack("i", position))
+
+    # Fully closed
+    set_actual_position(min_pos)
+    forces = [50, 75, 100]
+    for force in forces:
+        assert pytest.approx(driver.estimate_duration(force=force)) == 0.0
+
+    # Fully open
+    set_actual_position(max_pos)
+    forces = [50, 75, 100]
+    for force in forces:
+        assert pytest.approx(driver.estimate_duration(force=force, outward=True)) == 0.0
+
+    # Half open/closed
+    half = int(0.5 * (max_pos - min_pos))
+    set_actual_position(half)
+    for outward in [False, True]:
+        slow = driver.estimate_duration(force=50, outward=outward)
+        middle = driver.estimate_duration(force=75, outward=outward)
+        fast = driver.estimate_duration(force=100, outward=outward)
+        assert fast < middle < slow
+
+    # Wide range in mm steps
+    start = min_pos + 5000
+    stop = max_pos - 5000
+    for pos in range(start, stop, 1000):
+        set_actual_position(pos)
+        for outward in [False, True]:
+            slow = driver.estimate_duration(force=50, outward=outward)
+            middle = driver.estimate_duration(force=75, outward=outward)
+            fast = driver.estimate_duration(force=100, outward=outward)
+            assert fast < middle < slow
+
+    # Cleanup
+    driver.disconnect()
 
 
 @skip_without_gripper

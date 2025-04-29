@@ -358,6 +358,7 @@ class Driver(object):
         position_abs: int = 0,
         velocity: int = 0,
         force: int = 0,
+        outward: bool = False,
     ) -> float:
         if not isinstance(position_abs, int):
             return 0.0
@@ -365,7 +366,15 @@ class Driver(object):
             still_to_go = position_abs - self.get_actual_position()
             return abs(still_to_go) / velocity
         if isinstance(force, int) and force > 0 and force <= 100:
-            return 1.0
+            if outward:
+                still_to_go = (
+                    self.module_parameters["max_pos"] - self.get_actual_position()
+                )
+            else:
+                still_to_go = (
+                    self.module_parameters["min_pos"] - self.get_actual_position()
+                )
+            return abs(still_to_go) / (force * self.module_parameters["max_vel"])
         return 0.0
 
     async def release_workpiece(self) -> bool:
