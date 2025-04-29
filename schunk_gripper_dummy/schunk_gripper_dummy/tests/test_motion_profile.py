@@ -21,10 +21,10 @@ def test_motion_initializes_with_initial_state_and_target_state():
 
 
 def test_motion_corrects_negative_or_zero_speed_arguments():
-    initial_pos = 0.0
-    initial_speed = -0.3
-    target_pos = 0.1
-    target_speed = 0.0
+    initial_pos = 0
+    initial_speed = -300
+    target_pos = 0
+    target_speed = 0
     motion = LinearMotion(
         initial_pos=initial_pos,
         initial_speed=initial_speed,
@@ -32,9 +32,9 @@ def test_motion_corrects_negative_or_zero_speed_arguments():
         target_speed=target_speed,
     )
     assert pytest.approx(motion.target_speed) == motion.min_speed
-    assert pytest.approx(motion.initial_speed) == 0.0
+    assert pytest.approx(motion.initial_speed) == 0
 
-    target_speed = -0.123
+    target_speed = -123
     motion = LinearMotion(
         initial_pos=initial_pos,
         initial_speed=initial_speed,
@@ -45,10 +45,10 @@ def test_motion_corrects_negative_or_zero_speed_arguments():
 
 
 def test_motion_samples_current_state_at_given_time():
-    initial_pos = 0.0
-    initial_speed = 0.0
-    target_pos = 1.3
-    target_speed = 55.1
+    initial_pos = 0
+    initial_speed = 0
+    target_pos = 130
+    target_speed = 551
     motion = LinearMotion(
         initial_pos=initial_pos,
         initial_speed=initial_speed,
@@ -59,8 +59,8 @@ def test_motion_samples_current_state_at_given_time():
     time.sleep(0.01)
     now = time.time() - start
     current_pos, current_speed = motion.sample(t=now)
-    assert isinstance(current_pos, float)
-    assert isinstance(current_speed, float)
+    assert isinstance(current_pos, int)
+    assert isinstance(current_speed, int)
     assert current_pos >= initial_pos
     assert current_pos <= target_pos
     assert current_speed >= initial_speed
@@ -68,10 +68,10 @@ def test_motion_samples_current_state_at_given_time():
 
 
 def test_motion_samples_initial_state_at_time_less_or_equal_zero():
-    initial_pos = 0.0
+    initial_pos = 0
     initial_speed = 0.0
-    target_pos = 0.1
-    target_speed = 55.1
+    target_pos = 100
+    target_speed = 5510
     motion = LinearMotion(
         initial_pos=initial_pos,
         initial_speed=initial_speed,
@@ -84,10 +84,10 @@ def test_motion_samples_initial_state_at_time_less_or_equal_zero():
 
 
 def test_motion_samples_target_position_at_time_after_finish():
-    initial_pos = 0.0
-    initial_speed = 0.0
-    target_pos = 0.1
-    target_speed = 55.1
+    initial_pos = 0
+    initial_speed = 0
+    target_pos = 100
+    target_speed = 551
     motion = LinearMotion(
         initial_pos=initial_pos,
         initial_speed=initial_speed,
@@ -100,12 +100,12 @@ def test_motion_samples_target_position_at_time_after_finish():
 
 
 def test_motion_supports_both_directions():
-    initial_pos = 5.0
-    initial_speed = 0.0
-    target_speed = 5.678
+    initial_pos = 500
+    initial_speed = 0
+    target_speed = 5678
 
     # Positive direction
-    target_pos = 12.34
+    target_pos = 1000
     motion = LinearMotion(
         initial_pos=initial_pos,
         initial_speed=initial_speed,
@@ -117,7 +117,7 @@ def test_motion_supports_both_directions():
     assert current_pos_1 < current_pos_2
 
     # Negative direction
-    target_pos = 1.234
+    target_pos = 250
     motion = LinearMotion(
         initial_pos=initial_pos,
         initial_speed=initial_speed,
@@ -127,3 +127,37 @@ def test_motion_supports_both_directions():
     current_pos_1, _ = motion.sample(t=0.01)
     current_pos_2, _ = motion.sample(t=0.02)
     assert current_pos_1 > current_pos_2
+
+
+def test_motion_estimates_finish_time():
+    target_speed = 5678
+
+    # Already finished
+    motion = LinearMotion(
+        initial_pos=1000,
+        initial_speed=0,
+        target_pos=1000,
+        target_speed=target_speed,
+    )
+    assert pytest.approx(motion.time_finish) == 0.0
+
+    # With different starts
+    short = LinearMotion(
+        initial_pos=900,
+        initial_speed=0,
+        target_pos=1000,
+        target_speed=target_speed,
+    ).time_finish
+    middle = LinearMotion(
+        initial_pos=500,
+        initial_speed=0,
+        target_pos=1000,
+        target_speed=target_speed,
+    ).time_finish
+    long = LinearMotion(
+        initial_pos=100,
+        initial_speed=0,
+        target_pos=1000,
+        target_speed=target_speed,
+    ).time_finish
+    assert short < middle < long

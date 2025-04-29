@@ -9,28 +9,28 @@ from typing import Tuple
 class LinearMotion(object):
     def __init__(
         self,
-        initial_pos: float,
-        initial_speed: float,
-        target_pos: float,
-        target_speed: float,
+        initial_pos: int,
+        initial_speed: int,
+        target_pos: int,
+        target_speed: int,
     ):
-        self.min_speed = 0.001
+        self.min_speed = 1  # um / s
         self.initial_pos = initial_pos
-        self.initial_speed = max(0.0, initial_speed)
+        self.initial_speed = max(0, initial_speed)
         self.target_pos = target_pos
         self.target_speed = max(self.min_speed, target_speed)
         self.time_finish = abs(self.target_pos / self.target_speed)
 
-    def sample(self, t: float) -> Tuple[float, float]:
+    def sample(self, t: float) -> Tuple[int, int]:
         if t <= 0.0:
             return (self.initial_pos, self.initial_speed)
         if t >= self.time_finish:
-            return (self.target_pos, 0.0)
+            return (self.target_pos, 0)
 
         v = self.target_speed
         if self.target_pos < self.initial_pos:
             v = -v
-        current_pos = v * t + self.initial_pos
+        current_pos = int(v * t) + self.initial_pos
         current_speed = abs(v)
         return (current_pos, current_speed)
 
@@ -96,7 +96,7 @@ class Dummy(object):
         self.set_status_error("00")
         self.set_status_diagnostics("00")
 
-    def move(self, target_pos: float, target_speed: float) -> None:
+    def move(self, target_pos: int, target_speed: int) -> None:
         motion = LinearMotion(
             initial_pos=self.get_actual_position(),
             initial_speed=self.get_actual_speed(),
@@ -105,7 +105,7 @@ class Dummy(object):
         )
         start = time.time()
         actual_pos, actual_speed = motion.sample(0)
-        while abs(target_pos - actual_pos) > 0.001:  # mm
+        while abs(target_pos - actual_pos) > 1:  # um
             t = time.time() - start
             actual_pos, actual_speed = motion.sample(t)
             self.set_actual_position(actual_pos)
@@ -249,29 +249,27 @@ class Dummy(object):
             self.plc_output_buffer[byte_index] &= ~(1 << bit_index)
         return True
 
-    def get_target_position(self) -> float:
-        return struct.unpack("i", self.plc_output_buffer[4:8])[0] / 1000.0  # um to mm
+    def get_target_position(self) -> int:
+        return struct.unpack("i", self.plc_output_buffer[4:8])[0]
 
-    def get_target_speed(self) -> float:
-        return (
-            struct.unpack("i", self.plc_output_buffer[8:12])[0] / 1000.0
-        )  # um/s to mm/s
+    def get_target_speed(self) -> int:
+        return struct.unpack("i", self.plc_output_buffer[8:12])[0]
 
-    def set_actual_position(self, position: float) -> None:
-        self.data[self.actual_position] = [
-            bytes(struct.pack("f", position)).hex().upper()
+    def set_actual_position(self, position: int) -> None:
+        self.plc_input_buffer[4:8] = bytes(struct.pack("i", position))
+
+    def set_actual_speed(self, speed: int) -> None:
+        self.data[self.actual_speed] = [
+            bytes(struct.pack("f", speed / 1e3)).hex().upper()
         ]
 
-    def set_actual_speed(self, speed: float) -> None:
-        self.data[self.actual_speed] = [bytes(struct.pack("f", speed)).hex().upper()]
+    def get_actual_position(self) -> int:
+        read_pos = self.plc_input_buffer[4:8].hex().upper()
+        return struct.unpack("i", bytes.fromhex(read_pos))[0]
 
-    def get_actual_position(self) -> float:
-        read_pos = self.data[self.actual_position][0]
-        return struct.unpack("f", bytes.fromhex(read_pos))[0]
-
-    def get_actual_speed(self) -> float:
+    def get_actual_speed(self) -> int:
         read_speed = self.data[self.actual_speed][0]
-        return struct.unpack("f", bytes.fromhex(read_speed))[0]
+        return int(struct.unpack("f", bytes.fromhex(read_speed))[0] * 1e3)
 
     def set_system_uptime(self, uptime: int) -> None:
         self.data[self.system_uptime] = [bytes(struct.pack("i", uptime)).hex().upper()]
