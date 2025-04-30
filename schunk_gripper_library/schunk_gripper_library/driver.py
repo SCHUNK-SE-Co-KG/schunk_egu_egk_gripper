@@ -353,6 +353,41 @@ class Driver(object):
             await asyncio.sleep(duration_sec)
             return await check()
 
+    async def release(self, scheduler: Scheduler | None = None) -> bool:
+        if not self.connected:
+            return False
+
+        async def start() -> bool:
+            self.clear_plc_output()
+            self.send_plc_output()
+            cmd_toggle_before = self.get_status_bit(bit=5)
+            self.set_control_bit(bit=11, value=True)
+            self.send_plc_output()
+            desired_bits = {
+                "5": cmd_toggle_before ^ 1,
+                "3": 0,
+            }
+            return await self.wait_for_status(bits=desired_bits)
+
+        async def check() -> bool:
+            desired_bits = {
+                "4": 1,
+                "13": 1,
+            }
+            return await self.wait_for_status(bits=desired_bits)
+
+        duration_sec = 1.0
+        if scheduler:
+            if not scheduler.execute(func=partial(start)).result():
+                return False
+            await asyncio.sleep(duration_sec)
+            return scheduler.execute(func=partial(check)).result()
+        else:
+            if not await start():
+                return False
+            await asyncio.sleep(duration_sec)
+            return await check()
+
     def estimate_duration(
         self,
         position_abs: int = 0,
@@ -376,27 +411,6 @@ class Driver(object):
                 )
             return abs(still_to_go) / (force * self.module_parameters["max_vel"])
         return 0.0
-
-    async def release_workpiece(self) -> bool:
-        if not self.connected:
-            return False
-
-        self.clear_plc_output()
-        self.send_plc_output()
-
-        cmd_toggle_before = self.get_status_bit(bit=5)
-        self.set_control_bit(bit=11, value=True)
-        self.send_plc_output()
-
-        desired_bits = {
-            "5": cmd_toggle_before ^ 1,
-            "4": 1,
-            "13": 1,
-            "14": 0,
-            "12": 0,
-            "17": 0,
-        }
-        return await self.wait_for_status(bits=desired_bits)
 
     def receive_plc_input(self) -> bool:
         with self.input_buffer_lock:

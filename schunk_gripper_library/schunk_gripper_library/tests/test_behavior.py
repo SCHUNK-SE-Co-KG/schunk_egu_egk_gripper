@@ -61,14 +61,20 @@ def test_all_gripper_commands_run_with_a_scheduler():
     # Commands
     assert asyncio.run(driver.fast_stop(scheduler=scheduler))
     assert asyncio.run(driver.acknowledge(scheduler=scheduler))
-    assert not asyncio.run(
-        driver.grip(force=75, scheduler=scheduler)
-    )  # no workpiece detected
-    assert asyncio.run(driver.acknowledge(scheduler=scheduler))
     assert asyncio.run(
         driver.move_to_absolute_position(
             position=12345, velocity=10000, scheduler=scheduler
         )
+    ), f"driver status: {driver.get_status_diagnostics()}"
+    assert asyncio.run(driver.acknowledge(scheduler=scheduler))
+
+    # Expected to fail, simulator can't simulate workpieces
+    assert not asyncio.run(
+        driver.grip(force=75, scheduler=scheduler)
+    ), f"driver status: {driver.get_status_diagnostics()}"
+    assert asyncio.run(driver.acknowledge(scheduler=scheduler))
+    assert not asyncio.run(
+        driver.release(scheduler=scheduler)
     ), f"driver status: {driver.get_status_diagnostics()}"
 
     driver.disconnect()
@@ -242,23 +248,26 @@ def test_grip_fails_when_no_workpiece_detected():
     driver.disconnect()
 
 
+def test_release_fails_when_not_connected():
+    driver = Driver()
+    assert not asyncio.run(driver.release())
+
+
 @skip_without_gripper
 def test_release():
     driver = Driver()
     for host, port, serial_port in zip(
         ["0.0.0.0", None], [8000, None], [None, "/dev/ttyUSB0"]
     ):
-        if serial_port:
-            return
-        # not connected
-        assert not asyncio.run(driver.release_workpiece())
-
-        # after connection
         assert driver.connect(
             host=host, port=port, serial_port=serial_port, device_id=12
         )
         assert asyncio.run(driver.acknowledge())
 
-        assert asyncio.run(driver.release_workpiece())
+        if serial_port:
+            # Expected to fail
+            assert not asyncio.run(driver.release())
+        else:
+            assert asyncio.run(driver.release())
 
         assert driver.disconnect()
