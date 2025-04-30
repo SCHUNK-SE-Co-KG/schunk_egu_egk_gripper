@@ -1,0 +1,12 @@
+int8 force    # Percentage points of the module's max. gripping force.
+              # Tolerated values in [50, 100]
+
+bool use_gpe  # Whether to activate grip force and position maintenance.
+              # Will only be used when available.
+              # Defaults to False.
+
+bool outward  # Whether to open the gripper for grasping.
+              # Defaults to False.
+---
+bool success
+string message
