@@ -1,5 +1,10 @@
-float32 position
-float32 velocity
+float32 position  # Absolute position in [m]
+
+float32 velocity  # Velocity in [m/s]
+
+bool use_gpe      # Whether to activate grip force and position maintenance.
+                  # Will only be used when available.
+                  # Defaults to False.
 ---
 bool success
 string message

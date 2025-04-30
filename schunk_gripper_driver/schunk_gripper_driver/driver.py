@@ -317,13 +317,16 @@ class Driver(Node):
         if self.needs_synchronize(gripper):
             response.success = asyncio.run(
                 gripper["driver"].move_to_absolute_position(
-                    position=position, velocity=velocity, scheduler=self.scheduler
+                    position=position,
+                    velocity=velocity,
+                    use_gpe=request.use_gpe,
+                    scheduler=self.scheduler,
                 )
             )
         else:
             response.success = asyncio.run(
                 gripper["driver"].move_to_absolute_position(
-                    position=position, velocity=velocity
+                    position=position, velocity=velocity, use_gpe=request.use_gpe
                 )
             )
         response.message = gripper["driver"].get_status_diagnostics()

@@ -187,13 +187,14 @@ def test_driver_implements_move_to_absolute_position(lifecycle_interface):
         assert client.wait_for_service(timeout_sec=2), f"gripper: {gripper}"
 
         targets = [
-            {"position": 0.023, "velocity": 0.02},
-            {"position": 0.005, "velocity": 0.02},
+            {"position": 0.023, "velocity": 0.02, "use_gpe": False},
+            {"position": 0.005, "velocity": 0.02, "use_gpe": True},
         ]
         for target in targets:
             request = MoveToAbsolutePosition.Request()
             request.position = target["position"]
             request.velocity = target["velocity"]
+            request.use_gpe = target["use_gpe"]
             future = client.call_async(request)
             rclpy.spin_until_future_complete(node, future, timeout_sec=3)
             assert future.result().success, f"{future.result().message}"
