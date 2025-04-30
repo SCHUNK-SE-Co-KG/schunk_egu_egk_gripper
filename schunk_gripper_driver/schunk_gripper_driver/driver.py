@@ -199,11 +199,13 @@ class Driver(Node):
         # Get every gripper ready to go
         for idx, gripper in enumerate(self.grippers):
             if self.needs_synchronize(gripper):
-                self.scheduler.execute(
-                    func=partial(self.grippers[idx]["driver"].acknowledge)
+                success = asyncio.run(
+                    self.grippers[idx]["driver"].acknowledge(scheduler=self.scheduler)
                 )
             else:
-                asyncio.run(self.grippers[idx]["driver"].acknowledge())
+                success = asyncio.run(self.grippers[idx]["driver"].acknowledge())
+            if not success:
+                return TransitionCallbackReturn.FAILURE
 
         return super().on_activate(state)
 
@@ -281,9 +283,9 @@ class Driver(Node):
     ):
         self.get_logger().info("---> Acknowledge")
         if self.needs_synchronize(gripper):
-            response.success = self.scheduler.execute(
-                func=partial(gripper["driver"].acknowledge)
-            ).result()
+            response.success = asyncio.run(
+                gripper["driver"].acknowledge(scheduler=self.scheduler)
+            )
         else:
             response.success = asyncio.run(gripper["driver"].acknowledge())
         response.message = gripper["driver"].get_status_diagnostics()
@@ -297,9 +299,7 @@ class Driver(Node):
     ):
         self.get_logger().info("---> Fast stop")
         if self.needs_synchronize(gripper):
-            response.success = self.scheduler.execute(
-                func=partial(gripper["driver"].fast_stop)
-            ).result()
+            response.success = gripper["driver"].fast_stop(scheduler=self.scheduler)
         else:
             response.success = asyncio.run(gripper["driver"].fast_stop())
         response.message = gripper["driver"].get_status_diagnostics()
@@ -315,13 +315,11 @@ class Driver(Node):
         position = int(request.position * 1e6)
         velocity = int(request.velocity * 1e6)
         if self.needs_synchronize(gripper):
-            response.success = self.scheduler.execute(
-                func=partial(
-                    gripper["driver"].move_to_absolute_position,
-                    position=position,
-                    velocity=velocity,
+            response.success = asyncio.run(
+                gripper["driver"].move_to_absolute_position(
+                    position=position, velocity=velocity, scheduler=self.scheduler
                 )
-            ).result()
+            )
         else:
             response.success = asyncio.run(
                 gripper["driver"].move_to_absolute_position(

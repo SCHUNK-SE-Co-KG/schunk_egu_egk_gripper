@@ -176,7 +176,7 @@ def test_driver_implements_fast_stop(lifecycle_interface):
 def test_driver_implements_move_to_absolute_position(lifecycle_interface):
     driver = lifecycle_interface
     driver.change_state(Transition.TRANSITION_CONFIGURE)
-    driver.change_state(Transition.TRANSITION_ACTIVATE)
+    assert driver.change_state(Transition.TRANSITION_ACTIVATE)
 
     node = Node("check_move_to_absolute_position")
     for gripper in driver.list_grippers():
