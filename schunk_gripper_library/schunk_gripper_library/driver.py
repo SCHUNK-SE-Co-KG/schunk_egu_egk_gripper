@@ -171,7 +171,8 @@ class Driver(object):
             type_enum = struct.unpack("h", self.read_module_parameter("0x0500"))[0]
             self.module_type = self.valid_module_types[str(type_enum)]
 
-        self.update_module_parameters()
+        if not self.update_module_parameters():
+            return False
         return self.connected
 
     def disconnect(self) -> bool:
