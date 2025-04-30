@@ -124,7 +124,7 @@ def test_move_to_absolute_position_succeeds_with_valid_arguments():
         for args in combinations:
             assert asyncio.run(
                 driver.move_to_absolute_position(**args)
-            ), f"module status: {driver.get_status_diagnostics()}"
+            ), f"host: {host}, module status: {driver.get_status_diagnostics()}"
         driver.disconnect()
 
 

@@ -19,7 +19,7 @@ class LinearMotion(object):
         self.initial_speed = max(0, initial_speed)
         self.target_pos = target_pos
         self.target_speed = max(self.min_speed, target_speed)
-        self.time_finish = abs(self.target_pos / self.target_speed)
+        self.time_finish = abs(target_pos - initial_pos) / self.target_speed
 
     def sample(self, t: float) -> Tuple[int, int]:
         if t <= 0.0:
