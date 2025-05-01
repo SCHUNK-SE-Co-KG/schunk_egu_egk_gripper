@@ -58,6 +58,7 @@ class Driver(object):
             "min_pos": None,
             "max_pos": None,
             "max_vel": None,
+            "wp_release_delta": None,
         }
         # fmt: off
         self.valid_status_bits: list[int] = (
@@ -383,7 +384,7 @@ class Driver(object):
             }
             return await self.wait_for_status(bits=desired_bits)
 
-        duration_sec = 1.0
+        duration_sec = self.estimate_duration(release=True)
         if scheduler:
             if not scheduler.execute(func=partial(start)).result():
                 return False
@@ -397,11 +398,17 @@ class Driver(object):
 
     def estimate_duration(
         self,
+        release: bool = False,
         position_abs: int = 0,
         velocity: int = 0,
         force: int = 0,
         outward: bool = False,
     ) -> float:
+        if release:
+            return (
+                self.module_parameters["wp_release_delta"]
+                / self.module_parameters["max_vel"]
+            )
         if not isinstance(position_abs, int):
             return 0.0
         if isinstance(velocity, int) and velocity > 0:
@@ -463,6 +470,12 @@ class Driver(object):
             return False
         self.module_parameters["max_vel"] = int(struct.unpack("f", data)[0] * 1e3)
 
+        # wp_release_delta
+        if not (data := self.read_module_parameter("0x0540")):
+            return False
+        self.module_parameters["wp_release_delta"] = int(
+            struct.unpack("f", data)[0] * 1e3
+        )
         return True
 
     def read_module_parameter(self, param: str) -> bytearray:

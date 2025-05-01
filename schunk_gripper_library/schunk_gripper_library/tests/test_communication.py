@@ -469,9 +469,21 @@ def test_driver_estimates_duration_of_grip_operations():
 
 
 @skip_without_gripper
+def test_driver_estimates_duration_of_release():
+    driver = Driver()
+    driver.connect(serial_port="/dev/ttyUSB0", device_id=12, update_cycle=None)
+    expected = (
+        driver.module_parameters["wp_release_delta"]
+        / driver.module_parameters["max_vel"]
+    )
+    estimated = driver.estimate_duration(release=True)
+    assert pytest.approx(estimated) == expected
+
+
+@skip_without_gripper
 def test_connected_driver_has_module_parameters():
     driver = Driver()
-    params = ["max_vel", "min_pos", "max_pos"]
+    params = ["max_vel", "min_pos", "max_pos", "wp_release_delta"]
     for param in params:
         assert param in driver.module_parameters
         assert driver.module_parameters[param] is None

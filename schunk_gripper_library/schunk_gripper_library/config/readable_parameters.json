@@ -1,6 +1,7 @@
 {
     "0x0040": {"registers": 8, "type": "uint32 int32 uint32 uint32"},
     "0x0500": {"registers": 1, "type": "enum"},
+    "0x0540": {"registers": 2, "type": "float"},
     "0x0600": {"registers": 2, "type": "float"},
     "0x0608": {"registers": 2, "type": "float"},
     "0x0630": {"registers": 2, "type": "float"}
