@@ -60,13 +60,21 @@ def test_all_gripper_commands_run_with_a_scheduler():
 
     # Commands
     assert asyncio.run(driver.fast_stop(scheduler=scheduler))
-
     assert asyncio.run(driver.acknowledge(scheduler=scheduler))
-
     assert asyncio.run(
         driver.move_to_absolute_position(
             position=12345, velocity=10000, scheduler=scheduler
         )
+    ), f"driver status: {driver.get_status_diagnostics()}"
+    assert asyncio.run(driver.acknowledge(scheduler=scheduler))
+
+    # Expected to fail, simulator can't simulate workpieces
+    assert not asyncio.run(
+        driver.grip(force=75, scheduler=scheduler)
+    ), f"driver status: {driver.get_status_diagnostics()}"
+    assert asyncio.run(driver.acknowledge(scheduler=scheduler))
+    assert not asyncio.run(
+        driver.release(scheduler=scheduler)
     ), f"driver status: {driver.get_status_diagnostics()}"
 
     driver.disconnect()
@@ -116,13 +124,13 @@ def test_move_to_absolute_position_succeeds_with_valid_arguments():
             # consider <min_vel>, <max_vel>, <min_pos>, <max_pos>
             {"position": 12300, "velocity": 6300},
             {"position": 5200, "velocity": 38706},
-            {"position": 10, "velocity": 10200},
+            {"position": 1000, "velocity": 10200},
             {"position": 10633, "velocity": 8400},
         ]
         for args in combinations:
             assert asyncio.run(
                 driver.move_to_absolute_position(**args)
-            ), f"module status: {driver.get_status_diagnostics()}"
+            ), f"host: {host}, module status: {driver.get_status_diagnostics()}"
         driver.disconnect()
 
 
@@ -190,4 +198,78 @@ def test_stop():
         assert asyncio.run(driver.acknowledge())
 
         assert asyncio.run(driver.stop())
+        assert driver.disconnect()
+
+
+def test_grip_fails_when_not_connected():
+    driver = Driver()
+    assert not asyncio.run(driver.grip(force=100))
+
+
+@skip_without_gripper
+def test_grip_fails_with_invalid_arguments():
+    driver = Driver()
+    for host, port, serial_port in zip(
+        ["0.0.0.0", None], [8000, None], [None, "/dev/ttyUSB0"]
+    ):
+        # Invalid arguments
+        driver.connect(host=host, port=port, serial_port=serial_port, device_id=12)
+        asyncio.run(driver.acknowledge())
+        invalid_forces = [0.1, -0.1, 170, 75.0]
+        for force in invalid_forces:
+            assert not asyncio.run(driver.grip(force))
+        driver.disconnect()
+
+
+@skip_without_gripper
+def test_grip_works_with_valid_arguments():
+    driver = Driver()
+
+    # Only web dummy for now.
+    # The BKS simulator will always fail.
+    driver.connect(host="0.0.0.0", port=8000)
+    asyncio.run(driver.acknowledge())
+    combinations = [
+        {"force": 75, "outward": True},
+        {"force": 55, "outward": False},
+        {"force": 99, "outward": True},
+    ]
+    for args in combinations:
+        assert asyncio.run(driver.grip(**args))
+    driver.disconnect()
+
+
+@skip_without_gripper
+def test_grip_fails_when_no_workpiece_detected():
+    driver = Driver()
+    driver.connect(serial_port="/dev/ttyUSB0", device_id=12)
+    asyncio.run(driver.acknowledge())
+    assert not asyncio.run(driver.grip(force=75, outward=True))
+    driver.disconnect()
+
+
+def test_release_fails_when_not_connected():
+    driver = Driver()
+    assert not asyncio.run(driver.release())
+
+
+@skip_without_gripper
+def test_release():
+    driver = Driver()
+    for host, port, serial_port in zip(
+        ["0.0.0.0", None], [8000, None], [None, "/dev/ttyUSB0"]
+    ):
+        assert driver.connect(
+            host=host, port=port, serial_port=serial_port, device_id=12
+        )
+        assert asyncio.run(driver.acknowledge())
+
+        if serial_port:
+            # Expected to fail
+            assert not asyncio.run(driver.release(use_gpe=False))
+            assert not asyncio.run(driver.release(use_gpe=True))
+        else:
+            assert asyncio.run(driver.release(use_gpe=False))
+            assert asyncio.run(driver.release(use_gpe=True))
+
         assert driver.disconnect()

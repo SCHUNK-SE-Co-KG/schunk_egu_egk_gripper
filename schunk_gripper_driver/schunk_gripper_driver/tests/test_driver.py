@@ -20,6 +20,8 @@ from std_srvs.srv import Trigger
 from schunk_gripper_interfaces.srv import (  # type: ignore [attr-defined]
     AddGripper,
     MoveToAbsolutePosition,
+    Grip,
+    Release,
 )
 
 
@@ -159,6 +161,44 @@ def test_driver_offers_callback_for_move_to_absolute_position(ros2):
         gripper = driver.grippers[idx]
         driver._move_to_absolute_position_cb(request=req, response=res, gripper=gripper)
         assert not res.success
+
+    driver.on_deactivate(state=None)
+    driver.on_cleanup(state=None)
+
+
+@skip_without_gripper
+def test_driver_offers_callback_for_grip(ros2):
+    driver = Driver("driver")
+    driver.on_configure(state=None)
+    driver.on_activate(state=None)
+
+    # Check if we can call the interface.
+    req = Grip.Request()
+    res = Grip.Response()
+    for idx, _ in enumerate(driver.grippers):
+        gripper = driver.grippers[idx]
+        driver._grip_cb(request=req, response=res, gripper=gripper)
+        assert not res.success
+        assert res.message != ""
+
+    driver.on_deactivate(state=None)
+    driver.on_cleanup(state=None)
+
+
+@skip_without_gripper
+def test_driver_offers_callback_for_release(ros2):
+    driver = Driver("driver")
+    driver.on_configure(state=None)
+    driver.on_activate(state=None)
+
+    # Check if we can call the interface.
+    req = Release.Request()
+    res = Release.Response()
+    for idx, _ in enumerate(driver.grippers):
+        gripper = driver.grippers[idx]
+        driver._release_cb(request=req, response=res, gripper=gripper)
+        assert not res.success
+        assert res.message != ""
 
     driver.on_deactivate(state=None)
     driver.on_cleanup(state=None)

@@ -54,6 +54,12 @@ class Driver(object):
         self.warning_byte: int = 14
         self.additional_byte: int = 15
         self.module_type: str = ""
+        self.module_parameters: dict = {
+            "min_pos": None,
+            "max_pos": None,
+            "max_vel": None,
+            "wp_release_delta": None,
+        }
         # fmt: off
         self.valid_status_bits: list[int] = (
             list(range(0, 10)) + [11, 12, 13, 14, 16, 17, 31]
@@ -166,6 +172,8 @@ class Driver(object):
             type_enum = struct.unpack("h", self.read_module_parameter("0x0500"))[0]
             self.module_type = self.valid_module_types[str(type_enum)]
 
+        if not self.update_module_parameters():
+            return False
         return self.connected
 
     def disconnect(self) -> bool:
@@ -182,6 +190,7 @@ class Driver(object):
             with self.web_client_lock:
                 self.web_client = None
 
+        self.update_module_parameters()
         return True
 
     async def acknowledge(self, scheduler: Scheduler | None = None) -> bool:
@@ -234,7 +243,7 @@ class Driver(object):
         self.send_plc_output()
 
         desired_bits = {"5": cmd_toggle_before ^ 1, "13": 1, "4": 1}
-        return await self.wait_for_status(bits=desired_bits, timeout_sec=10)
+        return await self.wait_for_status(bits=desired_bits)
 
     async def move_to_absolute_position(
         self,
@@ -245,9 +254,9 @@ class Driver(object):
     ) -> bool:
         if not self.connected:
             return False
-        if not isinstance(position, int) or not isinstance(velocity, int):
+        if not self.set_target_position(position):
             return False
-        if velocity <= 0:
+        if not self.set_target_speed(velocity):
             return False
 
         async def start():
@@ -301,17 +310,121 @@ class Driver(object):
 
         return await self.wait_for_status(bits=desired_bits)
 
+    async def grip(
+        self,
+        force: int,
+        use_gpe: bool = False,
+        outward: bool = False,
+        scheduler: Scheduler | None = None,
+    ) -> bool:
+        if not self.connected:
+            return False
+        if not self.set_gripping_force(force):
+            return False
+
+        async def start() -> bool:
+            self.clear_plc_output()
+            self.send_plc_output()
+
+            cmd_toggle_before = self.get_status_bit(bit=5)
+            self.set_control_bit(bit=12, value=True)
+            self.set_control_bit(bit=7, value=outward)
+            if self.gpe_available():
+                self.set_control_bit(bit=31, value=use_gpe)
+            else:
+                self.set_control_bit(bit=31, value=False)
+            self.set_gripping_force(force)
+            self.set_target_speed(0)
+            self.send_plc_output()
+            desired_bits = {"5": cmd_toggle_before ^ 1, "3": 0}
+            return await self.wait_for_status(bits=desired_bits, timeout_sec=0.1)
+
+        async def check() -> bool:
+            desired_bits = {"4": 1, "12": 1}
+            return await self.wait_for_status(bits=desired_bits)
+
+        duration_sec = self.estimate_duration(force=force)
+        if scheduler:
+            if not scheduler.execute(func=partial(start)).result():
+                return False
+            await asyncio.sleep(duration_sec)
+            return scheduler.execute(func=partial(check)).result()
+        else:
+            if not await start():
+                return False
+            await asyncio.sleep(duration_sec)
+            return await check()
+
+    async def release(
+        self, use_gpe: bool = False, scheduler: Scheduler | None = None
+    ) -> bool:
+        if not self.connected:
+            return False
+
+        async def start() -> bool:
+            self.clear_plc_output()
+            self.send_plc_output()
+            cmd_toggle_before = self.get_status_bit(bit=5)
+            self.set_control_bit(bit=11, value=True)
+            if self.gpe_available():
+                self.set_control_bit(bit=31, value=use_gpe)
+            else:
+                self.set_control_bit(bit=31, value=False)
+            self.send_plc_output()
+            desired_bits = {
+                "5": cmd_toggle_before ^ 1,
+                "3": 0,
+            }
+            return await self.wait_for_status(bits=desired_bits)
+
+        async def check() -> bool:
+            desired_bits = {
+                "4": 1,
+                "13": 1,
+            }
+            return await self.wait_for_status(bits=desired_bits)
+
+        duration_sec = self.estimate_duration(release=True)
+        if scheduler:
+            if not scheduler.execute(func=partial(start)).result():
+                return False
+            await asyncio.sleep(duration_sec)
+            return scheduler.execute(func=partial(check)).result()
+        else:
+            if not await start():
+                return False
+            await asyncio.sleep(duration_sec)
+            return await check()
+
     def estimate_duration(
         self,
-        position_abs: int,
-        velocity: int,
+        release: bool = False,
+        position_abs: int = 0,
+        velocity: int = 0,
+        force: int = 0,
+        outward: bool = False,
     ) -> float:
-        if not any([position_abs, velocity]):
+        if release:
+            return (
+                self.module_parameters["wp_release_delta"]
+                / self.module_parameters["max_vel"]
+            )
+        if not isinstance(position_abs, int):
             return 0.0
-        if velocity <= 0:
-            return 0.0
-        duration_sec = abs(position_abs) / velocity
-        return duration_sec
+        if isinstance(velocity, int) and velocity > 0:
+            still_to_go = position_abs - self.get_actual_position()
+            return abs(still_to_go) / velocity
+        if isinstance(force, int) and force > 0 and force <= 100:
+            if outward:
+                still_to_go = (
+                    self.module_parameters["max_pos"] - self.get_actual_position()
+                )
+            else:
+                still_to_go = (
+                    self.module_parameters["min_pos"] - self.get_actual_position()
+                )
+            return abs(still_to_go) / (force * self.module_parameters["max_vel"])
+        return 0.0
 
     def receive_plc_input(self) -> bool:
         with self.input_buffer_lock:
@@ -334,6 +447,36 @@ class Driver(object):
         if keys[2] == "M":
             return True
         return False
+
+    def update_module_parameters(self) -> bool:
+
+        if not self.connected:
+            for key in self.module_parameters.keys():
+                self.module_parameters[key] = None
+            return True
+
+        # min_pos
+        if not (data := self.read_module_parameter("0x0600")):
+            return False
+        self.module_parameters["min_pos"] = int(struct.unpack("f", data)[0] * 1e3)
+
+        # max_pos
+        if not (data := self.read_module_parameter("0x0608")):
+            return False
+        self.module_parameters["max_pos"] = int(struct.unpack("f", data)[0] * 1e3)
+
+        # max_vel
+        if not (data := self.read_module_parameter("0x0630")):
+            return False
+        self.module_parameters["max_vel"] = int(struct.unpack("f", data)[0] * 1e3)
+
+        # wp_release_delta
+        if not (data := self.read_module_parameter("0x0540")):
+            return False
+        self.module_parameters["wp_release_delta"] = int(
+            struct.unpack("f", data)[0] * 1e3
+        )
+        return True
 
     def read_module_parameter(self, param: str) -> bytearray:
         result = bytearray()
@@ -555,6 +698,21 @@ class Driver(object):
     def get_target_speed(self) -> float:
         with self.output_buffer_lock:
             return struct.unpack("i", self.plc_output_buffer[8:12])[0]  # um/s
+
+    def set_gripping_force(self, gripping_force: int) -> bool:
+        with self.output_buffer_lock:
+            if not isinstance(gripping_force, int):
+                return False
+            if gripping_force <= 0:
+                return False
+            if gripping_force > 100:
+                return False
+            self.plc_output_buffer[12:16] = bytes(struct.pack("i", gripping_force))
+            return True
+
+    def get_gripping_force(self) -> int:
+        with self.output_buffer_lock:
+            return struct.unpack("i", self.plc_output_buffer[12:16])[0]
 
     def get_actual_position(self) -> int:  # um
         with self.input_buffer_lock:

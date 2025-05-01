@@ -119,7 +119,7 @@ def test_dummy_rejects_commands_when_in_error():
 def test_dummy_moves_to_absolute_position():
     dummy = Dummy()
     dummy.acknowledge()
-    target_positions = [12345, 10555, 77000, 1500]  # mu
+    target_positions = [12345, 10555, 7000, 1500]  # mu
     target_speeds = [50300, 40000, 10500, 20999]  # mu / s
     for target_pos, target_speed in zip(target_positions, target_speeds):
         control_double_word = "01200000"  # bit 13
@@ -132,9 +132,7 @@ def test_dummy_moves_to_absolute_position():
         }
 
         dummy.post(command)
-        assert dummy.get_actual_position() == pytest.approx(
-            target_pos / 1000.0, rel=1e-3
-        )
+        assert dummy.get_actual_position() == pytest.approx(target_pos, rel=1e-3)
         assert dummy.get_status_bit(bit=13) == 1  # position reached
         assert dummy.get_status_bit(bit=4) == 1  # command successfully processed
 
@@ -156,7 +154,7 @@ def test_dummy_moves_to_relative_position():
     dummy.post(command)
     after = dummy.get_actual_position()
     assert after < before  # we are decreasing
-    assert after == pytest.approx(before + target_pos / 1000.0, rel=1e-3)
+    assert after == pytest.approx(before + target_pos, rel=1e-3)
     assert dummy.get_status_bit(bit=13) == 1  # position reached
     assert dummy.get_status_bit(bit=4) == 1  # command successfully processed
 
@@ -164,18 +162,13 @@ def test_dummy_moves_to_relative_position():
 def test_dummy_updates_internal_state_when_moving():
     dummy = Dummy()
     dummy.acknowledge()
-    query = {"offset": 15, "count": 3}  # actual position, speed, and current
-    before = dummy.get_data(query)
 
     # Move
-    target_pos = 10.34
-    target_speed = 15.0
+    target_pos = 10340
+    target_speed = 5000
     assert pytest.approx(dummy.get_actual_position()) != target_pos
     dummy.move(target_pos=target_pos, target_speed=target_speed)
     assert pytest.approx(dummy.get_actual_position()) == target_pos
-
-    after = dummy.get_data(query)
-    assert before != after
 
 
 def test_dummy_performs_break_test():

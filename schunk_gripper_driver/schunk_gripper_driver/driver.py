@@ -23,6 +23,8 @@ from schunk_gripper_interfaces.srv import (  # type: ignore [attr-defined]
     ListGrippers,
     AddGripper,
     MoveToAbsolutePosition,
+    Grip,
+    Release,
 )
 from std_srvs.srv import Trigger
 import asyncio
@@ -195,15 +197,31 @@ class Driver(Node):
                     partial(self._move_to_absolute_position_cb, gripper=gripper),
                 )
             )
+            self.gripper_services.append(
+                self.create_service(
+                    Grip,
+                    f"~/{gripper['gripper_id']}/grip",
+                    partial(self._grip_cb, gripper=gripper),
+                )
+            )
+            self.gripper_services.append(
+                self.create_service(
+                    Release,
+                    f"~/{gripper['gripper_id']}/release",
+                    partial(self._release_cb, gripper=gripper),
+                )
+            )
 
         # Get every gripper ready to go
         for idx, gripper in enumerate(self.grippers):
             if self.needs_synchronize(gripper):
-                self.scheduler.execute(
-                    func=partial(self.grippers[idx]["driver"].acknowledge)
+                success = asyncio.run(
+                    self.grippers[idx]["driver"].acknowledge(scheduler=self.scheduler)
                 )
             else:
-                asyncio.run(self.grippers[idx]["driver"].acknowledge())
+                success = asyncio.run(self.grippers[idx]["driver"].acknowledge())
+            if not success:
+                return TransitionCallbackReturn.FAILURE
 
         return super().on_activate(state)
 
@@ -281,9 +299,9 @@ class Driver(Node):
     ):
         self.get_logger().info("---> Acknowledge")
         if self.needs_synchronize(gripper):
-            response.success = self.scheduler.execute(
-                func=partial(gripper["driver"].acknowledge)
-            ).result()
+            response.success = asyncio.run(
+                gripper["driver"].acknowledge(scheduler=self.scheduler)
+            )
         else:
             response.success = asyncio.run(gripper["driver"].acknowledge())
         response.message = gripper["driver"].get_status_diagnostics()
@@ -297,9 +315,7 @@ class Driver(Node):
     ):
         self.get_logger().info("---> Fast stop")
         if self.needs_synchronize(gripper):
-            response.success = self.scheduler.execute(
-                func=partial(gripper["driver"].fast_stop)
-            ).result()
+            response.success = gripper["driver"].fast_stop(scheduler=self.scheduler)
         else:
             response.success = asyncio.run(gripper["driver"].fast_stop())
         response.message = gripper["driver"].get_status_diagnostics()
@@ -315,17 +331,68 @@ class Driver(Node):
         position = int(request.position * 1e6)
         velocity = int(request.velocity * 1e6)
         if self.needs_synchronize(gripper):
-            response.success = self.scheduler.execute(
-                func=partial(
-                    gripper["driver"].move_to_absolute_position,
+            response.success = asyncio.run(
+                gripper["driver"].move_to_absolute_position(
                     position=position,
                     velocity=velocity,
+                    use_gpe=request.use_gpe,
+                    scheduler=self.scheduler,
                 )
-            ).result()
+            )
         else:
             response.success = asyncio.run(
                 gripper["driver"].move_to_absolute_position(
-                    position=position, velocity=velocity
+                    position=position, velocity=velocity, use_gpe=request.use_gpe
+                )
+            )
+        response.message = gripper["driver"].get_status_diagnostics()
+        return response
+
+    def _grip_cb(
+        self,
+        request: Grip.Request,
+        response: Grip.Response,
+        gripper: Gripper,
+    ):
+        self.get_logger().info("---> Grip")
+        if self.needs_synchronize(gripper):
+            response.success = asyncio.run(
+                gripper["driver"].grip(
+                    force=request.force,
+                    use_gpe=request.use_gpe,
+                    outward=request.outward,
+                    scheduler=self.scheduler,
+                )
+            )
+        else:
+            response.success = asyncio.run(
+                gripper["driver"].grip(
+                    force=request.force,
+                    use_gpe=request.use_gpe,
+                    outward=request.outward,
+                )
+            )
+        response.message = gripper["driver"].get_status_diagnostics()
+        return response
+
+    def _release_cb(
+        self,
+        request: Release.Request,
+        response: Release.Response,
+        gripper: Gripper,
+    ):
+        self.get_logger().info("---> Release")
+        if self.needs_synchronize(gripper):
+            response.success = asyncio.run(
+                gripper["driver"].release(
+                    use_gpe=request.use_gpe,
+                    scheduler=self.scheduler,
+                )
+            )
+        else:
+            response.success = asyncio.run(
+                gripper["driver"].release(
+                    use_gpe=request.use_gpe,
                 )
             )
         response.message = gripper["driver"].get_status_diagnostics()

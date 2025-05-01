@@ -139,44 +139,47 @@ def test_dummy_supports_reading_target_position():
     dummy = Dummy()
     target_pos = 12300  # um
     dummy.plc_output_buffer[4:8] = bytes(struct.pack("i", target_pos))
-    assert pytest.approx(dummy.get_target_position(), rel=1e-3) == target_pos / 1000.0
+    assert pytest.approx(dummy.get_target_position(), rel=1e-3) == target_pos
 
 
 def test_dummy_supports_reading_target_speed():
     dummy = Dummy()
     target_speed = 55300
     dummy.plc_output_buffer[8:12] = bytes(struct.pack("i", target_speed))
-    assert pytest.approx(dummy.get_target_speed(), rel=1e-3) == target_speed / 1000.0
+    assert pytest.approx(dummy.get_target_speed(), rel=1e-3) == target_speed
 
 
 def test_dummy_supports_writing_actual_position():
     dummy = Dummy()
-    pos = 0.123
+    pos = 12050
     dummy.set_actual_position(pos)
-    read_pos = dummy.data[dummy.actual_position][0]
-    read_pos = struct.unpack("f", bytes.fromhex(read_pos))[0]
+
+    # For cyclic update requests
+    read_pos = dummy.plc_input_buffer[4:8].hex().upper()
+    read_pos = struct.unpack("i", bytes.fromhex(read_pos))[0]
     assert pytest.approx(read_pos) == pos
 
 
 def test_dummy_supports_writing_actual_speed():
     dummy = Dummy()
-    speed = 66.5
+    speed = 6650
     dummy.set_actual_speed(speed)
     read_speed = dummy.data[dummy.actual_speed][0]
-    read_speed = struct.unpack("f", bytes.fromhex(read_speed))[0]
+    read_speed = int(struct.unpack("f", bytes.fromhex(read_speed))[0] * 1000)
     assert pytest.approx(read_speed) == speed
 
 
 def test_dummy_supports_reading_actual_position():
     dummy = Dummy()
-    pos = 0.123
-    dummy.set_actual_position(pos)
-    assert pytest.approx(dummy.get_actual_position()) == pos
+    positions = [12300, 5600, 100]
+    for pos in positions:
+        dummy.set_actual_position(pos)
+        assert pytest.approx(dummy.get_actual_position()) == pos
 
 
 def test_dummy_supports_reading_actual_speed():
     dummy = Dummy()
-    speed = 66.5
+    speed = 6650
     dummy.set_actual_speed(speed)
     assert pytest.approx(dummy.get_actual_speed()) == speed
 

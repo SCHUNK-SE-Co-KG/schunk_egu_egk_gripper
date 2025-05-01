@@ -15,6 +15,8 @@ rosidl_generate_interfaces(
     srv/AddGripper.srv
     srv/ListGrippers.srv
     srv/MoveToAbsolutePosition.srv
+    srv/Grip.srv
+    srv/Release.srv
   DEPENDENCIES
     std_msgs
 )

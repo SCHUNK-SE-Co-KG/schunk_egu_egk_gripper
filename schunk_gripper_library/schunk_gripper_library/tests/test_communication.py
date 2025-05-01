@@ -2,6 +2,7 @@ from schunk_gripper_library.driver import Driver
 from schunk_gripper_library.utility import skip_without_gripper
 import asyncio
 import pytest
+import struct
 
 
 @skip_without_gripper
@@ -339,9 +340,13 @@ def test_driver_can_check_for_gpe_support():
         assert not driver.gpe_available()
 
 
-def test_driver_estimates_duration_of_lasting_operations():
+def test_driver_estimates_duration_of_positioning_operations():
     driver = Driver()
-    combinations = [
+
+    def set_actual_position(position: int) -> None:
+        driver.plc_input_buffer[4:8] = bytes(struct.pack("i", position))
+
+    invalid_combinations = [
         # Invalid velocity arguments will lead to an invalid error,
         # and should return at once
         {
@@ -352,19 +357,164 @@ def test_driver_estimates_duration_of_lasting_operations():
             "args": {"position_abs": 30500, "velocity": -123},
             "should_take": 0,
         },
-        # Valid arguments
+        # Invalid force arguments
         {
-            "args": {"position_abs": 10000, "velocity": 5000},
-            "should_take": 2.0,
+            "args": {"force": 75.0},
+            "should_take": 0.0,
         },
         {
-            "args": {"position_abs": -10000, "velocity": 5000},
-            "should_take": 2.0,
+            "args": {"force": -70},
+            "should_take": 0.0,
+        },
+        {
+            "args": {"force": 270},
+            "should_take": 0.0,
         },
     ]
-
-    for entry in combinations:
+    for entry in invalid_combinations:
         duration_sec = driver.estimate_duration(**entry["args"])
         assert (
             pytest.approx(duration_sec) == entry["should_take"]
         ), f"args: {entry['args']}"
+
+    valid_combinations = [
+        # Valid position and velocity arguments
+        {
+            "start_pos": 0,
+            "args": {"position_abs": 10000, "velocity": 5000},
+            "should_take": 2.0,
+        },
+        {
+            "start_pos": 0,
+            "args": {"position_abs": -10000, "velocity": 5000},
+            "should_take": 2.0,
+        },
+        {
+            "start_pos": 5000,
+            "args": {"position_abs": 10000, "velocity": 5000},
+            "should_take": 1.0,  # when increasing
+        },
+        {
+            "start_pos": 15000,
+            "args": {"position_abs": 10000, "velocity": 5000},
+            "should_take": 1.0,  # when decreasing
+        },
+        {
+            "start_pos": 1000,
+            "args": {"position_abs": -1000, "velocity": 1000},
+            "should_take": 2.0,  # crossing zero
+        },
+        {
+            "start_pos": 15366,
+            "args": {"position_abs": 15366, "velocity": 12345},
+            "should_take": 0.0,  # Already there
+        },
+    ]
+
+    for entry in valid_combinations:
+        if "start_pos" in entry:
+            set_actual_position(entry["start_pos"])
+        duration_sec = driver.estimate_duration(**entry["args"])
+        assert pytest.approx(duration_sec) == entry["should_take"], f"entry: {entry}"
+
+
+@skip_without_gripper
+def test_driver_estimates_duration_of_grip_operations():
+    driver = Driver()
+
+    # We need gripper min and max positions.
+    # Connect without update cycle to not interfere while
+    # manually setting actual positions.
+    driver.connect(serial_port="/dev/ttyUSB0", device_id=12, update_cycle=None)
+    max_pos = driver.module_parameters["max_pos"]
+    min_pos = driver.module_parameters["min_pos"]
+
+    def set_actual_position(position: int) -> None:
+        driver.plc_input_buffer[4:8] = bytes(struct.pack("i", position))
+
+    # Fully closed
+    set_actual_position(min_pos)
+    forces = [50, 75, 100]
+    for force in forces:
+        assert pytest.approx(driver.estimate_duration(force=force)) == 0.0
+
+    # Fully open
+    set_actual_position(max_pos)
+    forces = [50, 75, 100]
+    for force in forces:
+        assert pytest.approx(driver.estimate_duration(force=force, outward=True)) == 0.0
+
+    # Half open/closed
+    half = int(0.5 * (max_pos - min_pos))
+    set_actual_position(half)
+    for outward in [False, True]:
+        slow = driver.estimate_duration(force=50, outward=outward)
+        middle = driver.estimate_duration(force=75, outward=outward)
+        fast = driver.estimate_duration(force=100, outward=outward)
+        assert fast < middle < slow
+
+    # Wide range in mm steps
+    start = min_pos + 5000
+    stop = max_pos - 5000
+    for pos in range(start, stop, 1000):
+        set_actual_position(pos)
+        for outward in [False, True]:
+            slow = driver.estimate_duration(force=50, outward=outward)
+            middle = driver.estimate_duration(force=75, outward=outward)
+            fast = driver.estimate_duration(force=100, outward=outward)
+            assert fast < middle < slow
+
+    # Cleanup
+    driver.disconnect()
+
+
+@skip_without_gripper
+def test_driver_estimates_duration_of_release():
+    driver = Driver()
+    driver.connect(serial_port="/dev/ttyUSB0", device_id=12, update_cycle=None)
+    expected = (
+        driver.module_parameters["wp_release_delta"]
+        / driver.module_parameters["max_vel"]
+    )
+    estimated = driver.estimate_duration(release=True)
+    assert pytest.approx(estimated) == expected
+
+
+@skip_without_gripper
+def test_connected_driver_has_module_parameters():
+    driver = Driver()
+    params = ["max_vel", "min_pos", "max_pos", "wp_release_delta"]
+    for param in params:
+        assert param in driver.module_parameters
+        assert driver.module_parameters[param] is None
+
+    driver.connect(serial_port="/dev/ttyUSB0", device_id=12)
+    for param in params:
+        assert driver.module_parameters[param] is not None
+
+    driver.disconnect()
+    for param in params:
+        assert driver.module_parameters[param] is None
+
+
+@skip_without_gripper
+def test_driver_offers_updating_internal_module_parameters():
+    driver = Driver()
+
+    # Parameters are updated when connected
+    driver.connect(serial_port="/dev/ttyUSB0", device_id=12)
+    assert driver.update_module_parameters()
+    for key, value in driver.module_parameters.items():
+        assert value is not None, f"key: {key}"
+
+    # Repetitive
+    for _ in range(3):
+        assert driver.update_module_parameters()
+        for key, value in driver.module_parameters.items():
+            assert value is not None, f"key: {key}"
+
+    # Values are reset when disconnected
+    driver.disconnect()
+    assert driver.update_module_parameters()
+    for key, value in driver.module_parameters.items():
+        assert value is None, f"key: {key}"
