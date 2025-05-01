@@ -22,6 +22,7 @@ from schunk_gripper_interfaces.srv import (  # type: ignore [attr-defined]
     AddGripper,
     MoveToAbsolutePosition,
     Grip,
+    Release,
 )
 from rclpy.node import Node
 import rclpy
@@ -33,7 +34,13 @@ def test_driver_advertises_state_depending_services(lifecycle_interface):
     driver = lifecycle_interface
     list_grippers = ["/schunk/driver/list_grippers"]
     config_services = ["/schunk/driver/add_gripper", "/schunk/driver/reset_grippers"]
-    gripper_services = ["acknowledge", "fast_stop", "move_to_absolute_position", "grip"]
+    gripper_services = [
+        "acknowledge",
+        "fast_stop",
+        "move_to_absolute_position",
+        "grip",
+        "release",
+    ]
     until_change_takes_effect = 0.1
 
     def exist(services: list[str]) -> bool:
@@ -205,7 +212,7 @@ def test_driver_implements_move_to_absolute_position(lifecycle_interface):
 
 
 @skip_without_gripper
-def test_driver_implements_grip(lifecycle_interface):
+def test_driver_implements_grip_and_release(lifecycle_interface):
     driver = lifecycle_interface
 
     node = Node("check_grip")
@@ -231,13 +238,18 @@ def test_driver_implements_grip(lifecycle_interface):
     driver.change_state(Transition.TRANSITION_CONFIGURE)
     driver.change_state(Transition.TRANSITION_ACTIVATE)
 
-    # Get the gripper's service
+    # Get the gripper's services
     for gripper in driver.list_grippers():
-        client = node.create_client(
+        grip_client = node.create_client(
             Grip,
             f"/schunk/driver/{gripper}/grip",
         )
-        assert client.wait_for_service(timeout_sec=2), f"gripper: {gripper}"
+        assert grip_client.wait_for_service(timeout_sec=2), f"gripper: {gripper}"
+        release_client = node.create_client(
+            Release,
+            f"/schunk/driver/{gripper}/release",
+        )
+        assert release_client.wait_for_service(timeout_sec=2), f"gripper: {gripper}"
 
         targets = [
             {"force": 50, "use_gpe": False, "outward": False},
@@ -246,11 +258,18 @@ def test_driver_implements_grip(lifecycle_interface):
             {"force": 88, "use_gpe": True, "outward": True},
         ]
         for target in targets:
+
+            # Grip
             request = Grip.Request()
             request.force = target["force"]
             request.use_gpe = target["use_gpe"]
             request.outward = target["outward"]
-            future = client.call_async(request)
+            future = grip_client.call_async(request)
+            rclpy.spin_until_future_complete(node, future, timeout_sec=3)
+            assert future.result().success, f"{future.result().message}"
+
+            # Release
+            future = release_client.call_async(Release.Request())
             rclpy.spin_until_future_complete(node, future, timeout_sec=3)
             assert future.result().success, f"{future.result().message}"
 

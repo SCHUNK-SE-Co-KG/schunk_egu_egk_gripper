@@ -24,6 +24,7 @@ from schunk_gripper_interfaces.srv import (  # type: ignore [attr-defined]
     AddGripper,
     MoveToAbsolutePosition,
     Grip,
+    Release,
 )
 from std_srvs.srv import Trigger
 import asyncio
@@ -203,6 +204,13 @@ class Driver(Node):
                     partial(self._grip_cb, gripper=gripper),
                 )
             )
+            self.gripper_services.append(
+                self.create_service(
+                    Release,
+                    f"~/{gripper['gripper_id']}/release",
+                    partial(self._release_cb, gripper=gripper),
+                )
+            )
 
         # Get every gripper ready to go
         for idx, gripper in enumerate(self.grippers):
@@ -362,6 +370,29 @@ class Driver(Node):
                     force=request.force,
                     use_gpe=request.use_gpe,
                     outward=request.outward,
+                )
+            )
+        response.message = gripper["driver"].get_status_diagnostics()
+        return response
+
+    def _release_cb(
+        self,
+        request: Release.Request,
+        response: Release.Response,
+        gripper: Gripper,
+    ):
+        self.get_logger().info("---> Release")
+        if self.needs_synchronize(gripper):
+            response.success = asyncio.run(
+                gripper["driver"].release(
+                    use_gpe=request.use_gpe,
+                    scheduler=self.scheduler,
+                )
+            )
+        else:
+            response.success = asyncio.run(
+                gripper["driver"].release(
+                    use_gpe=request.use_gpe,
                 )
             )
         response.message = gripper["driver"].get_status_diagnostics()

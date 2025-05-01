@@ -266,8 +266,10 @@ def test_release():
 
         if serial_port:
             # Expected to fail
-            assert not asyncio.run(driver.release())
+            assert not asyncio.run(driver.release(use_gpe=False))
+            assert not asyncio.run(driver.release(use_gpe=True))
         else:
-            assert asyncio.run(driver.release())
+            assert asyncio.run(driver.release(use_gpe=False))
+            assert asyncio.run(driver.release(use_gpe=True))
 
         assert driver.disconnect()
