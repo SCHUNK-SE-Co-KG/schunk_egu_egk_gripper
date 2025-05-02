@@ -25,6 +25,10 @@ from schunk_gripper_interfaces.srv import (  # type: ignore [attr-defined]
     MoveToAbsolutePosition,
     Grip,
     Release,
+    ShowConfiguration,
+)
+from schunk_gripper_interfaces.msg import (  # type: ignore [attr-defined]
+    Gripper as GripperConfig,
 )
 from std_srvs.srv import Trigger
 import asyncio
@@ -73,6 +77,9 @@ class Driver(Node):
         self.reset_grippers_srv = self.create_service(
             Trigger, "~/reset_grippers", self._reset_grippers_cb
         )
+        self.show_configuration_srv = self.create_service(
+            ShowConfiguration, "~/show_configuration", self._show_configuration_cb
+        )
 
     def list_grippers(self) -> list[str]:
         devices = []
@@ -81,6 +88,17 @@ class Driver(Node):
             if id:
                 devices.append(id)
         return devices
+
+    def show_configuration(self) -> list[GripperConfig]:
+        configuration = []
+        for gripper in self.grippers:
+            cfg = GripperConfig()
+            cfg.host = gripper["host"]
+            cfg.port = gripper["port"]
+            cfg.serial_port = gripper["serial_port"]
+            cfg.device_id = gripper["device_id"]
+            configuration.append(cfg)
+        return configuration
 
     def add_gripper(
         self, host: str = "", port: int = 0, serial_port: str = "", device_id: int = 0
@@ -167,6 +185,7 @@ class Driver(Node):
         # Deactivate setup services
         self.destroy_service(self.add_gripper_srv)
         self.destroy_service(self.reset_grippers_srv)
+        self.destroy_service(self.show_configuration_srv)
 
         return TransitionCallbackReturn.SUCCESS
 
@@ -253,6 +272,9 @@ class Driver(Node):
         self.reset_grippers_srv = self.create_service(
             Trigger, "~/reset_grippers", self._reset_grippers_cb
         )
+        self.show_configuration_srv = self.create_service(
+            ShowConfiguration, "~/show_configuration", self._show_configuration_cb
+        )
 
         return TransitionCallbackReturn.SUCCESS
 
@@ -273,15 +295,21 @@ class Driver(Node):
         self, request: AddGripper.Request, response: AddGripper.Response
     ):
         response.success = self.add_gripper(
-            host=request.host,
-            port=request.port,
-            serial_port=request.serial_port,
-            device_id=request.device_id,
+            host=request.gripper.host,
+            port=request.gripper.port,
+            serial_port=request.gripper.serial_port,
+            device_id=request.gripper.device_id,
         )
         return response
 
     def _reset_grippers_cb(self, request: Trigger.Request, response: Trigger.Response):
         response.success = self.reset_grippers()
+        return response
+
+    def _show_configuration_cb(
+        self, request: ShowConfiguration.Request, response: ShowConfiguration.Response
+    ):
+        response.configuration = self.show_configuration()
         return response
 
     def _list_grippers_cb(

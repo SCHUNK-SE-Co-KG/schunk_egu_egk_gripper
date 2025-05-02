@@ -23,6 +23,10 @@ from schunk_gripper_interfaces.srv import (  # type: ignore [attr-defined]
     MoveToAbsolutePosition,
     Grip,
     Release,
+    ShowConfiguration,
+)
+from schunk_gripper_interfaces.msg import (  # type: ignore [attr-defined]
+    Gripper as GripperConfig,
 )
 from rclpy.node import Node
 import rclpy
@@ -33,7 +37,11 @@ import time
 def test_driver_advertises_state_depending_services(lifecycle_interface):
     driver = lifecycle_interface
     list_grippers = ["/schunk/driver/list_grippers"]
-    config_services = ["/schunk/driver/add_gripper", "/schunk/driver/reset_grippers"]
+    config_services = [
+        "/schunk/driver/add_gripper",
+        "/schunk/driver/reset_grippers",
+        "/schunk/driver/show_configuration",
+    ]
     gripper_services = [
         "acknowledge",
         "fast_stop",
@@ -123,19 +131,30 @@ def test_driver_implements_adding_and_resetting_grippers(driver):
 
         # Add Modbus gripper
         request = AddGripper.Request()
-        request.serial_port = "/dev/ttyUSB0"
-        request.device_id = 12
+        request.gripper.serial_port = "/dev/ttyUSB0"
+        request.gripper.device_id = 12
         future = add_client.call_async(request)
         rclpy.spin_until_future_complete(node, future)
         assert future.result().success
 
         # Add TCP/IP gripper
         request = AddGripper.Request()
-        request.host = "0.0.0.0"
-        request.port = 8000
+        request.gripper.host = "0.0.0.0"
+        request.gripper.port = 8000
         future = add_client.call_async(request)
         rclpy.spin_until_future_complete(node, future)
         assert future.result().success
+
+
+def test_driver_implements_show_configuration(driver):
+    node = Node("check_listing_configuration")
+    client = node.create_client(ShowConfiguration, "/schunk/driver/show_configuration")
+    assert client.wait_for_service(timeout_sec=2)
+    future = client.call_async(ShowConfiguration.Request())
+    rclpy.spin_until_future_complete(node, future)
+    configuration = future.result().configuration
+    assert len(configuration) > 0
+    assert isinstance(configuration[0], GripperConfig)
 
 
 @skip_without_gripper
@@ -229,8 +248,8 @@ def test_driver_implements_grip_and_release(lifecycle_interface):
 
     # Add TCP/IP gripper
     request = AddGripper.Request()
-    request.host = "0.0.0.0"
-    request.port = 8000
+    request.gripper.host = "0.0.0.0"
+    request.gripper.port = 8000
     future = add_client.call_async(request)
     rclpy.spin_until_future_complete(node, future)
     assert future.result().success
