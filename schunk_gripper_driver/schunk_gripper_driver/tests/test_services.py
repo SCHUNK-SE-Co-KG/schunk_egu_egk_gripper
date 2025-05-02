@@ -23,7 +23,7 @@ from schunk_gripper_interfaces.srv import (  # type: ignore [attr-defined]
     MoveToAbsolutePosition,
     Grip,
     Release,
-    ListConfiguration,
+    ShowConfiguration,
 )
 from schunk_gripper_interfaces.msg import (  # type: ignore [attr-defined]
     Gripper as GripperConfig,
@@ -40,7 +40,7 @@ def test_driver_advertises_state_depending_services(lifecycle_interface):
     config_services = [
         "/schunk/driver/add_gripper",
         "/schunk/driver/reset_grippers",
-        "/schunk/driver/list_configuration",
+        "/schunk/driver/show_configuration",
     ]
     gripper_services = [
         "acknowledge",
@@ -146,11 +146,11 @@ def test_driver_implements_adding_and_resetting_grippers(driver):
         assert future.result().success
 
 
-def test_driver_implements_list_configuration(driver):
+def test_driver_implements_show_configuration(driver):
     node = Node("check_listing_configuration")
-    client = node.create_client(ListConfiguration, "/schunk/driver/list_configuration")
+    client = node.create_client(ShowConfiguration, "/schunk/driver/show_configuration")
     assert client.wait_for_service(timeout_sec=2)
-    future = client.call_async(ListConfiguration.Request())
+    future = client.call_async(ShowConfiguration.Request())
     rclpy.spin_until_future_complete(node, future)
     configuration = future.result().configuration
     assert len(configuration) > 0

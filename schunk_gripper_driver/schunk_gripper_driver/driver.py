@@ -25,7 +25,7 @@ from schunk_gripper_interfaces.srv import (  # type: ignore [attr-defined]
     MoveToAbsolutePosition,
     Grip,
     Release,
-    ListConfiguration,
+    ShowConfiguration,
 )
 from schunk_gripper_interfaces.msg import (  # type: ignore [attr-defined]
     Gripper as GripperConfig,
@@ -77,8 +77,8 @@ class Driver(Node):
         self.reset_grippers_srv = self.create_service(
             Trigger, "~/reset_grippers", self._reset_grippers_cb
         )
-        self.list_configuration_srv = self.create_service(
-            ListConfiguration, "~/list_configuration", self._list_configuration_cb
+        self.show_configuration_srv = self.create_service(
+            ShowConfiguration, "~/show_configuration", self._show_configuration_cb
         )
 
     def list_grippers(self) -> list[str]:
@@ -89,7 +89,7 @@ class Driver(Node):
                 devices.append(id)
         return devices
 
-    def list_configuration(self) -> list[GripperConfig]:
+    def show_configuration(self) -> list[GripperConfig]:
         configuration = []
         for gripper in self.grippers:
             cfg = GripperConfig()
@@ -185,7 +185,7 @@ class Driver(Node):
         # Deactivate setup services
         self.destroy_service(self.add_gripper_srv)
         self.destroy_service(self.reset_grippers_srv)
-        self.destroy_service(self.list_configuration_srv)
+        self.destroy_service(self.show_configuration_srv)
 
         return TransitionCallbackReturn.SUCCESS
 
@@ -272,8 +272,8 @@ class Driver(Node):
         self.reset_grippers_srv = self.create_service(
             Trigger, "~/reset_grippers", self._reset_grippers_cb
         )
-        self.list_configuration_srv = self.create_service(
-            ListConfiguration, "~/list_configuration", self._list_configuration_cb
+        self.show_configuration_srv = self.create_service(
+            ShowConfiguration, "~/show_configuration", self._show_configuration_cb
         )
 
         return TransitionCallbackReturn.SUCCESS
@@ -306,10 +306,10 @@ class Driver(Node):
         response.success = self.reset_grippers()
         return response
 
-    def _list_configuration_cb(
-        self, request: ListConfiguration.Request, response: ListConfiguration.Response
+    def _show_configuration_cb(
+        self, request: ShowConfiguration.Request, response: ShowConfiguration.Response
     ):
-        response.configuration = self.list_configuration()
+        response.configuration = self.show_configuration()
         return response
 
     def _list_grippers_cb(

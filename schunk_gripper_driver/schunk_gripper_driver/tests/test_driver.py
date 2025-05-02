@@ -23,10 +23,13 @@ from schunk_gripper_interfaces.srv import (  # type: ignore [attr-defined]
     Grip,
     Release,
 )
-from schunk_gripper_interfaces.msg import Gripper  # type: ignore [attr-defined]
+from schunk_gripper_interfaces.msg import (  # type: ignore [attr-defined]
+    Gripper as GripperConfig,
+)
+from schunk_gripper_driver.driver import Gripper
 
 
-def test_driver_manages_a_list_of_grippers(ros2):
+def test_driver_manages_a_list_of_grippers(ros2: None):
     driver = Driver("driver")
     assert len(driver.grippers) == 1
     assert isinstance(driver.grippers[0], dict)
@@ -38,7 +41,7 @@ def test_driver_manages_a_list_of_grippers(ros2):
 
 
 @skip_without_gripper
-def test_driver_manages_individual_drivers_for_each_gripper(ros2):
+def test_driver_manages_individual_drivers_for_each_gripper(ros2: None):
     driver = Driver("driver")
 
     driver.on_configure(state=None)
@@ -51,7 +54,7 @@ def test_driver_manages_individual_drivers_for_each_gripper(ros2):
 
 
 @skip_without_gripper
-def test_driver_offers_list_of_connected_grippers(ros2):
+def test_driver_offers_list_of_connected_grippers(ros2: None):
     driver = Driver("driver")
 
     def assert_gripper_ids(device_ids: list[str]) -> None:
@@ -82,7 +85,7 @@ def test_driver_offers_list_of_connected_grippers(ros2):
 
 
 @skip_without_gripper
-def test_driver_manages_services_for_each_gripper(ros2):
+def test_driver_manages_services_for_each_gripper(ros2: None):
     driver = Driver("driver")
 
     for _ in range(3):
@@ -99,33 +102,48 @@ def test_driver_manages_services_for_each_gripper(ros2):
         assert driver.gripper_services == []
 
 
-def test_driver_checks_if_grippers_need_synchronization(ros2):
+def test_driver_checks_if_grippers_need_synchronization(ros2: None):
     driver = Driver("driver")  # with default gripper
 
     # Same serial port
-    gripper = {
-        "serial_port": "/dev/ttyUSB0",
-    }
+    gripper = Gripper(
+        {
+            "host": "",
+            "port": 0,
+            "serial_port": "/dev/ttyUSB0",
+            "device_id": 12,
+            "driver": GripperDriver(),
+            "gripper_id": "",
+        }
+    )
     driver.grippers.append(gripper)
     assert driver.needs_synchronize(gripper)
 
     # Unique serial port
     serial_ports = {
         "/dev/unique-port",
-        None,
         "",
         "/dev/ttyUSB1",
         "/dev/ttyUSB01",
         "/dev/ttyUSB\0",
     }
     for serial_port in serial_ports:
-        gripper = {"serial_port": serial_port}
+        gripper = Gripper(
+            {
+                "host": "",
+                "port": 0,
+                "serial_port": serial_port,
+                "device_id": 12,
+                "driver": GripperDriver(),
+                "gripper_id": "",
+            }
+        )
         driver.grippers.append(gripper)
         assert not driver.needs_synchronize(gripper)
 
 
 @skip_without_gripper
-def test_driver_offers_callbacks_for_acknowledge_and_fast_stop(ros2):
+def test_driver_offers_callbacks_for_acknowledge_and_fast_stop(ros2: None):
     driver = Driver("driver")
     driver.on_configure(state=None)
     driver.on_activate(state=None)
@@ -149,7 +167,7 @@ def test_driver_offers_callbacks_for_acknowledge_and_fast_stop(ros2):
 
 
 @skip_without_gripper
-def test_driver_offers_callback_for_move_to_absolute_position(ros2):
+def test_driver_offers_callback_for_move_to_absolute_position(ros2: None):
     driver = Driver("driver")
     driver.on_configure(state=None)
     driver.on_activate(state=None)
@@ -168,7 +186,7 @@ def test_driver_offers_callback_for_move_to_absolute_position(ros2):
 
 
 @skip_without_gripper
-def test_driver_offers_callback_for_grip(ros2):
+def test_driver_offers_callback_for_grip(ros2: None):
     driver = Driver("driver")
     driver.on_configure(state=None)
     driver.on_activate(state=None)
@@ -187,7 +205,7 @@ def test_driver_offers_callback_for_grip(ros2):
 
 
 @skip_without_gripper
-def test_driver_offers_callback_for_release(ros2):
+def test_driver_offers_callback_for_release(ros2: None):
     driver = Driver("driver")
     driver.on_configure(state=None)
     driver.on_activate(state=None)
@@ -206,7 +224,7 @@ def test_driver_offers_callback_for_release(ros2):
 
 
 @skip_without_gripper
-def test_driver_runs_a_scheduler_for_concurrent_tasks(ros2):
+def test_driver_runs_a_scheduler_for_concurrent_tasks(ros2: None):
     driver = Driver("driver")
     assert driver.scheduler is not None
 
@@ -224,7 +242,7 @@ def test_driver_runs_a_scheduler_for_concurrent_tasks(ros2):
     assert not scheduler_running()
 
 
-def test_driver_offers_adding_grippers(ros2):
+def test_driver_offers_adding_grippers(ros2: None):
     driver = Driver("driver")
     driver.grippers.clear()
     assert driver.add_gripper(
@@ -251,7 +269,7 @@ def test_driver_offers_adding_grippers(ros2):
     assert len(driver.grippers) == 2
 
 
-def test_driver_rejects_adding_duplicate_grippers(ros2):
+def test_driver_rejects_adding_duplicate_grippers(ros2: None):
     driver = Driver("driver")
     driver.grippers.clear()
     unique_setups = [
@@ -264,7 +282,7 @@ def test_driver_rejects_adding_duplicate_grippers(ros2):
         {"serial_port": "/dev/2", "device_id": 13},
     ]
     for setup in unique_setups:
-        assert driver.add_gripper(**setup)
+        assert driver.add_gripper(**setup)  # type: ignore [arg-type]
 
     driver.grippers.clear()
     driver.add_gripper(host="1", port=1, serial_port="/dev/1", device_id=12)
@@ -275,10 +293,10 @@ def test_driver_rejects_adding_duplicate_grippers(ros2):
         {"serial_port": "/dev/1", "device_id": 12},
     ]
     for setup in overlapping_setups:
-        assert not driver.add_gripper(**setup)
+        assert not driver.add_gripper(**setup)  # type: ignore [arg-type]
 
 
-def test_driver_offers_resetting_grippers(ros2):
+def test_driver_offers_resetting_grippers(ros2: None):
     driver = Driver("driver")
     assert len(driver.grippers) == 1
     assert driver.reset_grippers()
@@ -290,7 +308,7 @@ def test_driver_offers_resetting_grippers(ros2):
 
 
 @skip_without_gripper
-def test_driver_schedules_concurrent_tasks(ros2):
+def test_driver_schedules_concurrent_tasks(ros2: None):
     driver = Driver("driver")
     driver.reset_grippers()
 
@@ -325,11 +343,11 @@ def test_driver_schedules_concurrent_tasks(ros2):
     driver.on_cleanup(state=None)
 
 
-def test_driver_offers_listing_configuration(ros2):
+def test_driver_shows_configuration(ros2: None):
     driver = Driver("driver")
-    config = driver.list_configuration()
+    config = driver.show_configuration()
     assert len(config) == 1  # with default setting
-    assert isinstance(config[0], Gripper)
+    assert isinstance(config[0], GripperConfig)
 
     # Add some grippers and check the information
     gripper1 = {
@@ -339,9 +357,9 @@ def test_driver_offers_listing_configuration(ros2):
         "device_id": 55,
     }
     gripper2 = {"host": "xyz", "port": 42, "serial_port": "/dev/0", "device_id": 66}
-    assert driver.add_gripper(**gripper1)
-    assert driver.add_gripper(**gripper2)
-    config = driver.list_configuration()
+    assert driver.add_gripper(**gripper1)  # type: ignore [arg-type]
+    assert driver.add_gripper(**gripper2)  # type: ignore [arg-type]
+    config = driver.show_configuration()
 
     assert gripper1["host"] == config[1].host
     assert gripper1["port"] == config[1].port
@@ -355,4 +373,4 @@ def test_driver_offers_listing_configuration(ros2):
 
     # After reset
     driver.reset_grippers()
-    assert driver.list_configuration() == []
+    assert driver.show_configuration() == []
