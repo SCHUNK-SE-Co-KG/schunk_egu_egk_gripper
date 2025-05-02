@@ -131,16 +131,16 @@ def test_driver_implements_adding_and_resetting_grippers(driver):
 
         # Add Modbus gripper
         request = AddGripper.Request()
-        request.serial_port = "/dev/ttyUSB0"
-        request.device_id = 12
+        request.gripper.serial_port = "/dev/ttyUSB0"
+        request.gripper.device_id = 12
         future = add_client.call_async(request)
         rclpy.spin_until_future_complete(node, future)
         assert future.result().success
 
         # Add TCP/IP gripper
         request = AddGripper.Request()
-        request.host = "0.0.0.0"
-        request.port = 8000
+        request.gripper.host = "0.0.0.0"
+        request.gripper.port = 8000
         future = add_client.call_async(request)
         rclpy.spin_until_future_complete(node, future)
         assert future.result().success
@@ -248,8 +248,8 @@ def test_driver_implements_grip_and_release(lifecycle_interface):
 
     # Add TCP/IP gripper
     request = AddGripper.Request()
-    request.host = "0.0.0.0"
-    request.port = 8000
+    request.gripper.host = "0.0.0.0"
+    request.gripper.port = 8000
     future = add_client.call_async(request)
     rclpy.spin_until_future_complete(node, future)
     assert future.result().success

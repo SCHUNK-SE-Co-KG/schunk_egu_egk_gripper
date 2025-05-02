@@ -295,22 +295,22 @@ def test_driver_schedules_concurrent_tasks(ros2):
     driver.reset_grippers()
 
     # Modbus gripper
-    gripper_1 = AddGripper.Request()
-    gripper_1.serial_port = "/dev/ttyUSB0"
-    gripper_1.device_id = 12
+    request_1 = AddGripper.Request()
+    request_1.gripper.serial_port = "/dev/ttyUSB0"
+    request_1.gripper.device_id = 12
     response = AddGripper.Response()
-    driver._add_gripper_cb(request=gripper_1, response=response)
+    driver._add_gripper_cb(request=request_1, response=response)
     assert response.success
 
     # Use a tcp/ip gripper but give it the same serial port
     # so that task scheduling kicks in.
-    gripper_2 = AddGripper.Request()
-    gripper_2.host = "0.0.0.0"
-    gripper_2.port = 8000
-    gripper_2.serial_port = "/dev/ttyUSB0"
-    gripper_2.device_id = 42
+    request_2 = AddGripper.Request()
+    request_2.gripper.host = "0.0.0.0"
+    request_2.gripper.port = 8000
+    request_2.gripper.serial_port = "/dev/ttyUSB0"
+    request_2.gripper.device_id = 42
     response = AddGripper.Response()
-    driver._add_gripper_cb(request=gripper_2, response=response)
+    driver._add_gripper_cb(request=request_2, response=response)
     assert response.success
 
     # Grippers with a concurrent serial port can't have an update cycle.

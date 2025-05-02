@@ -295,10 +295,10 @@ class Driver(Node):
         self, request: AddGripper.Request, response: AddGripper.Response
     ):
         response.success = self.add_gripper(
-            host=request.host,
-            port=request.port,
-            serial_port=request.serial_port,
-            device_id=request.device_id,
+            host=request.gripper.host,
+            port=request.gripper.port,
+            serial_port=request.gripper.serial_port,
+            device_id=request.gripper.device_id,
         )
         return response
 
