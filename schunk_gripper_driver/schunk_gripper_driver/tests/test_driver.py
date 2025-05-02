@@ -23,6 +23,7 @@ from schunk_gripper_interfaces.srv import (  # type: ignore [attr-defined]
     Grip,
     Release,
 )
+from schunk_gripper_interfaces.msg import Gripper  # type: ignore [attr-defined]
 
 
 def test_driver_manages_a_list_of_grippers(ros2):
@@ -322,3 +323,36 @@ def test_driver_schedules_concurrent_tasks(ros2):
 
     driver.on_deactivate(state=None)
     driver.on_cleanup(state=None)
+
+
+def test_driver_offers_listing_configuration(ros2):
+    driver = Driver("driver")
+    config = driver.list_configuration()
+    assert len(config) == 1  # with default setting
+    assert isinstance(config[0], Gripper)
+
+    # Add some grippers and check the information
+    gripper1 = {
+        "host": "abc",
+        "port": 1234,
+        "serial_port": "$asd/123/?",
+        "device_id": 55,
+    }
+    gripper2 = {"host": "xyz", "port": 42, "serial_port": "/dev/0", "device_id": 66}
+    assert driver.add_gripper(**gripper1)
+    assert driver.add_gripper(**gripper2)
+    config = driver.list_configuration()
+
+    assert gripper1["host"] == config[1].host
+    assert gripper1["port"] == config[1].port
+    assert gripper1["serial_port"] == config[1].serial_port
+    assert gripper1["device_id"] == config[1].device_id
+
+    assert gripper2["host"] == config[2].host
+    assert gripper2["port"] == config[2].port
+    assert gripper2["serial_port"] == config[2].serial_port
+    assert gripper2["device_id"] == config[2].device_id
+
+    # After reset
+    driver.reset_grippers()
+    assert driver.list_configuration() == []
