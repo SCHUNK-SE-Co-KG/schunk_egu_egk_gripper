@@ -3,6 +3,7 @@ from schunk_gripper_library.utility import skip_without_gripper
 import asyncio
 import pytest
 import struct
+from threading import Timer
 
 
 @skip_without_gripper
@@ -518,3 +519,30 @@ def test_driver_offers_updating_internal_module_parameters():
     assert driver.update_module_parameters()
     for key, value in driver.module_parameters.items():
         assert value is None, f"key: {key}"
+
+
+def test_driver_offers_waiting_until_error():
+    driver = Driver()
+    error_bit = 7
+
+    # Without error
+    driver._set_status_bit(bit=error_bit, value=False)
+    assert not asyncio.run(driver.error_in(duration_sec=0.1))
+
+    # With invalid duration
+    invalid_durations = [-1.0, 0, 0.0, None]
+    for duration in invalid_durations:
+        assert not asyncio.run(driver.error_in(duration_sec=duration))
+
+    # With error from the beginning
+    driver._set_status_bit(bit=error_bit, value=True)
+    assert asyncio.run(driver.error_in(duration_sec=1.0))
+
+    # With error in between
+    driver._set_status_bit(bit=error_bit, value=False)
+
+    def fail() -> None:
+        driver._set_status_bit(bit=error_bit, value=True)
+
+    Timer(interval=0.5, function=fail).start()
+    assert asyncio.run(driver.error_in(duration_sec=1.0))
