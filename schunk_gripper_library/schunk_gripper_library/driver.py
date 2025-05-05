@@ -282,12 +282,14 @@ class Driver(object):
         if scheduler:
             if not scheduler.execute(func=partial(start)).result():
                 return False
-            await asyncio.sleep(duration_sec)
+            if await self.error_in(duration_sec):
+                return False
             return scheduler.execute(func=partial(check)).result()
         else:
             if not await start():
                 return False
-            await asyncio.sleep(duration_sec)
+            if await self.error_in(duration_sec):
+                return False
             return await check()
 
     async def move_to_relative_position(
@@ -347,12 +349,14 @@ class Driver(object):
         if scheduler:
             if not scheduler.execute(func=partial(start)).result():
                 return False
-            await asyncio.sleep(duration_sec)
+            if await self.error_in(duration_sec):
+                return False
             return scheduler.execute(func=partial(check)).result()
         else:
             if not await start():
                 return False
-            await asyncio.sleep(duration_sec)
+            if await self.error_in(duration_sec):
+                return False
             return await check()
 
     async def release(
@@ -388,12 +392,14 @@ class Driver(object):
         if scheduler:
             if not scheduler.execute(func=partial(start)).result():
                 return False
-            await asyncio.sleep(duration_sec)
+            if await self.error_in(duration_sec):
+                return False
             return scheduler.execute(func=partial(check)).result()
         else:
             if not await start():
                 return False
-            await asyncio.sleep(duration_sec)
+            if await self.error_in(duration_sec):
+                return False
             return await check()
 
     def estimate_duration(
@@ -564,6 +570,18 @@ class Driver(object):
             if time.time() > max_duration:
                 return False
         return True
+
+    async def error_in(self, duration_sec: float) -> bool:
+        if not isinstance(duration_sec, float):
+            return False
+        if duration_sec < 0.0:
+            return False
+        duration = time.time() + duration_sec
+        while time.time() < duration:
+            if self.get_status_bit(bit=7) == 1:
+                return True
+            await asyncio.sleep(self.update_cycle)
+        return False
 
     def contains_non_hex_chars(self, buffer: str) -> bool:
         return bool(re.search(r"[^0-9a-fA-F]", buffer))
