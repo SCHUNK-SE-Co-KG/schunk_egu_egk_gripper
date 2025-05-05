@@ -27,3 +27,27 @@ The driver supports both _Modbus RTU_ and _Ethernet_-based (_PROFINET_, _Etherne
 ## Under construction
 We are currently doing a complete rework of this driver in Python.
 A _beta_ release is planned for end of May '25.
+
+## Build and install
+In a new terminal, source your global ROS2 environment, e.g.
+```bash
+source /opt/ros/humble/setup.bash
+```
+navigate into your local ROS2 workspace, and build the driver with
+```bash
+git clone -b develop https://github.com/SCHUNK-SE-Co-KG/schunk_egu_egk_gripper.git src/schunk_gripper
+sudo apt update -qq
+rosdep update
+rosdep install --from-paths src --ignore-src -y
+colcon build
+```
+
+## Getting started
+Source your local ROS2 workspace with
+```bash
+source install/setup.bash
+```
+and start the driver with
+```bash
+ros2 launch schunk_gripper_driver driver.launch.py
+```
