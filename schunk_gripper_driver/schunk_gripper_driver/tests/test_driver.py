@@ -102,6 +102,43 @@ def test_driver_manages_services_for_each_gripper(ros2: None):
         assert driver.gripper_services == []
 
 
+@skip_without_gripper
+def test_driver_manages_topics_for_each_gripper(ros2: None):
+    driver = Driver("driver")
+
+    for _ in range(3):
+        assert driver.gripper_topics == {}
+        driver.on_configure(state=None)
+        assert driver.gripper_topics == {}
+
+        driver.on_activate(state=None)
+        assert len(driver.gripper_topics) >= 1
+
+        driver.on_deactivate(state=None)
+        assert driver.gripper_topics == {}
+        driver.on_cleanup(state=None)
+        assert driver.gripper_topics == {}
+
+
+@skip_without_gripper
+def test_driver_manages_timers_for_each_gripper(ros2: None):
+    driver = Driver("driver")
+
+    for _ in range(3):
+        assert driver.gripper_timers == []
+        driver.on_configure(state=None)
+        assert driver.gripper_timers == []
+
+        driver.on_activate(state=None)
+        assert len(driver.gripper_timers) >= 1
+
+        driver.on_deactivate(state=None)
+        assert driver.gripper_timers == []
+
+        driver.on_cleanup(state=None)
+        assert driver.gripper_timers == []
+
+
 def test_driver_checks_if_grippers_need_synchronization(ros2: None):
     driver = Driver("driver")  # with default gripper
 
