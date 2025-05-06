@@ -30,11 +30,14 @@ from schunk_gripper_interfaces.srv import (  # type: ignore [attr-defined]
 from schunk_gripper_interfaces.msg import (  # type: ignore [attr-defined]
     Gripper as GripperConfig,
 )
+from sensor_msgs.msg import JointState
 from std_srvs.srv import Trigger
 import asyncio
 from threading import Thread
 import time
 from rclpy.service import Service
+from rclpy.publisher import Publisher
+from rclpy.timer import Timer
 from functools import partial
 from schunk_gripper_library.utility import Scheduler
 from typing import TypedDict
@@ -69,6 +72,8 @@ class Driver(Node):
         }
         self.grippers.append(gripper)
         self.gripper_services: list[Service] = []
+        self.gripper_topics: dict[str, Publisher] = {}
+        self.gripper_timers: list[Timer] = []
 
         # Setup services
         self.add_gripper_srv = self.create_service(
@@ -231,6 +236,20 @@ class Driver(Node):
                 )
             )
 
+        # Joint states for each gripper
+        for idx, _ in enumerate(self.grippers):
+            gripper = self.grippers[idx]
+            gripper_id = gripper["gripper_id"]
+            self.gripper_topics[gripper_id] = self.create_publisher(
+                JointState, f"~/{gripper_id}/joint_states", 1
+            )
+            self.gripper_timers.append(
+                self.create_timer(
+                    timer_period_sec=0.05,
+                    callback=partial(self._publish_joint_states, gripper=gripper),
+                )
+            )
+
         # Get every gripper ready to go
         for idx, gripper in enumerate(self.grippers):
             if self.needs_synchronize(gripper):
@@ -251,6 +270,13 @@ class Driver(Node):
         for idx, _ in enumerate(self.gripper_services):
             self.destroy_service(self.gripper_services[idx])
         self.gripper_services.clear()
+
+        # Remove gripper-specific joint states
+        for idx, _ in enumerate(self.gripper_timers):
+            self.destroy_timer(self.gripper_timers[idx])
+        self.gripper_timers.clear()
+        for gripper in self.list_grippers():
+            self.destroy_publisher(self.gripper_topics.pop(gripper))
 
         return super().on_deactivate(state)
 
@@ -289,6 +315,16 @@ class Driver(Node):
         destroy = Thread(target=kill, daemon=True)
         destroy.start()
         return TransitionCallbackReturn.SUCCESS
+
+    def _publish_joint_states(self, gripper: Gripper) -> None:
+        msg = JointState()
+        gripper_id = gripper["gripper_id"]
+        msg.header.frame_id = gripper_id
+        msg.header.stamp = self.get_clock().now().to_msg()
+        msg.name.append(gripper_id)
+        msg.position.append(gripper["driver"].get_actual_position() / 1e6)
+        if gripper_id in self.gripper_topics:
+            self.gripper_topics[gripper_id].publish(msg)
 
     # Service callbacks
     def _add_gripper_cb(
