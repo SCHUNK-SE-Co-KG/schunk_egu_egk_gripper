@@ -18,6 +18,7 @@
 import rclpy
 
 from rclpy.lifecycle import Node, State, TransitionCallbackReturn
+import rclpy.logging
 from schunk_gripper_library.driver import Driver as GripperDriver
 from schunk_gripper_interfaces.srv import (  # type: ignore [attr-defined]
     ListGrippers,
@@ -44,6 +45,8 @@ from functools import partial
 from schunk_gripper_library.utility import Scheduler
 from typing import TypedDict
 from rclpy.callback_groups import MutuallyExclusiveCallbackGroup
+from rcl_interfaces.msg import SetParametersResult
+from rclpy.logging import set_logger_level
 
 
 class Gripper(TypedDict):
@@ -63,6 +66,8 @@ class Driver(Node):
         self.declare_parameter("port", 80)
         self.declare_parameter("serial_port", "/dev/ttyUSB0")
         self.declare_parameter("device_id", 12)
+        self.declare_parameter("log_level", "INFO")
+
         self.scheduler: Scheduler = Scheduler()
         self.grippers: list[Gripper] = []
         gripper: Gripper = {
@@ -89,6 +94,15 @@ class Driver(Node):
         self.show_configuration_srv = self.create_service(
             ShowConfiguration, "~/show_configuration", self._show_configuration_cb
         )
+        self.add_on_set_parameters_callback(self._param_cb)
+
+    def _param_cb(self, params):
+        for p in params:
+            if p.name == "log_level":
+                level = rclpy.logging.get_logging_severity_from_string(p.value)
+                self.get_logger().info(f"Log level changed to {p.value}")
+                set_logger_level(self.get_name(), level)
+                return SetParametersResult(successful=True)
 
         # For concurrently running publishers
         self.callback_group = MutuallyExclusiveCallbackGroup()
@@ -204,7 +218,7 @@ class Driver(Node):
         return TransitionCallbackReturn.SUCCESS
 
     def on_activate(self, state: State) -> TransitionCallbackReturn:
-        self.get_logger().debug("on_activate() is called.")
+        self._logger.info("on_activate() is called.")
 
         # Gripper-specific services
         for idx, _ in enumerate(self.grippers):
