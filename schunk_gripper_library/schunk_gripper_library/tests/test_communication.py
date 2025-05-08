@@ -484,7 +484,7 @@ def test_driver_estimates_duration_of_release():
 @skip_without_gripper
 def test_connected_driver_has_module_parameters():
     driver = Driver()
-    params = ["max_vel", "min_pos", "max_pos", "wp_release_delta"]
+    params = ["max_grp_vel", "max_vel", "min_pos", "max_pos", "wp_release_delta"]
     for param in params:
         assert param in driver.module_parameters
         assert driver.module_parameters[param] is None

@@ -58,6 +58,7 @@ class Driver(object):
             "min_pos": None,
             "max_pos": None,
             "max_vel": None,
+            "max_grp_vel": None,
             "wp_release_delta": None,
         }
         # fmt: off
@@ -429,7 +430,8 @@ class Driver(object):
                 still_to_go = (
                     self.module_parameters["min_pos"] - self.get_actual_position()
                 )
-            return abs(still_to_go) / (force * self.module_parameters["max_vel"])
+            ratio = force / 100
+            return abs(still_to_go) / (ratio * self.module_parameters["max_grp_vel"])
         return 0.0
 
     def receive_plc_input(self) -> bool:
@@ -475,6 +477,11 @@ class Driver(object):
         if not (data := self.read_module_parameter("0x0630")):
             return False
         self.module_parameters["max_vel"] = int(struct.unpack("f", data)[0] * 1e3)
+
+        # max_grp_vel
+        if not (data := self.read_module_parameter("0x0650")):
+            return False
+        self.module_parameters["max_grp_vel"] = int(struct.unpack("f", data)[0] * 1e3)
 
         # wp_release_delta
         if not (data := self.read_module_parameter("0x0540")):
