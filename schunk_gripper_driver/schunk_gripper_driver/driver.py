@@ -245,7 +245,7 @@ class Driver(Node):
             )
             self.gripper_timers.append(
                 self.create_timer(
-                    timer_period_sec=0.05,
+                    timer_period_sec=gripper["driver"].update_cycle,
                     callback=partial(self._publish_joint_states, gripper=gripper),
                 )
             )
