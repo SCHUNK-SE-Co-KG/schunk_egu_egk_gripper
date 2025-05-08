@@ -103,21 +103,27 @@ def test_driver_manages_services_for_each_gripper(ros2: None):
 
 
 @skip_without_gripper
-def test_driver_manages_topics_for_each_gripper(ros2: None):
+def test_driver_manages_publishers_for_each_gripper(ros2: None):
     driver = Driver("driver")
 
     for _ in range(3):
-        assert driver.gripper_topics == {}
+        assert driver.joint_state_publishers == {}
+        assert driver.gripper_state_publishers == {}
         driver.on_configure(state=None)
-        assert driver.gripper_topics == {}
+        assert driver.joint_state_publishers == {}
+        assert driver.gripper_state_publishers == {}
 
         driver.on_activate(state=None)
-        assert len(driver.gripper_topics) >= 1
+        nr_grippers = len(driver.list_grippers())
+        assert len(driver.joint_state_publishers) == nr_grippers
+        assert len(driver.gripper_state_publishers) == nr_grippers
 
         driver.on_deactivate(state=None)
-        assert driver.gripper_topics == {}
+        assert driver.joint_state_publishers == {}
+        assert driver.gripper_state_publishers == {}
         driver.on_cleanup(state=None)
-        assert driver.gripper_topics == {}
+        assert driver.joint_state_publishers == {}
+        assert driver.gripper_state_publishers == {}
 
 
 @skip_without_gripper

@@ -20,12 +20,13 @@ from sensor_msgs.msg import JointState
 import rclpy
 import time
 from functools import partial
+from schunk_gripper_interfaces.msg import GripperState  # type: ignore [attr-defined]
 
 
 @skip_without_gripper
 def test_driver_advertises_state_depending_topics(lifecycle_interface):
     driver = lifecycle_interface
-    gripper_topics = ["joint_states"]
+    gripper_topics = ["joint_states", "gripper_state"]
     until_change_takes_effect = 0.1
 
     def exist(topics: list[str]) -> bool:
@@ -89,5 +90,40 @@ def test_driver_publishes_joint_states(lifecycle_interface):
     for _ in range(10):
         rclpy.spin_once(driver.node)
         time.sleep(0.1)
+
+    driver.change_state(Transition.TRANSITION_DEACTIVATE)
+    driver.change_state(Transition.TRANSITION_CLEANUP)
+
+    assert len(messages) >= 1
+
+
+@skip_without_gripper
+def test_driver_publishes_gripper_state(lifecycle_interface):
+    driver = lifecycle_interface
+    driver.change_state(Transition.TRANSITION_CONFIGURE)
+    grippers = driver.list_grippers()
+
+    driver.change_state(Transition.TRANSITION_ACTIVATE)
+    messages = []
+
+    def check_fields(msg: GripperState, messages: list[GripperState]) -> None:
+        messages.append(msg)
+        assert msg.header.stamp
+        assert msg.header.frame_id
+
+    for gripper in grippers:
+        _ = driver.node.create_subscription(
+            GripperState,
+            f"/schunk/driver/{gripper}/gripper_state",
+            partial(check_fields, messages=messages),
+            1,
+        )
+
+    for _ in range(10):
+        rclpy.spin_once(driver.node)
+        time.sleep(0.1)
+
+    driver.change_state(Transition.TRANSITION_DEACTIVATE)
+    driver.change_state(Transition.TRANSITION_CLEANUP)
 
     assert len(messages) >= 1
