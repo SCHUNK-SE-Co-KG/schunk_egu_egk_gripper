@@ -19,6 +19,7 @@ rosidl_generate_interfaces(
     srv/Release.srv
     srv/ShowConfiguration.srv
     msg/Gripper.msg
+    msg/GripperState.msg
   DEPENDENCIES
     std_msgs
 )
