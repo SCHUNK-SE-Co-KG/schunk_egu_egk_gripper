@@ -468,9 +468,9 @@ class Driver(object):
             if fields["name"] in self.module_parameters:
                 if not (data := self.read_module_parameter(param)):
                     return False
-                if fields["format"] == "f":
+                if fields["type"] == "float":
                     value = int(struct.unpack("f", data)[0] * 1e3)
-                elif fields["format"] == "h":
+                elif fields["type"] == "enum":
                     value = int(struct.unpack("h", data)[0])
                 else:
                     return False
