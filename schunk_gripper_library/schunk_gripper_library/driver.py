@@ -464,37 +464,20 @@ class Driver(object):
                 self.module_parameters[key] = None
             return True
 
-        # min_pos
-        if not (data := self.read_module_parameter("0x0600")):
-            return False
-        self.module_parameters["min_pos"] = int(struct.unpack("f", data)[0] * 1e3)
+        for param, fields in self.readable_parameters.items():
+            if fields["name"] in self.module_parameters:
+                if not (data := self.read_module_parameter(param)):
+                    return False
+                if fields["format"] == "f":
+                    value = int(struct.unpack("f", data)[0] * 1e3)
+                elif fields["format"] == "h":
+                    value = int(struct.unpack("h", data)[0])
+                else:
+                    return False
+                self.module_parameters[fields["name"]] = value
 
-        # max_pos
-        if not (data := self.read_module_parameter("0x0608")):
+        if any([entry is None for entry in self.module_parameters.values()]):
             return False
-        self.module_parameters["max_pos"] = int(struct.unpack("f", data)[0] * 1e3)
-
-        # max_vel
-        if not (data := self.read_module_parameter("0x0630")):
-            return False
-        self.module_parameters["max_vel"] = int(struct.unpack("f", data)[0] * 1e3)
-
-        # max_grp_vel
-        if not (data := self.read_module_parameter("0x0650")):
-            return False
-        self.module_parameters["max_grp_vel"] = int(struct.unpack("f", data)[0] * 1e3)
-
-        # wp_release_delta
-        if not (data := self.read_module_parameter("0x0540")):
-            return False
-        self.module_parameters["wp_release_delta"] = int(
-            struct.unpack("f", data)[0] * 1e3
-        )
-
-        # fieldbus_type
-        if not (data := self.read_module_parameter("0x1130")):
-            return False
-        self.module_parameters["fieldbus_type"] = int(struct.unpack("h", data)[0])
 
         return True
 
