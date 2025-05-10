@@ -60,6 +60,7 @@ class Driver(object):
             "max_vel": None,
             "max_grp_vel": None,
             "wp_release_delta": None,
+            "fieldbus_type": None,
         }
         # fmt: off
         self.valid_status_bits: list[int] = (
@@ -489,6 +490,12 @@ class Driver(object):
         self.module_parameters["wp_release_delta"] = int(
             struct.unpack("f", data)[0] * 1e3
         )
+
+        # fieldbus_type
+        if not (data := self.read_module_parameter("0x1130")):
+            return False
+        self.module_parameters["fieldbus_type"] = int(struct.unpack("h", data)[0])
+
         return True
 
     def read_module_parameter(self, param: str) -> bytearray:
