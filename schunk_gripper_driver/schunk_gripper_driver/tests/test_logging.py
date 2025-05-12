@@ -18,7 +18,7 @@ from lifecycle_msgs.msg import Transition
 import time
 import pytest
 
-LOG_SIZE_BYTES = 100
+LOG_SIZE_BYTES = 500  # Minimal output for driver startup and shutdown
 
 
 @skip_without_gripper

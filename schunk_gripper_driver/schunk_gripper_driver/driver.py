@@ -149,7 +149,7 @@ class Driver(Node):
         return False
 
     def on_configure(self, state: State) -> TransitionCallbackReturn:
-        self.get_logger().info("on_configure() is called.")
+        self.get_logger().debug("on_configure() is called.")
         self.scheduler.start()
 
         # Connect each gripper
@@ -197,7 +197,7 @@ class Driver(Node):
         return TransitionCallbackReturn.SUCCESS
 
     def on_activate(self, state: State) -> TransitionCallbackReturn:
-        self.get_logger().info("on_activate() is called.")
+        self.get_logger().debug("on_activate() is called.")
 
         # Gripper-specific services
         for idx, _ in enumerate(self.grippers):
@@ -278,7 +278,7 @@ class Driver(Node):
         return super().on_activate(state)
 
     def on_deactivate(self, state: State) -> TransitionCallbackReturn:
-        self.get_logger().info("on_deactivate() is called.")
+        self.get_logger().debug("on_deactivate() is called.")
 
         # Release gripper-specific services
         for idx, _ in enumerate(self.gripper_services):
@@ -296,7 +296,7 @@ class Driver(Node):
         return super().on_deactivate(state)
 
     def on_cleanup(self, state: State) -> TransitionCallbackReturn:
-        self.get_logger().info("on_cleanup() is called.")
+        self.get_logger().debug("on_cleanup() is called.")
         self.scheduler.stop()
         for gripper in self.grippers:
             gripper["driver"].disconnect()
@@ -320,7 +320,7 @@ class Driver(Node):
         return TransitionCallbackReturn.SUCCESS
 
     def on_shutdown(self, state: State) -> TransitionCallbackReturn:
-        self.get_logger().info("on_shutdown() is called.")
+        self.get_logger().debug("on_shutdown() is called.")
 
         def kill() -> None:
             time.sleep(0.1)
@@ -405,7 +405,7 @@ class Driver(Node):
     def _list_grippers_cb(
         self, request: ListGrippers.Request, response: ListGrippers.Response
     ):
-        self.get_logger().info("---> List gripper IDs")
+        self.get_logger().debug("---> List gripper IDs")
         response.grippers = self.list_grippers()
         return response
 
@@ -415,7 +415,7 @@ class Driver(Node):
         response: Trigger.Response,
         gripper: Gripper,
     ):
-        self.get_logger().info("---> Acknowledge")
+        self.get_logger().debug("---> Acknowledge")
         if self.needs_synchronize(gripper):
             response.success = asyncio.run(
                 gripper["driver"].acknowledge(scheduler=self.scheduler)
@@ -431,7 +431,7 @@ class Driver(Node):
         response: Trigger.Response,
         gripper: Gripper,
     ):
-        self.get_logger().info("---> Fast stop")
+        self.get_logger().debug("---> Fast stop")
         if self.needs_synchronize(gripper):
             response.success = gripper["driver"].fast_stop(scheduler=self.scheduler)
         else:
@@ -445,7 +445,7 @@ class Driver(Node):
         response: MoveToAbsolutePosition.Response,
         gripper: Gripper,
     ):
-        self.get_logger().info("---> Move to absolute position")
+        self.get_logger().debug("---> Move to absolute position")
         position = int(request.position * 1e6)
         velocity = int(request.velocity * 1e6)
         if self.needs_synchronize(gripper):
@@ -472,7 +472,7 @@ class Driver(Node):
         response: Grip.Response,
         gripper: Gripper,
     ):
-        self.get_logger().info("---> Grip")
+        self.get_logger().debug("---> Grip")
         if self.needs_synchronize(gripper):
             response.success = asyncio.run(
                 gripper["driver"].grip(
@@ -499,7 +499,7 @@ class Driver(Node):
         response: Release.Response,
         gripper: Gripper,
     ):
-        self.get_logger().info("---> Release")
+        self.get_logger().debug("---> Release")
         if self.needs_synchronize(gripper):
             response.success = asyncio.run(
                 gripper["driver"].release(
