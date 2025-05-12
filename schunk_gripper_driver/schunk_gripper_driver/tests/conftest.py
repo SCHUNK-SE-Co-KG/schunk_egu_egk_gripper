@@ -26,6 +26,30 @@ from rcl_interfaces.srv import SetParameters
 from schunk_gripper_interfaces.srv import ListGrippers  # type: ignore [attr-defined]
 
 from rclpy.node import Node
+import os
+
+
+def get_directory_size(directory):
+    total_size = 0
+    for dirpath, dirnames, filenames in os.walk(directory):
+        for f in filenames:
+            fp = os.path.join(dirpath, f)
+            total_size += os.path.getsize(fp)
+    return total_size
+
+
+@pytest.fixture(scope="module")
+def log_monitor(request, tmpdir_factory):
+    log_dir = str(tmpdir_factory.mktemp("log_dir"))
+    os.environ["ROS_LOG_DIR"] = log_dir
+
+    print(f"log_size before: {get_directory_size(log_dir)} Bytes")
+
+    yield
+
+    after = get_directory_size(log_dir)
+    print(f"log_size after: {after} Bytes")
+    assert after < request.param.get("max_log_size")
 
 
 @pytest.fixture(scope="module")
