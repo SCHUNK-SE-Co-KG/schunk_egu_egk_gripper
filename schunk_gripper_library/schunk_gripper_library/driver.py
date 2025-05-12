@@ -155,9 +155,9 @@ class Driver(object):
                     baudrate=115200,
                     parity="N",
                     stopbits=1,
-                    trace_connect=self._trace_connect,
-                    trace_packet=self._trace_packet,
-                    trace_pdu=self._trace_pdu,
+                    trace_connect=None,
+                    trace_packet=None,
+                    trace_pdu=None,
                 )
                 self.connected = self.mb_client.connect()
 
