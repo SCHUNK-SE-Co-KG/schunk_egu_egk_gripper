@@ -346,7 +346,7 @@ class Driver(object):
             desired_bits = {"4": 1, "12": 1}
             return await self.wait_for_status(bits=desired_bits)
 
-        duration_sec = self.estimate_duration(force=force)
+        duration_sec = self.estimate_duration(force=force, outward=outward)
         if scheduler:
             if not scheduler.execute(func=partial(start)).result():
                 return False
