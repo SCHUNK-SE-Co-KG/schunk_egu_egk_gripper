@@ -39,9 +39,11 @@ import time
 from rclpy.service import Service
 from rclpy.publisher import Publisher
 from rclpy.timer import Timer
+from rclpy.executors import MultiThreadedExecutor, ExternalShutdownException
 from functools import partial
 from schunk_gripper_library.utility import Scheduler
 from typing import TypedDict
+from rclpy.callback_groups import MutuallyExclusiveCallbackGroup
 
 
 class Gripper(TypedDict):
@@ -87,6 +89,9 @@ class Driver(Node):
         self.show_configuration_srv = self.create_service(
             ShowConfiguration, "~/show_configuration", self._show_configuration_cb
         )
+
+        # For concurrently running publishers
+        self.callback_group = MutuallyExclusiveCallbackGroup()
 
     def list_grippers(self) -> list[str]:
         devices = []
@@ -245,22 +250,30 @@ class Driver(Node):
 
             # Joint states
             self.joint_state_publishers[gripper_id] = self.create_publisher(
-                JointState, f"~/{gripper_id}/joint_states", 1
+                msg_type=JointState,
+                topic=f"~/{gripper_id}/joint_states",
+                qos_profile=1,
+                callback_group=self.callback_group,
             )
             self.gripper_timers.append(
                 self.create_timer(
                     timer_period_sec=gripper["driver"].update_cycle,
                     callback=partial(self._publish_joint_states, gripper=gripper),
+                    callback_group=self.callback_group,
                 )
             )
             # Gripper state
             self.gripper_state_publishers[gripper_id] = self.create_publisher(
-                GripperState, f"~/{gripper_id}/gripper_state", 1
+                msg_type=GripperState,
+                topic=f"~/{gripper_id}/gripper_state",
+                qos_profile=1,
+                callback_group=self.callback_group,
             )
             self.gripper_timers.append(
                 self.create_timer(
                     timer_period_sec=gripper["driver"].update_cycle,
                     callback=partial(self._publish_gripper_state, gripper=gripper),
+                    callback_group=self.callback_group,
                 )
             )
 
@@ -519,12 +532,12 @@ class Driver(Node):
 
 def main():
     rclpy.init()
-    executor = rclpy.executors.SingleThreadedExecutor()
+    executor = MultiThreadedExecutor()
     driver = Driver("driver")
     executor.add_node(driver)
     try:
         executor.spin()
-    except (KeyboardInterrupt, rclpy.executors.ExternalShutdownException):
+    except (KeyboardInterrupt, ExternalShutdownException):
         driver.destroy_node()
 
 

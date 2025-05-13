@@ -284,12 +284,12 @@ def test_driver_implements_grip_and_release(lifecycle_interface):
             request.use_gpe = target["use_gpe"]
             request.outward = target["outward"]
             future = grip_client.call_async(request)
-            rclpy.spin_until_future_complete(node, future, timeout_sec=3)
+            rclpy.spin_until_future_complete(node, future)
             assert future.result().success, f"{future.result().message}"
 
             # Release
             future = release_client.call_async(Release.Request())
-            rclpy.spin_until_future_complete(node, future, timeout_sec=3)
+            rclpy.spin_until_future_complete(node, future)
             assert future.result().success, f"{future.result().message}"
 
     driver.change_state(Transition.TRANSITION_DEACTIVATE)
