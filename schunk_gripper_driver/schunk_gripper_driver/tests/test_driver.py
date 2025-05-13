@@ -417,3 +417,28 @@ def test_driver_shows_configuration(ros2: None):
     # After reset
     driver.reset_grippers()
     assert driver.show_configuration() == []
+
+
+@skip_without_gripper
+def test_driver_uses_separate_callback_group_for_publishers(ros2: None):
+    driver = Driver("driver")
+
+    driver.on_configure(state=None)
+    driver.on_activate(state=None)
+
+    # Joint states
+    for publisher in driver.joint_state_publishers.values():
+        for handler in publisher.event_handlers:
+            assert handler.callback_group != driver.default_callback_group
+
+    # Gripper state
+    for publisher in driver.gripper_state_publishers.values():
+        for handler in publisher.event_handlers:
+            assert handler.callback_group != driver.default_callback_group
+
+    # Timers
+    for timer in driver.gripper_timers:
+        assert timer.callback_group != driver.default_callback_group
+
+    driver.on_deactivate(state=None)
+    driver.on_cleanup(state=None)
