@@ -60,6 +60,7 @@ class Driver(object):
             "max_vel": None,
             "max_grp_vel": None,
             "wp_release_delta": None,
+            "fieldbus_type": None,
         }
         # fmt: off
         self.valid_status_bits: list[int] = (
@@ -463,32 +464,21 @@ class Driver(object):
                 self.module_parameters[key] = None
             return True
 
-        # min_pos
-        if not (data := self.read_module_parameter("0x0600")):
-            return False
-        self.module_parameters["min_pos"] = int(struct.unpack("f", data)[0] * 1e3)
+        for param, fields in self.readable_parameters.items():
+            if fields["name"] in self.module_parameters:
+                if not (data := self.read_module_parameter(param)):
+                    return False
+                if fields["type"] == "float":
+                    value = int(struct.unpack("f", data)[0] * 1e3)
+                elif fields["type"] == "enum":
+                    value = int(struct.unpack("h", data)[0])
+                else:
+                    return False
+                self.module_parameters[fields["name"]] = value
 
-        # max_pos
-        if not (data := self.read_module_parameter("0x0608")):
+        if any([entry is None for entry in self.module_parameters.values()]):
             return False
-        self.module_parameters["max_pos"] = int(struct.unpack("f", data)[0] * 1e3)
 
-        # max_vel
-        if not (data := self.read_module_parameter("0x0630")):
-            return False
-        self.module_parameters["max_vel"] = int(struct.unpack("f", data)[0] * 1e3)
-
-        # max_grp_vel
-        if not (data := self.read_module_parameter("0x0650")):
-            return False
-        self.module_parameters["max_grp_vel"] = int(struct.unpack("f", data)[0] * 1e3)
-
-        # wp_release_delta
-        if not (data := self.read_module_parameter("0x0540")):
-            return False
-        self.module_parameters["wp_release_delta"] = int(
-            struct.unpack("f", data)[0] * 1e3
-        )
         return True
 
     def read_module_parameter(self, param: str) -> bytearray:
