@@ -27,10 +27,14 @@ from schunk_gripper_interfaces.srv import (  # type: ignore [attr-defined]
     Grip,
     Release,
     ShowConfiguration,
+    # newly added service
+    ShowGripperSpecification
 )
 from schunk_gripper_interfaces.msg import (  # type: ignore [attr-defined]
     Gripper as GripperConfig,
     GripperState,
+    # newly added service
+    GripperSpec,
 )
 from sensor_msgs.msg import JointState
 from std_srvs.srv import Trigger
@@ -116,6 +120,18 @@ class Driver(Node):
             cfg.device_id = gripper["device_id"]
             configuration.append(cfg)
         return configuration
+
+    ########################## newly added service ###################################
+    # service handling the call back
+    def show_specification(self) -> GripperSpec:
+        self.get_logger().info("showspecification is called.")
+        spec = GripperSpec()
+        spec.max_stroke = 60.0
+        spec.max_speed = 80.0
+        spec.max_force = 750.0
+        spec.serial_number = "DEADBEEF"
+        spec.firmware_version = "5.3.0.2"
+        return spec
 
     def add_gripper(
         self, host: str = "", port: int = 0, serial_port: str = "", device_id: int = 0
@@ -247,6 +263,16 @@ class Driver(Node):
                     Release,
                     f"~/{gripper['gripper_id']}/release",
                     partial(self._release_cb, gripper=gripper),
+                )
+            )
+
+            ########################## newly added service ###################################
+            # Creation of the service
+            self.gripper_services.append(
+                self.create_service(
+                    ShowGripperSpecification,
+                    f"~/{gripper['gripper_id']}/show_gripper_specification",
+                    partial(self._show_gripper_specification_cb, gripper=gripper),
                 )
             )
 
@@ -564,6 +590,17 @@ class Driver(Node):
         response.message = gripper["driver"].get_status_diagnostics()
         return response
 
+    ########################## newly added service ###################################
+    # call back of the service
+    def _show_gripper_specification_cb(
+        self, 
+        request: ShowGripperSpecification.Request, 
+        response: ShowGripperSpecification.Response,
+        gripper: Gripper,
+    ):
+        self.get_logger().info("---> Show Specification callback")
+        response.specification = self.show_specification()
+        return response
 
 def main():
     rclpy.init()
