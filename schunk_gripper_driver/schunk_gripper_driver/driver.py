@@ -122,7 +122,7 @@ class Driver(Node):
         return configuration
 
     ########################## newly added service ###################################
-    # service handling the call back
+    # service handling the call back (Hardcoding for the Initial Release)
     def show_specification(self) -> GripperSpec:
         self.get_logger().info("showspecification is called.")
         spec = GripperSpec()
