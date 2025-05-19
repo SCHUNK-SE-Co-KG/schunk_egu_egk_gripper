@@ -23,6 +23,7 @@ from rcl_interfaces.msg import Parameter, ParameterValue, ParameterType
 import rclpy
 from schunk_gripper_driver.driver import Driver
 from rclpy.node import Node
+import threading
 
 LOG_SIZE_BYTES = 500  # Minimal output for driver startup and shutdown
 
@@ -134,8 +135,6 @@ def test_driver_logs_correct_level(driver):
     executor = rclpy.executors.SingleThreadedExecutor()
     executor.add_node(driver)
 
-    import threading
-
     executor_thread = threading.Thread(target=executor.spin, daemon=True)
     executor_thread.start()
 
@@ -211,19 +210,19 @@ def test_driver_logs_correct_level(driver):
     executor.shutdown()
     executor_thread.join()
 
-    WANTED_LOG_LEVELS = [
+    expected_log_level = [
         40,
         50,
     ]
-    UNWANTED_LOG_LEVELS = [
+    unexpected_log_level = [
         10,
         20,
         30,
     ]
 
-    for level in WANTED_LOG_LEVELS:
+    for level in expected_log_level:
         assert level in log_level, f"Expected log level {level} not found in log output"
-    for level in UNWANTED_LOG_LEVELS:
+    for level in unexpected_log_level:
         assert (
             level not in log_level
         ), f"Unexpected log level {level} found in log output"
