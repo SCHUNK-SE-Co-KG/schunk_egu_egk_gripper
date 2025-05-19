@@ -116,7 +116,6 @@ def test_driver_doesnt_set_invalid_log_level(driver):
         )
     )
     rclpy.spin_until_future_complete(client, future, timeout_sec=2)
-    print(future.result())
     assert future.result().results[0].successful is False
     # Verify the log level was not set to the invalid value
     future = get_params_client.call_async(GetParameters.Request(names=["log_level"]))
