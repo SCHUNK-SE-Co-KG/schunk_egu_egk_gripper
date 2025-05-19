@@ -46,7 +46,6 @@ from schunk_gripper_library.utility import Scheduler
 from typing import TypedDict
 from rclpy.callback_groups import MutuallyExclusiveCallbackGroup
 from rcl_interfaces.msg import SetParametersResult
-from rclpy.logging import set_logger_level
 
 
 class Gripper(TypedDict):
@@ -96,20 +95,30 @@ class Driver(Node):
         )
         self.add_on_set_parameters_callback(self._param_cb)
 
+        # For concurrently running publishers
+        self.callback_group = MutuallyExclusiveCallbackGroup()
+
     def _param_cb(self, params):
         for p in params:
             if p.name == "log_level":
-                try:
-                    level = rclpy.logging.get_logging_severity_from_string(p.value)
-                    self.get_logger().info(f"Log level changed to {p.value}")
-                    set_logger_level(self.get_name(), level)
-                    return SetParametersResult(successful=True)
-                except RuntimeError:
-                    self.get_logger().warn(f"Invalid log level: {p.value}")
+                if p.value not in [
+                    "DEBUG",
+                    "INFO",
+                    "WARN",
+                    "ERROR",
+                    "FATAL",
+                ]:
+                    self.get_logger().error(
+                        f"""Invalid log level: {p.value}. Valid options are:
+                        DEBUG, INFO, WARN, ERROR, FATAL"""
+                    )
                     return SetParametersResult(successful=False)
 
-        # For concurrently running publishers
-        self.callback_group = MutuallyExclusiveCallbackGroup()
+                level = rclpy.logging.get_logging_severity_from_string(p.value)
+                self.get_logger().set_level(level)
+                self.get_logger().info(f"Log level changed to {p.value}")
+                return SetParametersResult(successful=True)
+
         return SetParametersResult(successful=True)
 
     def list_grippers(self) -> list[str]:
@@ -223,7 +232,7 @@ class Driver(Node):
         return TransitionCallbackReturn.SUCCESS
 
     def on_activate(self, state: State) -> TransitionCallbackReturn:
-        self.get_logger.info("on_activate() is called.")
+        self.get_logger.debug("on_activate() is called.")
 
         # Gripper-specific services
         for idx, _ in enumerate(self.grippers):

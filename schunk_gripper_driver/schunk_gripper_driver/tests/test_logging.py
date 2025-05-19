@@ -18,8 +18,11 @@ from lifecycle_msgs.msg import Transition
 import time
 import pytest
 from rcl_interfaces.srv import GetParameters, SetParameters
+from rcl_interfaces.msg import Log
 from rcl_interfaces.msg import Parameter, ParameterValue, ParameterType
 import rclpy
+from schunk_gripper_driver.driver import Driver
+from rclpy.node import Node
 
 LOG_SIZE_BYTES = 500  # Minimal output for driver startup and shutdown
 
@@ -90,7 +93,7 @@ def test_driver_supports_log_level_changes_via_parameter_call(driver):
 
 
 @skip_without_gripper
-def test_driver_doesnt_set_invalid_log_level(driver):
+def test_driver_rejects_invalid_log_level(driver):
     client = rclpy.create_node("test_bad_log_level")
     set_params_client = client.create_client(
         SetParameters, "/schunk/driver/set_parameters"
@@ -121,3 +124,106 @@ def test_driver_doesnt_set_invalid_log_level(driver):
     future = get_params_client.call_async(GetParameters.Request(names=["log_level"]))
     rclpy.spin_until_future_complete(client, future)
     assert future.result().values[0].string_value != "BAD_LOG_LEVEL"
+
+
+@skip_without_gripper
+def test_driver_logs_correct_level(driver):
+    log_level = []
+
+    driver = Driver("test_driver_logs_correct_level")
+    executor = rclpy.executors.SingleThreadedExecutor()
+    executor.add_node(driver)
+
+    import threading
+
+    executor_thread = threading.Thread(target=executor.spin, daemon=True)
+    executor_thread.start()
+
+    client = rclpy.create_node("test_log_output_set_level")
+    set_params_client = client.create_client(
+        SetParameters, "/test_driver_logs_correct_level/set_parameters"
+    )
+
+    assert set_params_client.wait_for_service(timeout_sec=5), "Service not available"
+
+    future = set_params_client.call_async(
+        SetParameters.Request(
+            parameters=[
+                Parameter(
+                    name="log_level",
+                    value=ParameterValue(
+                        type=ParameterType.PARAMETER_STRING, string_value="ERROR"
+                    ),
+                )
+            ]
+        )
+    )
+
+    # Spin the client node until the future is completed
+    rclpy.spin_until_future_complete(client, future)
+    assert future.result().results[0].successful, "Failed to set log level"
+
+    subscription_client = Node("test_log_output")
+
+    def callback(data: Log):
+        log_level.append(data.level)
+
+    subscription = subscription_client.create_subscription(
+        Log,
+        "/rosout",
+        callback,
+        10,
+    )
+    if not subscription:
+        # use of subscription variable needed for checkstyle
+        raise RuntimeError("Failed to create subscription")
+
+    debug_num = 2
+    info_num = 2
+    warn_num = 2
+    error_num = 2
+    fatal_num = 2
+    for i in range(debug_num):
+        driver.get_logger().debug("This is a debug message")
+    for i in range(info_num):
+        driver.get_logger().info("This is an info message")
+    for i in range(warn_num):
+        driver.get_logger().warn("This is a warning message")
+    for i in range(error_num):
+        driver.get_logger().error("This is an error message")
+    for i in range(fatal_num):
+        driver.get_logger().fatal("This is a fatal message")
+
+    subscription_executer = rclpy.executors.SingleThreadedExecutor()
+    subscription_executer.add_node(subscription_client)
+
+    subscription_thread = threading.Thread(
+        target=subscription_executer.spin, daemon=True
+    )
+    subscription_thread.start()
+
+    while len(log_level) != error_num + fatal_num:
+        time.sleep(0.1)
+
+    subscription_executer.shutdown()
+    subscription_thread.join()
+
+    executor.shutdown()
+    executor_thread.join()
+
+    WANTED_LOG_LEVELS = [
+        40,
+        50,
+    ]
+    UNWANTED_LOG_LEVELS = [
+        10,
+        20,
+        30,
+    ]
+
+    for level in WANTED_LOG_LEVELS:
+        assert level in log_level, f"Expected log level {level} not found in log output"
+    for level in UNWANTED_LOG_LEVELS:
+        assert (
+            level not in log_level
+        ), f"Unexpected log level {level} found in log output"
