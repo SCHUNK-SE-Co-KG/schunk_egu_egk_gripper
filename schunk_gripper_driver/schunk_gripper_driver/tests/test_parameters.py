@@ -20,7 +20,7 @@ from rcl_interfaces.msg import Parameter, ParameterValue, ParameterType
 from schunk_gripper_library.utility import skip_without_gripper
 
 
-DRIVER_PARAMETERS = ["host", "port", "serial_port", "device_id"]
+DRIVER_PARAMETERS = ["host", "port", "serial_port", "device_id", "log_level"]
 
 
 @skip_without_gripper
@@ -70,6 +70,12 @@ def test_driver_has_expected_parameters_after_startup(driver):
                 type=ParameterType.PARAMETER_INTEGER, integer_value=12
             ),
         ),
+        Parameter(
+            name="log_level",
+            value=ParameterValue(
+                type=ParameterType.PARAMETER_STRING, string_value="INFO"
+            ),
+        ),
     ]
     future = get_params_client.call_async(
         GetParameters.Request(names=DRIVER_PARAMETERS)
@@ -116,11 +122,17 @@ def test_driver_supports_setting_parameters(driver):
                 type=ParameterType.PARAMETER_INTEGER, integer_value=123
             ),
         ),
+        Parameter(
+            name="log_level",
+            value=ParameterValue(
+                type=ParameterType.PARAMETER_STRING, string_value="DEBUG"
+            ),
+        ),
     ]
 
     future = set_params_client.call_async(SetParameters.Request(parameters=parameters))
     rclpy.spin_until_future_complete(node, future)
-
+    print(future.result())
     future = get_params_client.call_async(
         GetParameters.Request(names=DRIVER_PARAMETERS)
     )
