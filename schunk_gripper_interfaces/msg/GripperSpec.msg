@@ -1,0 +1,5 @@
+float32 max_stroke
+float32 max_speed
+float32 max_force
+string serial_number
+string firmware_version
