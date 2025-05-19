@@ -99,13 +99,18 @@ class Driver(Node):
     def _param_cb(self, params):
         for p in params:
             if p.name == "log_level":
-                level = rclpy.logging.get_logging_severity_from_string(p.value)
-                self.get_logger().info(f"Log level changed to {p.value}")
-                set_logger_level(self.get_name(), level)
-                return SetParametersResult(successful=True)
+                try:
+                    level = rclpy.logging.get_logging_severity_from_string(p.value)
+                    self.get_logger().info(f"Log level changed to {p.value}")
+                    set_logger_level(self.get_name(), level)
+                    return SetParametersResult(successful=True)
+                except RuntimeError:
+                    self.get_logger().warn(f"Invalid log level: {p.value}")
+                    return SetParametersResult(successful=False)
 
         # For concurrently running publishers
         self.callback_group = MutuallyExclusiveCallbackGroup()
+        return SetParametersResult(successful=True)
 
     def list_grippers(self) -> list[str]:
         devices = []
@@ -218,7 +223,7 @@ class Driver(Node):
         return TransitionCallbackReturn.SUCCESS
 
     def on_activate(self, state: State) -> TransitionCallbackReturn:
-        self._logger.info("on_activate() is called.")
+        self.get_logger.info("on_activate() is called.")
 
         # Gripper-specific services
         for idx, _ in enumerate(self.grippers):
