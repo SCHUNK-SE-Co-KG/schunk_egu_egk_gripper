@@ -121,18 +121,6 @@ class Driver(Node):
             configuration.append(cfg)
         return configuration
 
-    ########################## newly added service ###################################
-    # service handling the call back (Hardcoding for the Initial Release) 
-    def show_specification(self) -> GripperSpec:
-        self.get_logger().info("showspecification is called.")
-        spec = GripperSpec()
-        spec.max_stroke = 60.0
-        spec.max_speed = 80.0
-        spec.max_force = 750.0
-        spec.serial_number = "DEADBEEF"
-        spec.firmware_version = "5.3.0.2"
-        return spec
-
     def add_gripper(
         self, host: str = "", port: int = 0, serial_port: str = "", device_id: int = 0
     ) -> bool:
@@ -599,7 +587,25 @@ class Driver(Node):
         gripper: Gripper,
     ):
         self.get_logger().info("---> Show Specification callback")
-        response.specification = self.show_specification()
+        if self.needs_synchronize(gripper):
+            spec = asyncio.run(
+                gripper["driver"].show_gripper_specification(
+                scheduler = self.scheduler,
+                )
+            )
+        else:
+            spec = asyncio.run(
+                gripper["driver"].show_gripper_specification(
+                )
+            )
+        response.success = spec is not False
+        response.message = gripper["driver"].get_status_diagnostics()
+        if spec:
+            response.specification.max_stroke = spec["max_stroke"]
+            response.specification.max_speed = spec["max_speed"]
+            response.specification.max_force = spec["max_force"]
+            response.specification.serial_number = spec["serial_number"]
+            response.specification.firmware_version = spec["firmware_version"]
         return response
 
 def main():
