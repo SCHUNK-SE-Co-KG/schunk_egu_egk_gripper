@@ -98,18 +98,17 @@ class Driver(Node):
         # For concurrently running publishers
         self.callback_group = MutuallyExclusiveCallbackGroup()
 
-        self.valid_log_levels = [
+    def _param_cb(self, params):
+        valid_log_levels = [
             "DEBUG",
             "INFO",
             "WARN",
             "ERROR",
             "FATAL",
         ]
-
-    def _param_cb(self, params):
         for p in params:
             if p.name == "log_level":
-                if p.value not in self.valid_log_levels:
+                if p.value not in valid_log_levels:
                     self.get_logger().error(
                         f"""Invalid log level: {p.value}. Valid options are:
                         {self.valid_log_levels}"""

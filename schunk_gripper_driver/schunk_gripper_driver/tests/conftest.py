@@ -27,6 +27,7 @@ from schunk_gripper_interfaces.srv import ListGrippers  # type: ignore [attr-def
 
 from rclpy.node import Node
 import os
+from rcl_interfaces.msg import Parameter, ParameterValue, ParameterType
 
 
 def get_directory_size(directory):
@@ -38,7 +39,7 @@ def get_directory_size(directory):
     return total_size
 
 
-@pytest.fixture(scope="module")
+@pytest.fixture(scope="function")
 def log_monitor(request, tmpdir_factory):
     log_dir = str(tmpdir_factory.mktemp("log_dir"))
     os.environ["ROS_LOG_DIR"] = log_dir
@@ -59,7 +60,7 @@ def ros2():
     rclpy.shutdown()
 
 
-@launch_pytest.fixture(scope="module")
+@launch_pytest.fixture(scope="function")
 def driver(ros2):
     setup = IncludeLaunchDescription(
         PathJoinSubstitution(
@@ -121,6 +122,75 @@ class LifecycleInterface(object):
         return grippers
 
 
-@pytest.fixture(scope="module")
+@pytest.fixture(scope="function")
 def lifecycle_interface(driver):
     return LifecycleInterface()
+
+
+@pytest.fixture(scope="function")
+def log_helper(driver):
+    return LogHelper()
+
+
+def get_log_files():
+    log_dir = os.environ.get("ROS_LOG_DIR")
+    if not log_dir:
+        raise ValueError("ROS_LOG_DIR environment variable is not set.")
+    log_files = []
+    for dirpath, dirnames, filenames in os.walk(log_dir):
+        for filename in filenames:
+            if filename.endswith(".log"):
+                log_files.append(os.path.join(dirpath, filename))
+    return log_files
+
+
+@pytest.fixture(scope="function")
+def log_level_checker(tmpdir_factory):
+    log_dir = str(tmpdir_factory.mktemp("log_dir"))
+    os.environ["ROS_LOG_DIR"] = log_dir
+    print("log_dir: ", log_dir)
+    yield
+
+    log_files = get_log_files()
+    for log_file in log_files:
+        with open(log_file, "r") as f:
+            content = f.read()
+            if "DEBUG" in content:
+                assert True
+            elif (
+                "INFO" in content
+            ):  # INFO will be in the logs if Test is run on its own
+                assert True
+            else:
+                print(f"Log file {log_file} does not contain expected log levels.")
+                assert False
+    assert True
+
+
+class LogHelper:
+    def __init__(self):
+        pass
+
+    def change_log_level(self, level):
+        client = rclpy.create_node("test_driver_bad_log_level")
+        set_params_client = client.create_client(
+            SetParameters, "/schunk/driver/set_parameters"
+        )
+        assert set_params_client.wait_for_service(timeout_sec=2)
+
+        future = set_params_client.call_async(
+            SetParameters.Request(
+                parameters=[
+                    Parameter(
+                        name="log_level",
+                        value=ParameterValue(
+                            type=ParameterType.PARAMETER_STRING,
+                            string_value="DEBUG",
+                        ),
+                    )
+                ]
+            )
+        )
+
+        rclpy.spin_until_future_complete(client, future)
+        return future.result().results[0].successful
