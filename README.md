@@ -22,6 +22,10 @@
   </a>
 </p>
 
+**Update**: There's a new version upcoming 🚀! Please use the [develop](https://github.com/SCHUNK-SE-Co-KG/schunk_egu_egk_gripper/tree/develop) branch for latest features. We have been reworking this driver completely. More info in this [pull request](https://github.com/SCHUNK-SE-Co-KG/schunk_egu_egk_gripper/pull/13).
+
+---
+
 
 This is the official ROS2 driver for SCHUNK's
 [EGU](https://schunk.com/us/en/gripping-systems/parallel-gripper/egu/c/PGR_6556),
