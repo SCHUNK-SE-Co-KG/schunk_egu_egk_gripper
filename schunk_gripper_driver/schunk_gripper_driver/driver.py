@@ -18,6 +18,7 @@
 import rclpy
 
 from rclpy.lifecycle import Node, State, TransitionCallbackReturn
+import rclpy.logging
 from schunk_gripper_library.driver import Driver as GripperDriver
 from schunk_gripper_interfaces.srv import (  # type: ignore [attr-defined]
     ListGrippers,
@@ -44,6 +45,7 @@ from functools import partial
 from schunk_gripper_library.utility import Scheduler
 from typing import TypedDict
 from rclpy.callback_groups import MutuallyExclusiveCallbackGroup
+from rcl_interfaces.msg import SetParametersResult
 
 
 class Gripper(TypedDict):
@@ -63,6 +65,8 @@ class Driver(Node):
         self.declare_parameter("port", 80)
         self.declare_parameter("serial_port", "/dev/ttyUSB0")
         self.declare_parameter("device_id", 12)
+        self.declare_parameter("log_level", "INFO")
+
         self.scheduler: Scheduler = Scheduler()
         self.grippers: list[Gripper] = []
         gripper: Gripper = {
@@ -89,9 +93,34 @@ class Driver(Node):
         self.show_configuration_srv = self.create_service(
             ShowConfiguration, "~/show_configuration", self._show_configuration_cb
         )
+        self.add_on_set_parameters_callback(self._param_cb)
 
         # For concurrently running publishers
         self.callback_group = MutuallyExclusiveCallbackGroup()
+
+    def _param_cb(self, params):
+        valid_log_levels = [
+            "DEBUG",
+            "INFO",
+            "WARN",
+            "ERROR",
+            "FATAL",
+        ]
+        for p in params:
+            if p.name == "log_level":
+                if p.value not in valid_log_levels:
+                    self.get_logger().error(
+                        f"""Invalid log level: {p.value}. Valid options are:
+                        {self.valid_log_levels}"""
+                    )
+                    return SetParametersResult(successful=False)
+
+                level = rclpy.logging.get_logging_severity_from_string(p.value)
+                self.get_logger().set_level(level)
+                self.get_logger().debug(f"Log level changed to {p.value}")
+                return SetParametersResult(successful=True)
+
+        return SetParametersResult(successful=True)
 
     def list_grippers(self) -> list[str]:
         devices = []
