@@ -62,11 +62,10 @@ class Driver(object):
             "wp_release_delta": None,
             "fieldbus_type": None,
             # newly added service
-            #"max_stroke": None,
-            #"max_force": None,
-            #"max_speed": None,
-            #"serial_number": None,
-            #"firmware_version": None,
+            "max_phys_stroke": None,
+            "max_grp_force": None,
+            "serial_no_txt": None,
+            "sw_version_txt": None,
         }
         # fmt: off
         self.valid_status_bits: list[int] = (
@@ -426,13 +425,12 @@ class Driver(object):
         else:
             if not await start():
                 return False
-        # need to read from the module parameters self.module_parameter[]
         gripper_spec = {
-                "max_stroke": 60.0,
-                "max_speed": 80.0,
-                "max_force": 750.0,
-                "serial_number": "DEADBEEF",
-                "firmware_version": "5.3.0.2",
+                "max_stroke": self.module_parameters["max_phys_stroke"]/1000, #60.0
+                "max_speed": self.module_parameters["max_grp_vel"]/1000,      #80.0
+                "max_force": self.module_parameters["max_grp_force"]/1000,    #750.0
+                "serial_number": self.module_parameters["serial_no_txt"],     #"DEADBEEF"
+                "firmware_version": self.module_parameters["sw_version_txt"], #"3.0.0.2"
         }
         return gripper_spec
         
@@ -503,8 +501,12 @@ class Driver(object):
                     return False
                 if fields["type"] == "float":
                     value = int(struct.unpack("f", data)[0] * 1e3)
+                    #value = struct.unpack("f", data)[0] // To fetch Raw floating Data
                 elif fields["type"] == "enum":
                     value = int(struct.unpack("h", data)[0])
+                elif fields["type"].startswith("char"):
+                    length = int(fields["type"][fields["type"].find("[")+1:fields["type"].find("]")])
+                    value = data[:length].decode('ascii').strip('\x00')
                 else:
                     return False
                 self.module_parameters[fields["name"]] = value
