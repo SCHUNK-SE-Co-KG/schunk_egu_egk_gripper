@@ -98,25 +98,27 @@ class Driver(Node):
         # For concurrently running publishers
         self.callback_group = MutuallyExclusiveCallbackGroup()
 
+        self.valid_log_levels = [
+            "DEBUG",
+            "INFO",
+            "WARN",
+            "ERROR",
+            "FATAL",
+        ]
+
     def _param_cb(self, params):
         for p in params:
             if p.name == "log_level":
-                if p.value not in [
-                    "DEBUG",
-                    "INFO",
-                    "WARN",
-                    "ERROR",
-                    "FATAL",
-                ]:
+                if p.value not in self.valid_log_levels:
                     self.get_logger().error(
                         f"""Invalid log level: {p.value}. Valid options are:
-                        DEBUG, INFO, WARN, ERROR, FATAL"""
+                        {self.valid_log_levels}"""
                     )
                     return SetParametersResult(successful=False)
 
                 level = rclpy.logging.get_logging_severity_from_string(p.value)
                 self.get_logger().set_level(level)
-                self.get_logger().info(f"Log level changed to {p.value}")
+                self.get_logger().debug(f"Log level changed to {p.value}")
                 return SetParametersResult(successful=True)
 
         return SetParametersResult(successful=True)
@@ -232,7 +234,7 @@ class Driver(Node):
         return TransitionCallbackReturn.SUCCESS
 
     def on_activate(self, state: State) -> TransitionCallbackReturn:
-        self.get_logger.debug("on_activate() is called.")
+        self.get_logger().debug("on_activate() is called.")
 
         # Gripper-specific services
         for idx, _ in enumerate(self.grippers):

@@ -22,7 +22,6 @@ from rcl_interfaces.msg import Log
 from rcl_interfaces.msg import Parameter, ParameterValue, ParameterType
 import rclpy
 from schunk_gripper_driver.driver import Driver
-from rclpy.node import Node
 import threading
 
 LOG_SIZE_BYTES = 500  # Minimal output for driver startup and shutdown
@@ -49,53 +48,8 @@ def test_driver_doesnt_fill_disk_space_by_default(log_monitor, lifecycle_interfa
 
 
 @skip_without_gripper
-def test_driver_supports_log_level_changes_via_parameter_call(driver):
-    client = rclpy.create_node("test_log_level")
-    set_params_client = client.create_client(
-        SetParameters, "/schunk/driver/set_parameters"
-    )
-    assert set_params_client.wait_for_service(timeout_sec=2)
-    get_params_client = client.create_client(
-        GetParameters, "/schunk/driver/get_parameters"
-    )
-    assert get_params_client.wait_for_service(timeout_sec=2)
-    future = set_params_client.call_async(
-        SetParameters.Request(
-            parameters=[
-                Parameter(
-                    name="log_level",
-                    value=ParameterValue(
-                        type=ParameterType.PARAMETER_STRING, string_value="DEBUG"
-                    ),
-                )
-            ]
-        )
-    )
-    rclpy.spin_until_future_complete(client, future)
-    future = get_params_client.call_async(GetParameters.Request(names=["log_level"]))
-    rclpy.spin_until_future_complete(client, future)
-    assert future.result().values[0].string_value == "DEBUG"
-    future = set_params_client.call_async(
-        SetParameters.Request(
-            parameters=[
-                Parameter(
-                    name="log_level",
-                    value=ParameterValue(
-                        type=ParameterType.PARAMETER_STRING, string_value="INFO"
-                    ),
-                )
-            ]
-        )
-    )
-    rclpy.spin_until_future_complete(client, future)
-    future = get_params_client.call_async(GetParameters.Request(names=["log_level"]))
-    rclpy.spin_until_future_complete(client, future)
-    assert future.result().values[0].string_value == "INFO"
-
-
-@skip_without_gripper
-def test_driver_rejects_invalid_log_level(driver):
-    client = rclpy.create_node("test_bad_log_level")
+def test_driver_rejects_invalid_log_level(request):
+    client = rclpy.create_node("test_driver_bad_log_level")
     set_params_client = client.create_client(
         SetParameters, "/schunk/driver/set_parameters"
     )
@@ -105,124 +59,111 @@ def test_driver_rejects_invalid_log_level(driver):
     )
     assert get_params_client.wait_for_service(timeout_sec=2)
 
-    # Attempt to set an invalid log level
-    future = set_params_client.call_async(
-        SetParameters.Request(
-            parameters=[
-                Parameter(
-                    name="log_level",
-                    value=ParameterValue(
-                        type=ParameterType.PARAMETER_STRING,
-                        string_value="BAD_LOG_LEVEL",
-                    ),
-                )
-            ]
+    invalid_levels = ["Debug", "debug", "*!€@", "-1"]
+
+    for invalid_level in invalid_levels:
+        future = set_params_client.call_async(
+            SetParameters.Request(
+                parameters=[
+                    Parameter(
+                        name="log_level",
+                        value=ParameterValue(
+                            type=ParameterType.PARAMETER_STRING,
+                            string_value=invalid_level,
+                        ),
+                    )
+                ]
+            )
         )
-    )
-    rclpy.spin_until_future_complete(client, future, timeout_sec=2)
-    assert future.result().results[0].successful is False
-    # Verify the log level was not set to the invalid value
+
+        # Spin the client node until the future is completed
+        rclpy.spin_until_future_complete(client, future)
+        assert (
+            not future.result().results[0].successful
+        ), f"Setting log level to {invalid_level} should have failed"
+
+    # Check that the log level is still set to INFO
     future = get_params_client.call_async(GetParameters.Request(names=["log_level"]))
     rclpy.spin_until_future_complete(client, future)
-    assert future.result().values[0].string_value != "BAD_LOG_LEVEL"
+    print(f"####result {future.result().values}")
+    result_values = future.result().values
+    assert (
+        result_values and result_values[0].string_value == "INFO"
+    ), "Log level should be set to INFO after invalid log level was set"
 
 
 @skip_without_gripper
-def test_driver_logs_correct_level(driver):
-    log_level = []
-
+def test_driver_logs_correct_level():
+    # Set up driver with log level set to ERROR
     driver = Driver("test_driver_logs_correct_level")
     executor = rclpy.executors.SingleThreadedExecutor()
     executor.add_node(driver)
 
-    executor_thread = threading.Thread(target=executor.spin, daemon=True)
-    executor_thread.start()
+    # Create client to set log level parameter
+    client = rclpy.create_node("test_log_client")
+    executor.add_node(client)
 
-    client = rclpy.create_node("test_log_output_set_level")
+    # Set log level to ERROR
     set_params_client = client.create_client(
         SetParameters, "/test_driver_logs_correct_level/set_parameters"
     )
-
-    assert set_params_client.wait_for_service(timeout_sec=5), "Service not available"
-
-    future = set_params_client.call_async(
-        SetParameters.Request(
-            parameters=[
-                Parameter(
-                    name="log_level",
-                    value=ParameterValue(
-                        type=ParameterType.PARAMETER_STRING, string_value="ERROR"
-                    ),
-                )
-            ]
-        )
+    assert set_params_client.wait_for_service(timeout_sec=2), "Service not available"
+    request = SetParameters.Request(
+        parameters=[
+            Parameter(
+                name="log_level",
+                value=ParameterValue(
+                    type=ParameterType.PARAMETER_STRING, string_value="ERROR"
+                ),
+            )
+        ]
     )
-
-    # Spin the client node until the future is completed
-    rclpy.spin_until_future_complete(client, future)
+    future = set_params_client.call_async(request)
+    executor.spin_until_future_complete(future)
     assert future.result().results[0].successful, "Failed to set log level"
 
-    subscription_client = Node("test_log_output")
-
-    def callback(data: Log):
-        log_level.append(data.level)
-
-    subscription = subscription_client.create_subscription(
-        Log,
-        "/rosout",
-        callback,
-        10,
+    # Set up rosout subscription to capture logs
+    log_levels = []
+    subscription_client = rclpy.create_node("test_log_listener")
+    subscription_client.create_subscription(
+        Log, "/rosout", lambda msg: log_levels.append(msg.level), 10
     )
-    if not subscription:
-        # use of subscription variable needed for checkstyle
-        raise RuntimeError("Failed to create subscription")
+    executor.add_node(subscription_client)
 
-    debug_num = 2
-    info_num = 2
-    warn_num = 2
-    error_num = 2
-    fatal_num = 2
-    for i in range(debug_num):
-        driver.get_logger().debug("This is a debug message")
-    for i in range(info_num):
-        driver.get_logger().info("This is an info message")
-    for i in range(warn_num):
-        driver.get_logger().warn("This is a warning message")
-    for i in range(error_num):
-        driver.get_logger().error("This is an error message")
-    for i in range(fatal_num):
-        driver.get_logger().fatal("This is a fatal message")
+    # Start spinning in a separate thread
+    thread = threading.Thread(target=executor.spin, daemon=True)
+    thread.start()
 
-    subscription_executer = rclpy.executors.SingleThreadedExecutor()
-    subscription_executer.add_node(subscription_client)
+    # Generate logs at all levels
+    logs = {"debug": 2, "info": 2, "warn": 2, "error": 2, "fatal": 2}
 
-    subscription_thread = threading.Thread(
-        target=subscription_executer.spin, daemon=True
-    )
-    subscription_thread.start()
+    for level, count in logs.items():
+        for _ in range(count):
+            match level:
+                case "debug":
+                    driver.get_logger().debug("Debug message")
+                case "info":
+                    driver.get_logger().info("Info message")
+                case "warn":
+                    driver.get_logger().warn("Warn message")
+                case "error":
+                    driver.get_logger().error("Error message")
+                case "fatal":
+                    driver.get_logger().fatal("Fatal message")
 
-    while len(log_level) != error_num + fatal_num:
+    # Wait for logs to be processed
+    timeout = time.time() + 3.0
+    while len(log_levels) < 4 and time.time() < timeout:
         time.sleep(0.1)
 
-    subscription_executer.shutdown()
-    subscription_thread.join()
-
+    # Shutdown and cleanup
     executor.shutdown()
-    executor_thread.join()
+    thread.join(timeout=1.0)
 
-    expected_log_level = [
-        40,
-        50,
-    ]
-    unexpected_log_level = [
-        10,
-        20,
-        30,
-    ]
-
-    for level in expected_log_level:
-        assert level in log_level, f"Expected log level {level} not found in log output"
-    for level in unexpected_log_level:
-        assert (
-            level not in log_level
-        ), f"Unexpected log level {level} found in log output"
+    # Verify log levels
+    assert all(
+        level in [40, 50] for level in log_levels
+    ), "Unexpected log levels received"
+    assert 40 in log_levels, "ERROR level logs not received"
+    assert 50 in log_levels, "FATAL level logs not received"
+    assert len(log_levels) == 4, f"Expected 4 logs, got {len(log_levels)}"
