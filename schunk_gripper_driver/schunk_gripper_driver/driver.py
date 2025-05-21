@@ -26,10 +26,14 @@ from schunk_gripper_interfaces.srv import (  # type: ignore [attr-defined]
     Grip,
     Release,
     ShowConfiguration,
+    # newly added service
+    ShowGripperSpecification
 )
 from schunk_gripper_interfaces.msg import (  # type: ignore [attr-defined]
     Gripper as GripperConfig,
     GripperState,
+    # newly added service
+    GripperSpec,
 )
 from sensor_msgs.msg import JointState
 from std_srvs.srv import Trigger
@@ -240,6 +244,16 @@ class Driver(Node):
                     Release,
                     f"~/{gripper['gripper_id']}/release",
                     partial(self._release_cb, gripper=gripper),
+                )
+            )
+
+            ########################## newly added service ###################################
+            # Creation of the service
+            self.gripper_services.append(
+                self.create_service(
+                    ShowGripperSpecification,
+                    f"~/{gripper['gripper_id']}/show_gripper_specification",
+                    partial(self._show_gripper_specification_cb, gripper=gripper),
                 )
             )
 
@@ -529,6 +543,35 @@ class Driver(Node):
         response.message = gripper["driver"].get_status_diagnostics()
         return response
 
+    ########################## newly added service ###################################
+    # call back of the service
+    def _show_gripper_specification_cb(
+        self, 
+        request: ShowGripperSpecification.Request, 
+        response: ShowGripperSpecification.Response,
+        gripper: Gripper,
+    ):
+        self.get_logger().info("---> Show Specification callback")
+        if self.needs_synchronize(gripper):
+            spec = asyncio.run(
+                gripper["driver"].show_gripper_specification(
+                scheduler = self.scheduler,
+                )
+            )
+        else:
+            spec = asyncio.run(
+                gripper["driver"].show_gripper_specification(
+                )
+            )
+        response.success = spec is not False
+        response.message = gripper["driver"].get_status_diagnostics()
+        if spec:
+            response.specification.max_stroke = spec["max_stroke"]
+            response.specification.max_speed = spec["max_speed"]
+            response.specification.max_force = spec["max_force"]
+            response.specification.serial_number = spec["serial_number"]
+            response.specification.firmware_version = spec["firmware_version"]
+        return response
 
 def main():
     rclpy.init()
