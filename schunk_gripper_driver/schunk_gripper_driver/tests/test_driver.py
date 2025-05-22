@@ -27,6 +27,7 @@ from schunk_gripper_interfaces.msg import (  # type: ignore [attr-defined]
     Gripper as GripperConfig,
 )
 from schunk_gripper_driver.driver import Gripper
+from rclpy.lifecycle import TransitionCallbackReturn
 
 
 def test_driver_manages_a_list_of_grippers(ros2: None):
@@ -442,3 +443,11 @@ def test_driver_uses_separate_callback_group_for_publishers(ros2: None):
 
     driver.on_deactivate(state=None)
     driver.on_cleanup(state=None)
+
+
+def test_driver_doesnt_configure_with_empty_grippers(ros2):
+    driver = Driver("test_empty_configure")
+    driver.reset_grippers()
+
+    result = driver.on_configure(state=None)
+    assert result == TransitionCallbackReturn.FAILURE

@@ -155,6 +155,8 @@ class Driver(Node):
 
     def on_configure(self, state: State) -> TransitionCallbackReturn:
         self.get_logger().debug("on_configure() is called.")
+        if not self.grippers:
+            return TransitionCallbackReturn.FAILURE
         self.scheduler.start()
 
         # Connect each gripper
