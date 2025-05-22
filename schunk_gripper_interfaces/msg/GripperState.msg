@@ -1,0 +1,20 @@
+std_msgs/Header header
+
+# Bits from the gripper's plc status double word
+bool bit0_ready_for_operation
+bool bit1_control_authority_fieldbus
+bool bit2_ready_for_shutdown
+bool bit3_not_feasible
+bool bit4_command_successfully_processed
+bool bit5_command_received_toggle
+bool bit6_warning
+bool bit7_error
+bool bit8_released_for_manual_movement
+bool bit9_software_limit_reached
+bool bit11_no_workpiece_detected
+bool bit12_workpiece_gripped
+bool bit13_position_reached
+bool bit14_workpiece_pre_grip_started
+bool bit16_workpiece_lost
+bool bit17_wrong_workpiece_gripped
+bool bit31_grip_force_and_position_maintenance_activated
