@@ -61,7 +61,6 @@ class Driver(object):
             "max_grp_vel": None,
             "wp_release_delta": None,
             "fieldbus_type": None,
-            # newly added service
             "max_phys_stroke": None,
             "max_grp_force": None,
             "serial_no_txt": None,
@@ -409,8 +408,6 @@ class Driver(object):
                 return False
             return await check()
 
-    ##################################################################
-    # newly added service
     async def show_gripper_specification(
             self, scheduler : Scheduler | None = None
     ) -> bool | dict:
@@ -426,11 +423,11 @@ class Driver(object):
             if not await start():
                 return False
         gripper_spec = {
-                "max_stroke": self.module_parameters["max_phys_stroke"]/1000, #60.0
-                "max_speed": self.module_parameters["max_grp_vel"]/1000,      #80.0
-                "max_force": self.module_parameters["max_grp_force"]/1000,    #750.0
-                "serial_number": self.module_parameters["serial_no_txt"],     #"DEADBEEF"
-                "firmware_version": self.module_parameters["sw_version_txt"], #"3.0.0.2"
+                "max_stroke": self.module_parameters["max_phys_stroke"]/1000,
+                "max_speed": self.module_parameters["max_grp_vel"]/1000,
+                "max_force": self.module_parameters["max_grp_force"]/1000,
+                "serial_number": self.module_parameters["serial_no_txt"],
+                "firmware_version": self.module_parameters["sw_version_txt"],
         }
         return gripper_spec
         
@@ -501,7 +498,6 @@ class Driver(object):
                     return False
                 if fields["type"] == "float":
                     value = int(struct.unpack("f", data)[0] * 1e3)
-                    #value = struct.unpack("f", data)[0] // To fetch Raw floating Data
                 elif fields["type"] == "enum":
                     value = int(struct.unpack("h", data)[0])
                 elif fields["type"].startswith("char"):

@@ -18,7 +18,6 @@ rosidl_generate_interfaces(
     srv/Grip.srv
     srv/Release.srv
     srv/ShowConfiguration.srv
-    # newly added service
     srv/ShowGripperSpecification.srv
     msg/Gripper.msg
     msg/GripperState.msg
