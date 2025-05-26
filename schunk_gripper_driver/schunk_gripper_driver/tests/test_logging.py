@@ -43,7 +43,7 @@ def test_driver_logs_correct_level(log_level_checker, log_helper, lifecycle_inte
 
 
 @skip_without_gripper
-def test_driver_rejects_invalid_log_level(driver):
+def test_driver_rejects_invalid_log_level():
     client = rclpy.create_node("test_driver_bad_log_level")
     set_params_client = client.create_client(
         SetParameters, "/schunk/driver/set_parameters"
