@@ -26,13 +26,11 @@ from schunk_gripper_interfaces.srv import (  # type: ignore [attr-defined]
     Grip,
     Release,
     ShowConfiguration,
-    # newly added service
     ShowGripperSpecification
 )
 from schunk_gripper_interfaces.msg import (  # type: ignore [attr-defined]
     Gripper as GripperConfig,
     GripperState,
-    # newly added service
     GripperSpec,
 )
 from sensor_msgs.msg import JointState
@@ -247,8 +245,6 @@ class Driver(Node):
                 )
             )
 
-            ########################## newly added service ###################################
-            # Creation of the service
             self.gripper_services.append(
                 self.create_service(
                     ShowGripperSpecification,
@@ -543,8 +539,6 @@ class Driver(Node):
         response.message = gripper["driver"].get_status_diagnostics()
         return response
 
-    ########################## newly added service ###################################
-    # call back of the service
     def _show_gripper_specification_cb(
         self, 
         request: ShowGripperSpecification.Request, 
