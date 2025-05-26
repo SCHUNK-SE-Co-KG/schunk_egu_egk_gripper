@@ -39,7 +39,7 @@ def get_directory_size(directory):
     return total_size
 
 
-@pytest.fixture(scope="function")
+@pytest.fixture(scope="module")
 def log_monitor(request, tmpdir_factory):
     log_dir = str(tmpdir_factory.mktemp("log_dir"))
     os.environ["ROS_LOG_DIR"] = log_dir
@@ -60,7 +60,7 @@ def ros2():
     rclpy.shutdown()
 
 
-@launch_pytest.fixture(scope="function")
+@launch_pytest.fixture(scope="module")
 def driver(ros2):
     setup = IncludeLaunchDescription(
         PathJoinSubstitution(
@@ -122,12 +122,12 @@ class LifecycleInterface(object):
         return grippers
 
 
-@pytest.fixture(scope="function")
+@pytest.fixture(scope="module")
 def lifecycle_interface(driver):
     return LifecycleInterface()
 
 
-@pytest.fixture(scope="function")
+@pytest.fixture(scope="module")
 def log_helper(driver):
     return LogHelper()
 
@@ -146,7 +146,7 @@ def get_log_files():
 
 @pytest.fixture(scope="function")
 def log_level_checker(tmpdir_factory):
-    log_dir = str(tmpdir_factory.mktemp("log_dir"))
+    log_dir = str(tmpdir_factory.mktemp("log_dir_checker"))
     os.environ["ROS_LOG_DIR"] = log_dir
     print("log_dir: ", log_dir)
     yield
@@ -155,14 +155,20 @@ def log_level_checker(tmpdir_factory):
     for log_file in log_files:
         with open(log_file, "r") as f:
             content = f.read()
-            if "DEBUG" in content:
-                assert True
-            elif (
-                "INFO" in content
-            ):  # INFO will be in the logs if Test is run on its own
-                assert True
-            else:
-                print(f"Log file {log_file} does not contain expected log levels.")
+            checks = {
+                "DEBUG": False,
+                "INFO": False,
+                "on_activate()": False,
+                "on_configure()": False,
+            }
+            for key in checks:
+                if key in content:
+                    checks[key] = True
+            if not all(checks.values()):
+                print(
+                    f"""Log file {log_file} missing:
+                    {[k for k, v in checks.items() if not v]}"""
+                )
                 assert False
     assert True
 
@@ -172,7 +178,7 @@ class LogHelper:
         pass
 
     def change_log_level(self, level):
-        client = rclpy.create_node("test_driver_bad_log_level")
+        client = rclpy.create_node("test_driver_log_helper")
         set_params_client = client.create_client(
             SetParameters, "/schunk/driver/set_parameters"
         )
@@ -185,7 +191,7 @@ class LogHelper:
                         name="log_level",
                         value=ParameterValue(
                             type=ParameterType.PARAMETER_STRING,
-                            string_value="DEBUG",
+                            string_value=level,
                         ),
                     )
                 ]

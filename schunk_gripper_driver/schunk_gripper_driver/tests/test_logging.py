@@ -14,9 +14,32 @@
 # this program. If not, see <https://www.gnu.org/licenses/>.
 # --------------------------------------------------------------------------------
 from schunk_gripper_library.utility import skip_without_gripper
+from lifecycle_msgs.msg import Transition
+import time
 from rcl_interfaces.srv import GetParameters, SetParameters
 from rcl_interfaces.msg import Parameter, ParameterValue, ParameterType
 import rclpy
+
+
+@skip_without_gripper
+def test_driver_logs_correct_level(log_level_checker, log_helper, lifecycle_interface):
+    log_helper = log_helper
+    log_helper.change_log_level("DEBUG")
+
+    driver = lifecycle_interface
+
+    for _ in range(10):
+
+        driver.change_state(Transition.TRANSITION_CONFIGURE)
+        driver.change_state(Transition.TRANSITION_ACTIVATE)
+
+        time.sleep(0.1)
+
+        driver.change_state(Transition.TRANSITION_DEACTIVATE)
+        driver.change_state(Transition.TRANSITION_CLEANUP)
+
+    log_helper.change_log_level("INFO")
+    # log_level_checker does the final asserting
 
 
 @skip_without_gripper
@@ -53,6 +76,7 @@ def test_driver_rejects_invalid_log_level(driver):
         assert (
             not future.result().results[0].successful
         ), f"Setting log level to {invalid_level} should have failed"
+        time.sleep(0.1)
 
     # Check that the log level is still set to INFO
     future = get_params_client.call_async(GetParameters.Request(names=["log_level"]))
@@ -62,11 +86,3 @@ def test_driver_rejects_invalid_log_level(driver):
     assert (
         result_values and result_values[0].string_value == "INFO"
     ), "Log level should be set to INFO after invalid log level was set"
-
-
-@skip_without_gripper
-def test_driver_logs_correct_level(log_level_checker, log_helper):
-    driver = log_helper
-    driver.change_log_level("DEBUG")
-
-    # log_level_checker does the final asserting
