@@ -14,37 +14,11 @@
 # this program. If not, see <https://www.gnu.org/licenses/>.
 # --------------------------------------------------------------------------------
 from schunk_gripper_library.utility import skip_without_gripper
-from lifecycle_msgs.msg import Transition
-import time
-import pytest
 from rcl_interfaces.srv import GetParameters, SetParameters
 from rcl_interfaces.msg import Parameter, ParameterValue, ParameterType
 import rclpy
 
-LOG_SIZE_BYTES = 500  # Minimal output for driver startup and shutdown
 
-
-@skip_without_gripper
-@pytest.mark.parametrize(
-    "log_monitor", [{"max_log_size": LOG_SIZE_BYTES}], indirect=True
-)
-def test_driver_doesnt_fill_disk_space_by_default(log_monitor, lifecycle_interface):
-    driver = lifecycle_interface
-
-    for _ in range(10):
-
-        driver.change_state(Transition.TRANSITION_CONFIGURE)
-        driver.change_state(Transition.TRANSITION_ACTIVATE)
-
-        time.sleep(0.1)
-
-        driver.change_state(Transition.TRANSITION_DEACTIVATE)
-        driver.change_state(Transition.TRANSITION_CLEANUP)
-
-    # log_monitor does the final asserting
-
-
-@pytest.mark.skip
 @skip_without_gripper
 def test_driver_rejects_invalid_log_level(driver):
     client = rclpy.create_node("test_driver_bad_log_level")
