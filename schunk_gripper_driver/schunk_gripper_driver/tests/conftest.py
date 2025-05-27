@@ -170,7 +170,6 @@ def log_level_checker(tmpdir_factory):
                     {[k for k, v in checks.items() if not v]}"""
                 )
                 assert False
-    assert True
 
 
 class LogHelper:

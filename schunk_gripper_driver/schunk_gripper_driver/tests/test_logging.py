@@ -23,7 +23,6 @@ import rclpy
 
 @skip_without_gripper
 def test_driver_logs_correct_level(log_level_checker, log_helper, lifecycle_interface):
-    log_helper = log_helper
     log_helper.change_log_level("DEBUG")
 
     driver = lifecycle_interface
@@ -43,7 +42,7 @@ def test_driver_logs_correct_level(log_level_checker, log_helper, lifecycle_inte
 
 
 @skip_without_gripper
-def test_driver_rejects_invalid_log_level():
+def test_driver_rejects_invalid_log_level(driver):
     client = rclpy.create_node("test_driver_bad_log_level")
     set_params_client = client.create_client(
         SetParameters, "/schunk/driver/set_parameters"
