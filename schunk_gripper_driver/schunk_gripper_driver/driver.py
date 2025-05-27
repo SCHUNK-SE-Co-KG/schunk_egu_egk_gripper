@@ -98,29 +98,6 @@ class Driver(Node):
         # For concurrently running publishers
         self.callback_group = MutuallyExclusiveCallbackGroup()
 
-    def _param_cb(self, params):
-        valid_log_levels = [
-            "DEBUG",
-            "INFO",
-            "WARN",
-            "ERROR",
-            "FATAL",
-        ]
-        for p in params:
-            if p.name == "log_level":
-                if p.value not in valid_log_levels:
-                    self.get_logger().error(
-                        f"Invalid log level: {str(p.value)}. "
-                        f"Valid options are: {valid_log_levels}"
-                    )
-                    return SetParametersResult(successful=False)
-                level = rclpy.logging.get_logging_severity_from_string(p.value)
-                self.get_logger().set_level(level)
-                self.get_logger().debug(f"Log level changed to {p.value}")
-                return SetParametersResult(successful=True)
-
-        return SetParametersResult(successful=True)
-
     def list_grippers(self) -> list[str]:
         devices = []
         for gripper in self.grippers:
@@ -373,6 +350,29 @@ class Driver(Node):
         destroy = Thread(target=kill, daemon=True)
         destroy.start()
         return TransitionCallbackReturn.SUCCESS
+
+    def _param_cb(self, params):
+        valid_log_levels = [
+            "DEBUG",
+            "INFO",
+            "WARN",
+            "ERROR",
+            "FATAL",
+        ]
+        for p in params:
+            if p.name == "log_level":
+                if p.value not in valid_log_levels:
+                    self.get_logger().error(
+                        f"Invalid log level: {str(p.value)}. "
+                        f"Valid options are: {valid_log_levels}"
+                    )
+                    return SetParametersResult(successful=False)
+                level = rclpy.logging.get_logging_severity_from_string(p.value)
+                self.get_logger().set_level(level)
+                self.get_logger().debug(f"Log level changed to {p.value}")
+                return SetParametersResult(successful=True)
+
+        return SetParametersResult(successful=True)
 
     def _publish_joint_states(self, gripper: Gripper) -> None:
         msg = JointState()
