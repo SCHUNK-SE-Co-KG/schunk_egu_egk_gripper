@@ -27,6 +27,7 @@ from schunk_gripper_interfaces.srv import ListGrippers  # type: ignore [attr-def
 
 from rclpy.node import Node
 import os
+from rcl_interfaces.msg import Parameter, ParameterValue, ParameterType
 
 
 def get_directory_size(directory):
@@ -124,3 +125,77 @@ class LifecycleInterface(object):
 @pytest.fixture(scope="module")
 def lifecycle_interface(driver):
     return LifecycleInterface()
+
+
+@pytest.fixture(scope="module")
+def log_helper(driver):
+    return LogHelper()
+
+
+def get_log_files():
+    log_dir = os.environ.get("ROS_LOG_DIR")
+    if not log_dir:
+        raise ValueError("ROS_LOG_DIR environment variable is not set.")
+    log_files = []
+    for dirpath, dirnames, filenames in os.walk(log_dir):
+        for filename in filenames:
+            if filename.endswith(".log"):
+                log_files.append(os.path.join(dirpath, filename))
+    return log_files
+
+
+@pytest.fixture(scope="function")
+def log_level_checker(tmpdir_factory):
+    log_dir = str(tmpdir_factory.mktemp("log_dir_checker"))
+    os.environ["ROS_LOG_DIR"] = log_dir
+    print("log_dir: ", log_dir)
+    yield
+
+    log_files = get_log_files()
+    for log_file in log_files:
+        with open(log_file, "r") as f:
+            content = f.read()
+            checks = {
+                "DEBUG": False,
+                "INFO": False,
+                "on_activate()": False,
+                "on_configure()": False,
+            }
+            for key in checks:
+                if key in content:
+                    checks[key] = True
+            if not all(checks.values()):
+                print(
+                    f"""Log file {log_file} missing:
+                    {[k for k, v in checks.items() if not v]}"""
+                )
+                assert False
+
+
+class LogHelper:
+    def __init__(self):
+        pass
+
+    def change_log_level(self, level):
+        client = rclpy.create_node("test_driver_log_helper")
+        set_params_client = client.create_client(
+            SetParameters, "/schunk/driver/set_parameters"
+        )
+        assert set_params_client.wait_for_service(timeout_sec=2)
+
+        future = set_params_client.call_async(
+            SetParameters.Request(
+                parameters=[
+                    Parameter(
+                        name="log_level",
+                        value=ParameterValue(
+                            type=ParameterType.PARAMETER_STRING,
+                            string_value=level,
+                        ),
+                    )
+                ]
+            )
+        )
+
+        rclpy.spin_until_future_complete(client, future)
+        return future.result().results[0].successful
