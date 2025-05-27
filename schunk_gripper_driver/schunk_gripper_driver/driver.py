@@ -110,11 +110,10 @@ class Driver(Node):
             if p.name == "log_level":
                 if p.value not in valid_log_levels:
                     self.get_logger().error(
-                        f"""Invalid log level: {str(p.value)}. Valid options are:
-                        {self.valid_log_levels}"""
+                        f"Invalid log level: {str(p.value)}. "
+                        f"Valid options are: {valid_log_levels}"
                     )
                     return SetParametersResult(successful=False)
-
                 level = rclpy.logging.get_logging_severity_from_string(p.value)
                 self.get_logger().set_level(level)
                 self.get_logger().debug(f"Log level changed to {p.value}")
