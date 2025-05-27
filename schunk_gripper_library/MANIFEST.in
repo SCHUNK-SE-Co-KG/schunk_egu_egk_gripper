@@ -1,0 +1,1 @@
+include schunk_gripper_library/config/*.json
