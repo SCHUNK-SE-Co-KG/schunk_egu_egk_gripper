@@ -290,3 +290,44 @@ def test_release():
             assert asyncio.run(driver.release(use_gpe=True))
 
         assert driver.disconnect()
+
+
+@skip_without_gripper
+def test_jog():
+    fast_test_vel = 220000
+    slow_test_vel = 50
+    driver = Driver()
+
+    # Jog mode communication over TCP is not working for some reason right now
+    for host, port, serial_port in zip(
+        [None],
+        [None],
+        ["/dev/ttyUSB0"],
+    ):
+        try:
+            # not connected
+            assert not asyncio.run(driver.jog_positive(velocity=fast_test_vel))
+
+            assert not asyncio.run(driver.jog_negative(velocity=fast_test_vel))
+
+            # after connection
+            assert driver.connect(
+                host=host, port=port, serial_port=serial_port, device_id=12
+            )
+
+            assert asyncio.run(driver.acknowledge())
+
+            assert asyncio.run(driver.jog_positive(velocity=slow_test_vel))
+
+            assert asyncio.run(driver.reset_jog())
+
+            assert asyncio.run(driver.jog_negative(velocity=slow_test_vel))
+
+            assert asyncio.run(driver.reset_jog())
+
+            assert asyncio.run(driver.jog_positive(velocity=fast_test_vel, timeout=10))
+
+            assert asyncio.run(driver.reset_jog())
+
+        finally:
+            assert driver.disconnect()
