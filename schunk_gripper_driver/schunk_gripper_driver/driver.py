@@ -27,6 +27,7 @@ from schunk_gripper_interfaces.srv import (  # type: ignore [attr-defined]
     Grip,
     Release,
     ShowConfiguration,
+    ShowGripperSpecification,
 )
 from schunk_gripper_interfaces.msg import (  # type: ignore [attr-defined]
     Gripper as GripperConfig,
@@ -247,6 +248,14 @@ class Driver(Node):
                     Release,
                     f"~/{gripper['gripper_id']}/release",
                     partial(self._release_cb, gripper=gripper),
+                )
+            )
+
+            self.gripper_services.append(
+                self.create_service(
+                    ShowGripperSpecification,
+                    f"~/{gripper['gripper_id']}/show_gripper_specification",
+                    partial(self._show_gripper_specification_cb, gripper=gripper),
                 )
             )
 
@@ -557,6 +566,34 @@ class Driver(Node):
                 )
             )
         response.message = gripper["driver"].get_status_diagnostics()
+        return response
+
+    def _show_gripper_specification_cb(
+        self,
+        request: ShowGripperSpecification.Request,
+        response: ShowGripperSpecification.Response,
+        gripper: Gripper,
+    ):
+        self.get_logger().info("---> Show Specification")
+        if self.needs_synchronize(gripper):
+            spec = asyncio.run(
+                gripper["driver"].show_gripper_specification(
+                    scheduler=self.scheduler,
+                )
+            )
+        else:
+            spec = asyncio.run(gripper["driver"].show_gripper_specification())
+        response.success = spec is not None
+        response.message = gripper["driver"].get_status_diagnostics()
+        if isinstance(spec, dict):
+            response.specification.max_stroke = spec.get("max_stroke", 0.0)
+            response.specification.max_speed = spec.get("max_speed", 0.0)
+            response.specification.max_force = spec.get("max_force", 0.0)
+            response.specification.serial_number = spec.get("serial_number", "")
+            response.specification.firmware_version = spec.get("firmware_version", "")
+            response.success = True
+        else:
+            response.success = False
         return response
 
 
