@@ -408,21 +408,15 @@ class Driver(object):
                 return False
             return await check()
 
-    async def show_gripper_specification(
+    def show_gripper_specification(
         self, scheduler: Scheduler | None = None
-    ) -> dict[str, float | str] | None:
+    ) -> dict[str, float | str] | bool:
         if not self.connected:
-            return None
+            return False
 
-        async def start() -> bool:
-            return self.update_module_parameters()
+        if not self.update_module_parameters():
+            return False
 
-        if scheduler:
-            if not scheduler.execute(func=partial(start)).result():
-                return None
-        else:
-            if not await start():
-                return None
         gripper_spec = {
             "max_stroke": self.module_parameters["max_phys_stroke"] / 1000,
             "max_speed": self.module_parameters["max_grp_vel"] / 1000,

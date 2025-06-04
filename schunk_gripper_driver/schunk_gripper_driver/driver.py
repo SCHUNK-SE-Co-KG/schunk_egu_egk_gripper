@@ -580,14 +580,8 @@ class Driver(Node):
         gripper: Gripper,
     ):
         self.get_logger().info("---> Show Specification")
-        if self.needs_synchronize(gripper):
-            spec = asyncio.run(
-                gripper["driver"].show_gripper_specification(
-                    scheduler=self.scheduler,
-                )
-            )
-        else:
-            spec = asyncio.run(gripper["driver"].show_gripper_specification())
+
+        spec = gripper["driver"].show_gripper_specification()
         response.success = spec is not None
         response.message = gripper["driver"].get_status_diagnostics()
         if isinstance(spec, dict):
