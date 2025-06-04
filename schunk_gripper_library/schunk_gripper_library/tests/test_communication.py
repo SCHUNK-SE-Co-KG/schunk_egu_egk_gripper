@@ -553,3 +553,44 @@ def test_driver_offers_waiting_until_error():
 
     Timer(interval=0.5, function=fail).start()
     assert asyncio.run(driver.error_in(duration_sec=1.0))
+
+
+@skip_without_gripper
+def test_driver_offers_showing_gripper_specification():
+    driver = Driver()
+    # Check driver connection
+    assert not driver.connected
+    assert not driver.show_gripper_specification()
+
+    driver.connect(serial_port="/dev/ttyUSB0", device_id=12)
+    assert driver.show_gripper_specification()
+
+    # Verify module parameters
+    assert driver.update_module_parameters()
+    assert driver.show_gripper_specification()
+
+    # Verify module parameters type-casted datatypes
+    assert isinstance(driver.module_parameters["max_phys_stroke"], int)
+    assert isinstance(driver.module_parameters["max_grp_vel"], int)
+    assert isinstance(driver.module_parameters["max_grp_force"], int)
+    assert isinstance(driver.module_parameters["serial_no_txt"], str)
+    assert isinstance(driver.module_parameters["sw_version_txt"], str)
+
+    # Check module parameter values
+    required_params = [
+        "max_phys_stroke",
+        "max_grp_vel",
+        "max_grp_force",
+        "serial_no_txt",
+        "sw_version_txt",
+    ]
+    for param in required_params:
+        assert driver.module_parameters[param] is not None
+
+    # Verify specification is !empty
+    spec = driver.show_gripper_specification()
+    assert spec != {}
+
+    # Check driver after disconnected
+    driver.disconnect()
+    assert not driver.show_gripper_specification()
