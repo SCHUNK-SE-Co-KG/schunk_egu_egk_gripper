@@ -1,0 +1,3 @@
+{
+    "0x0048": {"name": "plc_output", "registers": 8, "type": "uint32 int32 int32 uint32"}
+}
