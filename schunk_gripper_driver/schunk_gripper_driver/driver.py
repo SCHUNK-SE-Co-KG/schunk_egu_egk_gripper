@@ -390,6 +390,11 @@ class Driver(Node):
         msg.header.frame_id = gripper_id
         msg.header.stamp = self.get_clock().now().to_msg()
 
+        status = gripper["driver"].get_status_diagnostics().split(",")
+        msg.error_code = status[0].strip()
+        msg.warning_code = status[1].strip()
+        msg.additional_code = status[2].strip()
+
         msg.bit0_ready_for_operation = bool(gripper["driver"].get_status_bit(bit=0))
         msg.bit1_control_authority_fieldbus = bool(
             gripper["driver"].get_status_bit(bit=1)
