@@ -111,6 +111,28 @@ def test_driver_publishes_gripper_state(lifecycle_interface):
         assert msg.header.stamp
         assert msg.header.frame_id
 
+        assert "error_code: 0x" in msg.error_code
+        assert "warning_code: 0x" in msg.warning_code
+        assert "additional_code: 0x" in msg.additional_code
+
+        assert msg.bit0_ready_for_operation is not None
+        assert msg.bit1_control_authority_fieldbus is not None
+        assert msg.bit2_ready_for_shutdown is not None
+        assert msg.bit3_not_feasible is not None
+        assert msg.bit4_command_successfully_processed is not None
+        assert msg.bit5_command_received_toggle is not None
+        assert msg.bit6_warning is not None
+        assert msg.bit7_error is not None
+        assert msg.bit8_released_for_manual_movement is not None
+        assert msg.bit9_software_limit_reached is not None
+        assert msg.bit11_no_workpiece_detected is not None
+        assert msg.bit12_workpiece_gripped is not None
+        assert msg.bit13_position_reached is not None
+        assert msg.bit14_workpiece_pre_grip_started is not None
+        assert msg.bit16_workpiece_lost is not None
+        assert msg.bit17_wrong_workpiece_gripped is not None
+        assert msg.bit31_grip_force_and_position_maintenance_activated is not None
+
     for gripper in grippers:
         _ = driver.node.create_subscription(
             GripperState,

@@ -1,5 +1,10 @@
 std_msgs/Header header
 
+# Diagnostics codes
+string error_code
+string warning_code
+string additional_code
+
 # Bits from the gripper's plc status double word
 bool bit0_ready_for_operation
 bool bit1_control_authority_fieldbus
