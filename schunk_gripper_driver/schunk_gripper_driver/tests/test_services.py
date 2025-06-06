@@ -24,6 +24,7 @@ from schunk_gripper_interfaces.srv import (  # type: ignore [attr-defined]
     Grip,
     Release,
     ShowConfiguration,
+    ShowGripperSpecification,
 )
 from schunk_gripper_interfaces.msg import (  # type: ignore [attr-defined]
     Gripper as GripperConfig,
@@ -48,6 +49,7 @@ def test_driver_advertises_state_depending_services(lifecycle_interface):
         "move_to_absolute_position",
         "grip",
         "release",
+        "show_gripper_specification",
     ]
     until_change_takes_effect = 0.1
 
@@ -291,6 +293,28 @@ def test_driver_implements_grip_and_release(lifecycle_interface):
             future = release_client.call_async(Release.Request())
             rclpy.spin_until_future_complete(node, future)
             assert future.result().success, f"{future.result().message}"
+
+    driver.change_state(Transition.TRANSITION_DEACTIVATE)
+    driver.change_state(Transition.TRANSITION_CLEANUP)
+
+
+@skip_without_gripper
+def test_driver_implements_show_specification(lifecycle_interface):
+    driver = lifecycle_interface
+    driver.change_state(Transition.TRANSITION_CONFIGURE)
+    driver.change_state(Transition.TRANSITION_ACTIVATE)
+
+    node = Node("show_specification")
+    for gripper in driver.list_grippers():
+        client = node.create_client(
+            ShowGripperSpecification,
+            f"/schunk/driver/{gripper}/show_gripper_specification",
+        )
+        assert client.wait_for_service(timeout_sec=2), f"gripper: {gripper}"
+        future = client.call_async(ShowGripperSpecification.Request())
+        rclpy.spin_until_future_complete(node, future, timeout_sec=1)
+
+        assert future.result().success
 
     driver.change_state(Transition.TRANSITION_DEACTIVATE)
     driver.change_state(Transition.TRANSITION_CLEANUP)
