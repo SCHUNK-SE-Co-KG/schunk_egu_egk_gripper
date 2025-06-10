@@ -408,14 +408,12 @@ class Driver(object):
                 return False
             return await check()
 
-    def show_gripper_specification(
-        self, scheduler: Scheduler | None = None
-    ) -> dict[str, float | str] | bool:
+    def show_gripper_specification(self) -> dict[str, float | str]:
         if not self.connected:
-            return False
+            return {}
 
         if not self.update_module_parameters():
-            return False
+            return {}
 
         gripper_spec = {
             "max_stroke": self.module_parameters["max_phys_stroke"] / 1000,
@@ -489,19 +487,18 @@ class Driver(object):
         value: int | str
         for param, fields in self.readable_parameters.items():
             if fields["name"] in self.module_parameters:
+                strtype = str(fields["type"])
                 if not (data := self.read_module_parameter(param)):
                     return False
                 if fields["type"] == "float":
                     value = int(struct.unpack("f", data)[0] * 1e3)
                 elif fields["type"] == "enum":
                     value = int(struct.unpack("h", data)[0])
-                elif isinstance(fields["type"], str) and fields["type"].startswith(
-                    "char"
-                ):
-                    start = fields["type"].find("[")
-                    end = fields["type"].find("]")
+                elif strtype.startswith("char"):
+                    start = strtype.find("[")
+                    end = strtype.find("]")
                     if start != -1 and end != -1:
-                        length = int(fields["type"][start + 1 : end])
+                        length = int(strtype[start + 1 : end])
                         value = data[:length].decode("ascii").strip("\x00")
                     else:
                         return False

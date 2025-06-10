@@ -242,7 +242,6 @@ def test_driver_offers_callback_for_grip(ros2: None):
     for idx, _ in enumerate(driver.grippers):
         gripper = driver.grippers[idx]
         driver._grip_cb(request=req, response=res, gripper=gripper)
-        print(res)
         assert not res.success
         assert res.message != ""
 
@@ -458,6 +457,19 @@ def test_driver_doesnt_configure_with_empty_grippers(ros2):
 @skip_without_gripper
 def test_driver_offers_callback_for_show_gripper_specification(ros2: None):
     driver = Driver("driver")
+
+    # Check if service is accessable when disconnected
+    req = ShowGripperSpecification.Request()
+    res = ShowGripperSpecification.Response()
+    for idx, _ in enumerate(driver.grippers):
+        gripper = driver.grippers[idx]
+        driver._show_gripper_specification_cb(
+            request=req, response=res, gripper=gripper
+        )
+        assert not res.success
+        assert res.message != ""
+
+    # connect
     driver.on_configure(state=None)
     driver.on_activate(state=None)
 
@@ -470,15 +482,6 @@ def test_driver_offers_callback_for_show_gripper_specification(ros2: None):
             request=req, response=res, gripper=gripper
         )
         assert res.success
-        assert res.message != ""
-    # Check if service is accessable when disconnected
-    gripper["driver"].connected = False
-    for idx, _ in enumerate(driver.grippers):
-        gripper = driver.grippers[idx]
-        driver._show_gripper_specification_cb(
-            request=req, response=res, gripper=gripper
-        )
-        assert not res.success
         assert res.message != ""
 
     driver.on_deactivate(state=None)
