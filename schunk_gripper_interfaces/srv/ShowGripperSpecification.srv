@@ -1,4 +1,4 @@
 ---
-bool success                    # The Gripper's status
-string message                  # The Gripper's message info
-GripperSpec specification       # The Gripper's Specification
+bool success
+string message
+GripperSpec specification

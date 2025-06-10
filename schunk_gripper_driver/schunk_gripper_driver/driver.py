@@ -582,16 +582,16 @@ class Driver(Node):
         self.get_logger().info("---> Show Specification")
 
         spec = gripper["driver"].show_gripper_specification()
-        if not isinstance(spec, dict):
+        if not spec:
             response.success = False
             response.message = gripper["driver"].get_status_diagnostics()
             return response
 
-        response.specification.max_stroke = spec.get("max_stroke", 0.0)
-        response.specification.max_speed = spec.get("max_speed", 0.0)
-        response.specification.max_force = spec.get("max_force", 0.0)
-        response.specification.serial_number = spec.get("serial_number", "")
-        response.specification.firmware_version = spec.get("firmware_version", "")
+        response.specification.max_stroke = spec["max_stroke"]
+        response.specification.max_speed = spec["max_speed"]
+        response.specification.max_force = spec["max_force"]
+        response.specification.serial_number = spec["serial_number"]
+        response.specification.firmware_version = spec["firmware_version"]
         response.success = True
         response.message = gripper["driver"].get_status_diagnostics()
         return response

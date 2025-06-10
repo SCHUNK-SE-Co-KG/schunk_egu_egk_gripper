@@ -1,9 +1,7 @@
 build/
 install/
 log/
-.vscode/
-__pycache__/
-*.pyc
+/.vscode
 
 # Ignore test coverage artifacts
 *.coverage
