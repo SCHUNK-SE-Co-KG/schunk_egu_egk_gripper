@@ -553,3 +553,27 @@ def test_driver_offers_waiting_until_error():
 
     Timer(interval=0.5, function=fail).start()
     assert asyncio.run(driver.error_in(duration_sec=1.0))
+
+
+@skip_without_gripper
+def test_driver_offers_showing_gripper_specification():
+    driver = Driver()
+    # Without driver connected
+    assert not driver.connected
+    spec = driver.show_gripper_specification()
+    assert spec == {}
+
+    # With driver connected
+    driver.connect(serial_port="/dev/ttyUSB0", device_id=12)
+    # Verify specification is !empty
+    spec = driver.show_gripper_specification()
+    assert spec != {}
+    params = [
+        "max_stroke",
+        "max_speed",
+        "max_force",
+        "serial_number",
+        "firmware_version",
+    ]
+    for param in params:
+        assert param in spec
