@@ -4,6 +4,7 @@ from .etc.modbus_server import ModbusServer
 import asyncio
 import threading
 import time
+from .etc.scanner_helper import stop_all
 
 
 @pytest.fixture
@@ -63,3 +64,10 @@ def modbus_server(pseudo_terminals):
     loop.call_soon_threadsafe(loop.stop)
     thread.join()
     loop.close()
+
+
+@pytest.fixture()
+def cleanup():
+    assert (
+        stop_all() is None
+    ), "Failed to stop all scanners and drivers after test execution."
