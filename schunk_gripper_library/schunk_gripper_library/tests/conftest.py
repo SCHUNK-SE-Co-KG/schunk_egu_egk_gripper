@@ -4,6 +4,7 @@ from .etc.modbus_server import ModbusServer
 import asyncio
 import threading
 import time
+from .etc.scanner_helper import stop_all
 
 
 @pytest.fixture
@@ -32,3 +33,9 @@ def pseudo_terminals():
 
     print("Closing both pseudo terminals")
     connection.close()
+
+@pytest.fixture()
+def cleanup():
+    assert (
+        stop_all() is None
+    ), "Failed to stop all scanners and drivers after test execution."
