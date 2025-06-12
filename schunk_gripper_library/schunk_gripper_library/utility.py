@@ -7,6 +7,44 @@ import asyncio
 from pathlib import Path
 from httpx import Client, ConnectTimeout, ConnectError
 import pytest
+from pymodbus.client.serial import ModbusSerialClient
+from pymodbus.payload import BinaryPayloadBuilder
+from pymodbus.constants import Endian
+import serial
+import struct
+from pymodbus.pdu import ModbusPDU
+from pymodbus.logging import Log
+import os
+
+
+class NonExclusiveSerialClient(ModbusSerialClient):
+    def connect(self) -> bool:
+        """
+        Exact copy of the original connect() method with the sole exception of
+        using `exclusive=False` for the serial connection. We need this to have
+        several driver instances connect and speak over the same Modbus wire. A
+        high-level entity will manage concurrency with a scheduler for
+        multi-gripper scenarios.
+
+        """
+        if self.socket:  # type: ignore [has-type]
+            return True
+        try:
+            self.socket = serial.serial_for_url(
+                self.comm_params.host,
+                timeout=self.comm_params.timeout_connect,
+                bytesize=self.comm_params.bytesize,
+                stopbits=self.comm_params.stopbits,
+                baudrate=self.comm_params.baudrate,
+                parity=self.comm_params.parity,
+                exclusive=False,
+            )
+            self.socket.inter_byte_timeout = self.inter_byte_timeout
+            self.last_frame_end = None
+        except Exception as msg:
+            Log.error("{}", msg)
+            self.close()
+        return self.socket is not None
 
 
 class Task(object):
@@ -96,6 +134,288 @@ class Scheduler(object):
             self.tasks.task_done()
 
 
+class ResponseExpectancyRequest(ModbusPDU):
+    function_code = 0x08
+    _sub_function = 0x0004
+
+    def __init__(self, expectancy: int, slave: int = 1) -> None:
+        super().__init__(dev_id=slave)
+        self.expectancy = expectancy
+
+    # --- wire-format helpers -------------------------------------------------
+    def encode(self) -> bytes:  # request → bytes
+        # Big-endian “HH”: sub-function, data field
+        return struct.pack(">HH", self._sub_function, self.expectancy)
+
+
+class Scanner(object):
+    def __init__(self):
+        self.client = NonExclusiveSerialClient(
+            port="/dev/ttyUSB0",
+            baudrate=115200,
+            timeout=0.1,
+            parity="N",
+            stopbits=1,
+            bytesize=8,
+            retries=0,
+        )
+        self.client.set_max_no_responses(99999)  # Set a high limit for no responses
+        self.client.connect()
+
+        self.clear_buffer()
+
+    def clear_buffer(self, delay: float = 0.2):
+        """Clear any stale data from the receive and transmit buffers"""
+        if self.client.socket and self.client.socket.is_open:
+            try:
+                self.client.socket.reset_input_buffer()
+                # Add a small delay between clearing input and output
+                time.sleep(0.05)
+                self.client.socket.reset_output_buffer()
+                if delay > 0:
+                    time.sleep(delay)
+            except Exception as e:
+                print(f"Warning: Failed to clear buffers: {e}")
+
+    def get_serial_number(self, dev_id: int) -> str | None:
+        """Get the serial number of the gripper using the serial_no_num parameter."""
+
+        # Clear buffer before every operation
+        self.clear_buffer()
+
+        if not (0 <= dev_id <= 247):
+            print(f"Device ID must be between 0 and 247, got: {dev_id}")
+            return None
+
+        if not self.client.connected:
+            self.client.connect()
+            time.sleep(0.1)
+
+        try:
+            # Add retry mechanism for reliability
+            for _ in range(3):
+                result = self.client.read_holding_registers(
+                    address=0x1020 - 1, slave=dev_id, count=2
+                )
+
+                if not result.isError() and result.dev_id == dev_id:
+                    serial_num = (result.registers[0] << 16) | result.registers[1]
+                    serial_hex_str = f"{serial_num:08X}"
+                    return serial_hex_str
+
+                time.sleep(0.2)  # Wait between attempts
+
+            return None
+
+        except Exception as e:
+            print(f"Error reading serial number from device {dev_id}: {e}")
+            return None
+
+    def change_gripper_id_by_serial_num(self, serial_number: str, new_id: int) -> bool:
+        """
+        Change the ID of a specific gripper identified by its serial number.
+        Args:
+            serial_number: Serial number as hex string (e.g., "12345678")
+            new_id: New device ID to assign
+        This uses a broadcast message with serial number targeting.
+        """
+        try:
+            self.clear_buffer()
+            # Validate and convert hex string serial number to 4-byte integer
+            if len(serial_number) != 8:
+                raise ValueError(
+                    f"Serial number must be 8 hex characters, got: {serial_number}"
+                )
+
+            # Convert hex string directly to integer
+            try:
+                serial_hex = int(serial_number, 16)
+            except ValueError:
+                raise ValueError(
+                    f"Serial number must be valid hex string, got: {serial_number}"
+                )
+
+            # Build payload according to the example format
+            builder = BinaryPayloadBuilder(byteorder=Endian.BIG, wordorder=Endian.BIG)
+
+            # Add new slave ID (1 byte)
+            builder.add_8bit_uint(new_id)
+            builder.add_8bit_uint(0x00)  # Padding
+
+            # Add new slave ID again (2 bytes)
+            builder.add_16bit_uint(new_id)
+
+            # Add serial number (4 bytes)
+            builder.add_32bit_uint(serial_hex)
+
+            # Add padding (4 bytes of 0xFF)
+            for _ in range(4):
+                builder.add_8bit_uint(0xFF)
+
+            payload = builder.to_registers()
+            register_address = 0x11A7
+
+            # Use broadcast (slave ID 0) to send to all grippers
+            self.client.write_registers(
+                register_address, payload, slave=0, no_response_expected=True
+            )
+
+            print(
+                f"Successfully sent ID change command for serial"
+                f"{serial_number} to ID {new_id}"
+            )
+            return True
+
+        except Exception as e:
+            print(f"Error changing gripper ID by serial: {e}")
+            return False
+
+    def set_expectancy(self, expectancy: int = 1, dev_id: int = 0) -> bool:
+        """
+        Set response expectancy for Modbus devices.
+        Args:
+            expectancy: Integer value (0-255) that will be converted to hex
+            slave: Slave ID (0 for broadcast)
+        """
+        self.clear_buffer()
+
+        # Validate input range
+        if not (0 <= expectancy <= 255):
+            print(f"Expectancy must be between 0 and 255, got: {expectancy}")
+            return False
+
+        if not (0 <= dev_id <= 247):
+            print(f"Device ID must be between 0 and 247, got: {dev_id}")
+            return False
+
+        if not self.client.connected:
+            try:
+                self.client.connect()
+                time.sleep(0.1)
+            except Exception:
+                return False
+
+        try:
+            # TODO: add check for broadcast
+            # Convert integer directly to hex (ResponseExpectancyRequest expects int)
+            req = ResponseExpectancyRequest(expectancy=expectancy, slave=dev_id)
+            self.client.execute(request=req, no_response_expected=True)
+            return True
+        except Exception as e:
+            print(f"Unexpected error sending expectancy command: {e}")
+            return False
+
+    def change_gripper_id(self, old_id: int, new_id: int):
+        """
+        Change the ID of the gripper by writing to a specific register.
+        """
+
+        try:
+            self.clear_buffer()
+
+            builder = BinaryPayloadBuilder(byteorder=Endian.BIG, wordorder=Endian.BIG)
+            builder.add_8bit_uint(new_id)
+            payload = builder.to_registers()
+            register_address = 0x11A7
+
+            self.client.retries = 0
+            response = self.client.write_registers(
+                register_address, payload, slave=old_id, no_response_expected=True
+            )
+            print("Successfully changed gripper ID to ", new_id)
+            print(response)
+
+            return True
+
+        except Exception as e:
+            print(f"Unexpected error sending broadcast message: {e}")
+            return False
+
+    def assign_ids(
+        self, gripper_num: int, start_id: int = 20, universal_id: int = 12
+    ) -> bool:
+        """
+        Function to find grippers in the system and assign them individual IDs.
+        This function will:
+        Args:
+            gripper_num: Number of grippers expected to be found
+        """
+        self.clear_buffer()
+
+        # Broadcast to change all IDs to a universal ID first
+        self.client.retries = 0
+        print(f"Broadcasting ID change from 0 to {universal_id}")
+        self.change_gripper_id(old_id=0, new_id=universal_id)
+        time.sleep(0.2)
+
+        # TODO: Adapt probability of response, maybe a simple algorithm
+        # Set probability of response for all grippers
+        # 5 => every fifth request will be received by the gripper
+        self.set_expectancy(expectancy=10, dev_id=0)  # Broadcast to all
+        time.sleep(0.2)
+
+        # Collect serial numbers and assign individual IDs
+        grippers_found: list[dict] = []
+        attempt = 0
+        while True:
+            if len(grippers_found) >= gripper_num:
+                break
+
+            print(
+                f"Attempt {attempt + 1}: Looking for grippers with"
+                f"universal ID {universal_id}"
+            )
+            attempt += 1
+
+            # Ensure connection is active
+            if not self.client.connected:
+                self.client.connect()
+                time.sleep(0.1)
+
+            # Try to get serial number from universal ID
+            serial_number = self.get_serial_number(dev_id=universal_id)
+
+            if serial_number and isinstance(serial_number, str):
+                # Check if we already found this gripper
+                if serial_number not in [g["serial"] for g in grippers_found]:
+                    new_id = start_id + len(grippers_found)
+                    print(
+                        f"Found new gripper with serial {serial_number},"
+                        f"assigning ID {new_id}"
+                    )
+                    time.sleep(0.1)
+                    # Change this specific gripper's ID using its serial number
+                    success = self.change_gripper_id_by_serial_num(
+                        serial_number=serial_number, new_id=new_id
+                    )
+
+                    if success:
+                        time.sleep(0.1)  # Small delay to ensure change takes effect
+                        grippers_found.append(
+                            {
+                                "serial": serial_number,
+                                "old_id": universal_id,
+                                "new_id": new_id,
+                            }
+                        )
+                        print(
+                            f"Successfully assigned ID {new_id}"
+                            f"to gripper {serial_number}"
+                        )
+
+                        if (gripper_num - len(grippers_found)) == 1:
+                            self.set_expectancy(
+                                expectancy=1, dev_id=0
+                            )  # Set low expectancy for last gripper
+
+            time.sleep(0.1)
+
+        if len(grippers_found) == gripper_num:
+            return True
+        else:
+            return False
+
+
 def gripper_available() -> bool:
     client = Client()
     try:
@@ -113,3 +433,34 @@ def gripper_available() -> bool:
 skip_without_gripper = pytest.mark.skipif(
     not gripper_available(), reason="No gripper/simulator available"
 )
+
+
+def skip_without_bks(func):
+    def check_bks_available():
+        # Check if BKS_SIMULATION_PATH is set
+        if not os.getenv("BKS_SIMULATION_PATH"):
+            return False, "BKS_SIMULATION_PATH environment variable not set"
+
+        # Check if the BKS simulation executable exists
+        bks_path = os.path.join(
+            os.getenv("BKS_SIMULATION_PATH"), "BKS_Simulation_Windows"
+        )
+        if not os.path.exists(bks_path):
+            return False, f"BKS simulation executable not found at {bks_path}"
+
+        # Check if tty_bus socket exists (infrastructure running)
+        tty_bus_socket = "/tmp/ttypts2mux"
+        if not os.path.exists(tty_bus_socket):
+            return False, "BKS test infrastructure not running (missing tty_bus socket)"
+
+        # Check if /dev/ttyUSB0 is available
+        if not os.path.exists("/dev/ttyUSB0"):
+            return False, "Virtual serial device /dev/ttyUSB0 not available"
+
+        return True, "BKS infrastructure available"
+
+    available, reason = check_bks_available()
+
+    return pytest.mark.skipif(
+        not available, reason=f"BKS simulation not available: {reason}"
+    )(func)
