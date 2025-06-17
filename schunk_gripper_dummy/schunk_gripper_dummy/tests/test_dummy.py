@@ -33,6 +33,19 @@ def test_dummy_reads_configuration_on_startup():
     assert dummy.metadata is not None
 
 
+def test_dummy_has_min_max_parameters():
+    dummy = Dummy()
+
+    # Position
+    assert isinstance(dummy.max_position, int)
+    assert isinstance(dummy.min_position, int)
+    assert dummy.max_position < 100000  # sane SCHUNK gripper max
+
+    # Speed
+    assert isinstance(dummy.max_grp_vel, int)
+    assert dummy.max_grp_vel > 0
+
+
 def test_dummy_starts_in_error_state():
     # See p. 24 in
     # Booting and establishing operational readiness [1]
@@ -260,6 +273,23 @@ def test_dummy_supports_grip():
     dummy.process_control_bits()
     assert dummy.get_status_bit(bit=12) == 1  # workpiece gripped
     assert dummy.get_status_bit(bit=4) == 1  # command successfully processed
+
+
+def test_dummy_moves_when_gripping():
+    dummy = Dummy()
+    dummy.acknowledge()
+
+    # Move outward
+    dummy.set_control_bit(bit=12, value=True)  # grip workpiece
+    dummy.set_control_bit(bit=7, value=True)  # move outward
+    dummy.process_control_bits()
+    assert dummy.get_actual_position() == dummy.max_position
+
+    # Move inward
+    dummy.set_control_bit(bit=12, value=True)
+    dummy.set_control_bit(bit=7, value=False)
+    dummy.process_control_bits()
+    assert dummy.get_actual_position() == dummy.min_position
 
 
 def test_dummy_supports_grip_at_position():

@@ -72,6 +72,16 @@ class Dummy(object):
         self.initial_state = [self.plc_input_buffer.hex().upper()]
         self.clear_plc_output()
 
+        self.min_position = struct.unpack(
+            "i", bytearray(bytes.fromhex(self.data["0x0600"][0])[::-1])
+        )[0]
+        self.max_position = struct.unpack(
+            "i", bytearray(bytes.fromhex(self.data["0x0608"][0])[::-1])
+        )[0]
+        self.max_grp_vel = struct.unpack(
+            "i", bytearray(bytes.fromhex(self.data["0x0650"][0])[::-1])
+        )[0]
+
     def start(self) -> None:
         if self.running:
             return
@@ -391,6 +401,18 @@ class Dummy(object):
 
         # Grip workpiece
         if self.get_control_bit(bit=12) == 1:
+
+            if self.get_control_bit(bit=7) == 1:  # outward
+                self.move(
+                    target_pos=self.max_position,
+                    target_speed=self.max_grp_vel,
+                )
+            else:  # normal
+                self.move(
+                    target_pos=self.min_position,
+                    target_speed=self.max_grp_vel,
+                )
+
             self.set_status_bit(bit=12, value=True)
             self.set_status_bit(bit=4, value=True)
             self.clear_plc_output()
