@@ -72,15 +72,17 @@ class Dummy(object):
         self.initial_state = [self.plc_input_buffer.hex().upper()]
         self.clear_plc_output()
 
-        self.min_position = struct.unpack(
-            "i", bytearray(bytes.fromhex(self.data["0x0600"][0])[::-1])
-        )[0]
-        self.max_position = struct.unpack(
-            "i", bytearray(bytes.fromhex(self.data["0x0608"][0])[::-1])
-        )[0]
         self.max_grp_vel = struct.unpack(
             "i", bytearray(bytes.fromhex(self.data["0x0650"][0])[::-1])
         )[0]
+        min_pos_per_jaw = struct.unpack(
+            "i", bytearray(bytes.fromhex(self.data["0x0600"][0])[::-1])
+        )[0]
+        max_pos_per_jaw = struct.unpack(
+            "i", bytearray(bytes.fromhex(self.data["0x0608"][0])[::-1])
+        )[0]
+        self.min_position = 2 * min_pos_per_jaw
+        self.max_position = 2 * max_pos_per_jaw
 
     def start(self) -> None:
         if self.running:
