@@ -72,6 +72,18 @@ class Dummy(object):
         self.initial_state = [self.plc_input_buffer.hex().upper()]
         self.clear_plc_output()
 
+        self.max_grp_vel = struct.unpack(
+            "i", bytearray(bytes.fromhex(self.data["0x0650"][0])[::-1])
+        )[0]
+        min_pos_per_jaw = struct.unpack(
+            "i", bytearray(bytes.fromhex(self.data["0x0600"][0])[::-1])
+        )[0]
+        max_pos_per_jaw = struct.unpack(
+            "i", bytearray(bytes.fromhex(self.data["0x0608"][0])[::-1])
+        )[0]
+        self.min_position = 2 * min_pos_per_jaw
+        self.max_position = 2 * max_pos_per_jaw
+
     def start(self) -> None:
         if self.running:
             return
@@ -284,11 +296,12 @@ class Dummy(object):
         https://stb.cloud.schunk.com/media/IM0046706.PDF
 
         """
-        # Reset success of previous commands
-        self.set_status_bit(bit=4, value=False)
-        self.set_status_bit(bit=8, value=False)
-        self.set_status_bit(bit=12, value=False)
-        self.set_status_bit(bit=13, value=False)
+        # Reset status bits of previous commands
+        for bit in self.valid_status_bits:
+            if bit in [5, 7]:
+                pass
+            else:
+                self.set_status_bit(bit=bit, value=False)
 
         # Clearing all control bits doesn't trigger any action
         if self.get_plc_output()[0] == "01" + "00" * 15:
@@ -365,6 +378,11 @@ class Dummy(object):
 
         # Move to absolute position
         if self.get_control_bit(bit=13) == 1:
+            if self.get_target_speed() <= 0:
+                self.set_status_bit(bit=3, value=True)
+                self.clear_plc_output()
+                return
+
             self.move(
                 target_pos=self.get_target_position(),
                 target_speed=self.get_target_speed(),
@@ -391,6 +409,18 @@ class Dummy(object):
 
         # Grip workpiece
         if self.get_control_bit(bit=12) == 1:
+
+            if self.get_control_bit(bit=7) == 1:  # outward
+                self.move(
+                    target_pos=self.max_position,
+                    target_speed=self.max_grp_vel,
+                )
+            else:  # normal
+                self.move(
+                    target_pos=self.min_position,
+                    target_speed=self.max_grp_vel,
+                )
+
             self.set_status_bit(bit=12, value=True)
             self.set_status_bit(bit=4, value=True)
             self.clear_plc_output()

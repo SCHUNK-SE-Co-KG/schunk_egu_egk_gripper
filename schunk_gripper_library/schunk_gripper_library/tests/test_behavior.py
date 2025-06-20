@@ -238,18 +238,22 @@ def test_grip_works_with_valid_arguments():
         assert asyncio.run(driver.grip(**args))
     driver.disconnect()
 
-    # Check that outward moves in the right directions.
-    # Only Modbus for now, the web dummy succeeds without moving.
-    driver.connect(serial_port="/dev/ttyUSB0", device_id=12)
+
+@skip_without_gripper
+def test_grip_moves_as_expected_with_the_outward_argument():
+    driver = Driver()
+
+    # Check that gripper's jaws moves in the right directions.
+    driver.connect(host="0.0.0.0", port=8000)
     max_pos = driver.module_parameters["max_pos"]
     min_pos = driver.module_parameters["min_pos"]
     middle = int(0.5 * (max_pos - min_pos))
 
-    asyncio.run(driver.acknowledge())
+    assert asyncio.run(driver.acknowledge())
     asyncio.run(driver.grip(force=100, outward=True))
     assert driver.get_actual_position() > middle
 
-    asyncio.run(driver.acknowledge())
+    assert asyncio.run(driver.acknowledge())
     asyncio.run(driver.grip(force=100, outward=False))
     assert driver.get_actual_position() < middle
 
