@@ -70,6 +70,22 @@ def test_dummy_clears_control_bits_after_processing():
         assert dummy.get_control_bit(bit=bit) == 0
 
 
+def test_dummy_clears_status_bits_before_processing():
+    dummy = Dummy()
+
+    # Mimic some operations that will set arbitrary status bits
+    for bit in dummy.valid_status_bits:
+        dummy.set_status_bit(bit=bit, value=True)
+
+    dummy.process_control_bits()
+    for bit in dummy.valid_status_bits:
+        # Some status bits shouldn't be reset
+        if bit in [5, 7]:
+            pass
+        else:
+            assert dummy.get_status_bit(bit=bit) == 0
+
+
 def test_dummy_offers_an_acknowledge_method():
     dummy = Dummy()
     dummy.acknowledge()
@@ -148,6 +164,31 @@ def test_dummy_moves_to_absolute_position():
         assert dummy.get_actual_position() == pytest.approx(target_pos, rel=1e-3)
         assert dummy.get_status_bit(bit=13) == 1  # position reached
         assert dummy.get_status_bit(bit=4) == 1  # command successfully processed
+
+
+def test_dummy_rejects_invalid_speeds_for_move_absolute_commands():
+    dummy = Dummy()
+    dummy.acknowledge()
+    target_positions = [12345, 10555, 7000, 1500]
+    target_speeds = [0, -100, -0]
+    expected_position = dummy.get_actual_position()
+    for target_pos, target_speed in zip(target_positions, target_speeds):
+        control_double_word = "01200000"  # bit 13
+        set_position = bytes(struct.pack("i", target_pos)).hex().upper()
+        set_speed = bytes(struct.pack("i", target_speed)).hex().upper()
+        gripping_force = "00000000"
+        command = {
+            "inst": dummy.plc_output,
+            "value": control_double_word + set_position + set_speed + gripping_force,
+        }
+
+        dummy.post(command)
+
+        # Dummy shouldn't move
+        assert dummy.get_actual_position() == pytest.approx(expected_position, rel=1e-3)
+        assert dummy.get_status_bit(bit=3) == 1
+        assert dummy.get_status_bit(bit=13) == 0  # position reached
+        assert dummy.get_status_bit(bit=4) == 0  # command successfully processed
 
 
 def test_dummy_moves_to_relative_position():
