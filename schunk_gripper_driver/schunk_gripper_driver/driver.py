@@ -27,6 +27,7 @@ from schunk_gripper_interfaces.srv import (  # type: ignore [attr-defined]
     Grip,
     Release,
     ShowConfiguration,
+    Scan,
     ShowGripperSpecification,
 )
 from schunk_gripper_interfaces.msg import (  # type: ignore [attr-defined]
@@ -41,7 +42,7 @@ from rclpy.publisher import Publisher
 from rclpy.timer import Timer
 from rclpy.executors import MultiThreadedExecutor, ExternalShutdownException
 from functools import partial
-from schunk_gripper_library.utility import Scheduler
+from schunk_gripper_library.utility import Scheduler, Scanner
 from typing import TypedDict
 from rclpy.callback_groups import MutuallyExclusiveCallbackGroup, ReentrantCallbackGroup
 from rcl_interfaces.msg import SetParametersResult
@@ -96,6 +97,7 @@ class Driver(Node):
         # Node parameters
         self.declare_parameter("log_level", "INFO")
 
+        self.scanner: Scanner = Scanner()
         self.scheduler: Scheduler = Scheduler()
         self.gripper_services: list[Service] = []
         self.joint_state_publishers: dict[str, Publisher] = {}
@@ -122,6 +124,7 @@ class Driver(Node):
             self._load_previous_configuration_cb,
         )
         self.scan_srv = self.create_service(Trigger, "~/scan", self._scan_cb)
+        self.scan_srv = self.create_service(Scan, "~/scan", self._scan_cb)
         self.add_on_set_parameters_callback(self._param_cb)
 
         # For concurrently running publishers
@@ -480,6 +483,7 @@ class Driver(Node):
             "~/load_previous_configuration",
             self._load_previous_configuration_cb,
         )
+        self.scan_srv = self.create_service(Scan, "~/scan", self._scan_cb)
 
         return TransitionCallbackReturn.SUCCESS
 
@@ -585,28 +589,18 @@ class Driver(Node):
                     self.gripper_state_publishers[gripper_id].publish(msg)
 
     # Service callbacks
-    def _scan_cb(self, request: Trigger.Request, response: Trigger.Response):
-        self.get_logger().debug("---> Scan")
-        grippers = self.grippers.copy()
-        if len(grippers) == 0:
-            self.get_logger().warn("No grippers to scan.")
+    def _scan_cb(self, request: Scan.Request, response: Scan.Response):
+        self.get_logger().debug(f"---> Scanning for {request.num_devices} devices")
+        try:
+            response.success = self.scanner.assign_ids(request.num_devices)
+            if response.success:
+                response.message = f"Successfully scanned and assigned \
+                    IDs to {request.num_devices} devices"
+            else:
+                response.message = f"Failed to scan for {request.num_devices} devices"
+        except Exception as e:
             response.success = False
-            response.message = "No grippers to scan."
-            return response
-
-        self.reset_grippers()
-        for i in range(len(grippers)):
-            self.get_logger().info("### adding gripper")
-            if not self.add_gripper(
-                serial_port="/dev/ttyUSB0", device_id=12 if i == 0 else 13
-            ):
-                self.get_logger().error("Adding gripper failed, resetting")
-                self.grippers = grippers
-                response.success = False
-                response.message = "Adding gripper failed"
-                return response
-
-        response.success = True
+            response.message = f"Error during scanning: {str(e)}"
         return response
 
     def _add_gripper_cb(
