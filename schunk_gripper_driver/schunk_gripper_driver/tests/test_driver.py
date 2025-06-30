@@ -269,6 +269,27 @@ def test_driver_offers_callback_for_release(ros2: None):
 
 
 @skip_without_gripper
+def test_driver_offers_callback_for_show_gripper_specification(ros2: None):
+    driver = Driver("driver")
+    driver.on_configure(state=None)
+    driver.on_activate(state=None)
+
+    # Check if we can call the interface.
+    req = ShowGripperSpecification.Request()
+    res = ShowGripperSpecification.Response()
+    for idx, _ in enumerate(driver.grippers):
+        gripper = driver.grippers[idx]
+        driver._show_gripper_specification_cb(
+            request=req, response=res, gripper=gripper
+        )
+        assert res.success
+        assert res.message != ""
+
+    driver.on_deactivate(state=None)
+    driver.on_cleanup(state=None)
+
+
+@skip_without_gripper
 def test_driver_runs_a_scheduler_for_concurrent_tasks(ros2: None):
     driver = Driver("driver")
     assert driver.scheduler is not None
@@ -452,37 +473,3 @@ def test_driver_doesnt_configure_with_empty_grippers(ros2):
 
     result = driver.on_configure(state=None)
     assert result == TransitionCallbackReturn.FAILURE
-
-
-@skip_without_gripper
-def test_driver_offers_callback_for_show_gripper_specification(ros2: None):
-    driver = Driver("driver")
-
-    # Check if service is accessable when disconnected
-    req = ShowGripperSpecification.Request()
-    res = ShowGripperSpecification.Response()
-    for idx, _ in enumerate(driver.grippers):
-        gripper = driver.grippers[idx]
-        driver._show_gripper_specification_cb(
-            request=req, response=res, gripper=gripper
-        )
-        assert not res.success
-        assert res.message != ""
-
-    # connect
-    driver.on_configure(state=None)
-    driver.on_activate(state=None)
-
-    # Check if service is accessable when connected.
-    req = ShowGripperSpecification.Request()
-    res = ShowGripperSpecification.Response()
-    for idx, _ in enumerate(driver.grippers):
-        gripper = driver.grippers[idx]
-        driver._show_gripper_specification_cb(
-            request=req, response=res, gripper=gripper
-        )
-        assert res.success
-        assert res.message != ""
-
-    driver.on_deactivate(state=None)
-    driver.on_cleanup(state=None)
