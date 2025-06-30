@@ -27,6 +27,7 @@ from schunk_gripper_interfaces.srv import (  # type: ignore [attr-defined]
     Grip,
     Release,
     ShowConfiguration,
+    ShowGripperSpecification,
 )
 from schunk_gripper_interfaces.msg import (  # type: ignore [attr-defined]
     Gripper as GripperConfig,
@@ -250,6 +251,14 @@ class Driver(Node):
                 )
             )
 
+            self.gripper_services.append(
+                self.create_service(
+                    ShowGripperSpecification,
+                    f"~/{gripper['gripper_id']}/show_gripper_specification",
+                    partial(self._show_gripper_specification_cb, gripper=gripper),
+                )
+            )
+
         # Publishers for each gripper
         for idx, _ in enumerate(self.grippers):
             gripper = self.grippers[idx]
@@ -455,6 +464,28 @@ class Driver(Node):
     ):
         self.get_logger().debug("---> List gripper IDs")
         response.grippers = self.list_grippers()
+        return response
+
+    def _show_gripper_specification_cb(
+        self,
+        request: ShowGripperSpecification.Request,
+        response: ShowGripperSpecification.Response,
+        gripper: Gripper,
+    ):
+        self.get_logger().info("---> Show Specification")
+        spec = gripper["driver"].show_gripper_specification()
+        if not spec:
+            response.success = False
+            response.message = gripper["driver"].get_status_diagnostics()
+            return response
+
+        response.specification.max_stroke = spec["max_stroke"]
+        response.specification.max_speed = spec["max_speed"]
+        response.specification.max_force = spec["max_force"]
+        response.specification.serial_number = spec["serial_number"]
+        response.specification.firmware_version = spec["firmware_version"]
+        response.success = True
+        response.message = gripper["driver"].get_status_diagnostics()
         return response
 
     def _acknowledge_cb(

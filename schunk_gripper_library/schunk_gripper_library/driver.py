@@ -61,6 +61,10 @@ class Driver(object):
             "max_grp_vel": None,
             "wp_release_delta": None,
             "fieldbus_type": None,
+            "max_phys_stroke": None,
+            "max_grp_force": None,
+            "serial_no_txt": None,
+            "sw_version_txt": None,
         }
         # fmt: off
         self.valid_status_bits: list[int] = (
@@ -404,6 +408,19 @@ class Driver(object):
                 return False
             return await check()
 
+    def show_gripper_specification(self) -> dict[str, float | str]:
+        if not self.connected:
+            return {}
+
+        gripper_spec = {
+            "max_stroke": self.module_parameters["max_phys_stroke"] / 1000,
+            "max_speed": self.module_parameters["max_grp_vel"] / 1000,
+            "max_force": self.module_parameters["max_grp_force"] / 1000,
+            "serial_number": self.module_parameters["serial_no_txt"],
+            "firmware_version": self.module_parameters["sw_version_txt"],
+        }
+        return gripper_spec
+
     def estimate_duration(
         self,
         release: bool = False,
@@ -464,14 +481,24 @@ class Driver(object):
                 self.module_parameters[key] = None
             return True
 
+        value: int | str
         for param, fields in self.readable_parameters.items():
             if fields["name"] in self.module_parameters:
+                strtype = str(fields["type"])
                 if not (data := self.read_module_parameter(param)):
                     return False
                 if fields["type"] == "float":
                     value = int(struct.unpack("f", data)[0] * 1e3)
                 elif fields["type"] == "enum":
                     value = int(struct.unpack("h", data)[0])
+                elif strtype.startswith("char"):
+                    start = strtype.find("[")
+                    end = strtype.find("]")
+                    if start != -1 and end != -1:
+                        length = int(strtype[start + 1 : end])
+                        value = data[:length].decode("ascii").strip("\x00")
+                    else:
+                        return False
                 else:
                     return False
                 self.module_parameters[fields["name"]] = value
