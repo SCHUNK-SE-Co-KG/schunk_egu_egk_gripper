@@ -491,18 +491,25 @@ def test_connected_driver_has_module_parameters():
         "max_pos",
         "wp_release_delta",
         "fieldbus_type",
+        "max_phys_stroke",
+        "max_grp_force",
+        "serial_no_txt",
+        "sw_version_txt",
     ]
     for param in params:
         assert param in driver.module_parameters
         assert driver.module_parameters[param] is None
 
-    driver.connect(serial_port="/dev/ttyUSB0", device_id=12)
-    for param in params:
-        assert driver.module_parameters[param] is not None
+    for host, port, serial_port in zip(
+        ["0.0.0.0", None], [8000, None], [None, "/dev/ttyUSB0"]
+    ):
+        driver.connect(host=host, port=port, serial_port=serial_port, device_id=12)
+        for param in params:
+            assert driver.module_parameters[param] is not None
 
-    driver.disconnect()
-    for param in params:
-        assert driver.module_parameters[param] is None
+        driver.disconnect()
+        for param in params:
+            assert driver.module_parameters[param] is None
 
 
 @skip_without_gripper
@@ -510,22 +517,25 @@ def test_driver_offers_updating_internal_module_parameters():
     driver = Driver()
 
     # Parameters are updated when connected
-    driver.connect(serial_port="/dev/ttyUSB0", device_id=12)
-    assert driver.update_module_parameters()
-    for key, value in driver.module_parameters.items():
-        assert value is not None, f"key: {key}"
-
-    # Repetitive
-    for _ in range(3):
+    for host, port, serial_port in zip(
+        ["0.0.0.0", None], [8000, None], [None, "/dev/ttyUSB0"]
+    ):
+        driver.connect(host=host, port=port, serial_port=serial_port, device_id=12)
         assert driver.update_module_parameters()
         for key, value in driver.module_parameters.items():
             assert value is not None, f"key: {key}"
 
-    # Values are reset when disconnected
-    driver.disconnect()
-    assert driver.update_module_parameters()
-    for key, value in driver.module_parameters.items():
-        assert value is None, f"key: {key}"
+        # Repetitive
+        for _ in range(3):
+            assert driver.update_module_parameters()
+            for key, value in driver.module_parameters.items():
+                assert value is not None, f"key: {key}"
+
+        # Values are reset when disconnected
+        driver.disconnect()
+        assert driver.update_module_parameters()
+        for key, value in driver.module_parameters.items():
+            assert value is None, f"key: {key}"
 
 
 def test_driver_offers_waiting_until_error():
