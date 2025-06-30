@@ -558,14 +558,13 @@ def test_driver_offers_waiting_until_error():
 @skip_without_gripper
 def test_driver_offers_showing_gripper_specification():
     driver = Driver()
+
     # Without driver connected
-    assert not driver.connected
-    spec = driver.show_gripper_specification()
-    assert spec == {}
+    assert driver.show_gripper_specification() == {}
 
     # With driver connected
     driver.connect(serial_port="/dev/ttyUSB0", device_id=12)
-    # Verify specification is !empty
+
     spec = driver.show_gripper_specification()
     assert spec != {}
     params = [

@@ -412,9 +412,6 @@ class Driver(object):
         if not self.connected:
             return {}
 
-        if not self.update_module_parameters():
-            return {}
-
         gripper_spec = {
             "max_stroke": self.module_parameters["max_phys_stroke"] / 1000,
             "max_speed": self.module_parameters["max_grp_vel"] / 1000,
