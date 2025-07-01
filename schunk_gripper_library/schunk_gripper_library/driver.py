@@ -414,7 +414,7 @@ class Driver(object):
 
         gripper_spec = {
             "max_stroke": self.module_parameters["max_phys_stroke"] / 1000,
-            "max_speed": self.module_parameters["max_grp_vel"] / 1000,
+            "max_speed": self.module_parameters["max_vel"] / 1000,
             "max_force": self.module_parameters["max_grp_force"] / 1000,
             "serial_number": self.module_parameters["serial_no_txt"],
             "firmware_version": self.module_parameters["sw_version_txt"],
