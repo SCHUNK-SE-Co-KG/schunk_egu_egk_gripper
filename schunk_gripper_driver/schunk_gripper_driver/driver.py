@@ -260,6 +260,7 @@ class Driver(Node):
             )
 
         # Publishers for each gripper
+        self.gripper_timers.clear()
         for idx, _ in enumerate(self.grippers):
             gripper = self.grippers[idx]
             gripper_id = gripper["gripper_id"]
@@ -316,8 +317,7 @@ class Driver(Node):
 
         # Remove gripper-specific publishers
         for idx, _ in enumerate(self.gripper_timers):
-            self.destroy_timer(self.gripper_timers[idx])
-        self.gripper_timers.clear()
+            self.gripper_timers[idx].cancel()
         for gripper in self.list_grippers():
             self.destroy_publisher(self.joint_state_publishers.pop(gripper))
             self.destroy_publisher(self.gripper_state_publishers.pop(gripper))
