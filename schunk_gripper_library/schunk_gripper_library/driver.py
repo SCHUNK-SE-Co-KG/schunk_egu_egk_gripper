@@ -10,7 +10,7 @@ from httpx import Client, ConnectError, ConnectTimeout
 from importlib.resources import files
 from typing import Union
 import json
-from .utility import Scheduler
+from .utility import Scheduler, supports_parity
 from functools import partial
 from pymodbus.logging import Log
 import serial  # type: ignore [import-untyped]
@@ -158,7 +158,7 @@ class Driver(object):
                 self.mb_client = NonExclusiveSerialClient(
                     port=serial_port,
                     baudrate=115200,
-                    parity="N",
+                    parity="E" if supports_parity(serial_port) else "N",
                     stopbits=1,
                     trace_connect=None,
                     trace_packet=None,
