@@ -335,7 +335,7 @@ class Driver(Node):
         self.get_logger().debug("on_cleanup() is called.")
         self.scheduler.stop()
         for gripper in self.grippers:
-            gripper["driver"].disconnect()
+            asyncio.run(gripper["driver"].disconnect())
             gripper["driver"] = GripperDriver()
 
         # Release info services
@@ -395,7 +395,7 @@ class Driver(Node):
         msg.header.frame_id = gripper_id
         msg.header.stamp = self.get_clock().now().to_msg()
         msg.name.append(gripper_id)
-        msg.position.append(gripper["driver"].get_actual_position() / 1e6)
+        msg.position.append(asyncio.run(gripper["driver"].get_actual_position()) / 1e6)
         if gripper_id in self.joint_state_publishers:
             self.joint_state_publishers[gripper_id].publish(msg)
 
@@ -405,7 +405,7 @@ class Driver(Node):
         msg.header.frame_id = gripper_id
         msg.header.stamp = self.get_clock().now().to_msg()
 
-        status = gripper["driver"].get_status_diagnostics().split(",")
+        status = asyncio.run(gripper["driver"].get_status_diagnostics()).split(",")
         msg.error_code = status[0].strip()
         msg.warning_code = status[1].strip()
         msg.additional_code = status[2].strip()

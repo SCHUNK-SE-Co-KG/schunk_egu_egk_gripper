@@ -1,10 +1,10 @@
 import struct
-from threading import Lock
-from pymodbus.client import ModbusSerialClient
+from pymodbus.client import AsyncModbusSerialClient
 from pymodbus.pdu import ModbusPDU
 import re
 from threading import Thread
 import asyncio
+from asyncio import Lock
 import time
 from httpx import Client, ConnectError, ConnectTimeout
 from importlib.resources import files
@@ -16,8 +16,8 @@ from pymodbus.logging import Log
 import serial  # type: ignore [import-untyped]
 
 
-class NonExclusiveSerialClient(ModbusSerialClient):
-    def connect(self) -> bool:
+class NonExclusiveSerialClient(AsyncModbusSerialClient):
+    async def connect(self) -> bool:
         """
         Exact copy of the original connect() method with the sole exception of
         using `exclusive=False` for the serial connection. We need this to have
@@ -113,7 +113,7 @@ class Driver(object):
         self.polling_thread: Thread = Thread()
         self.update_cycle: float = 0.05  # sec
 
-    def connect(
+    async def connect(
         self,
         host: str = "",
         port: int = 80,
@@ -136,7 +136,7 @@ class Driver(object):
                 return False
             self.host = host
             self.port = port
-            with self.web_client_lock:
+            async with self.web_client_lock:
                 self.web_client = Client(timeout=1.0)
                 try:
                     self.connected = self.web_client.get(
@@ -154,7 +154,7 @@ class Driver(object):
             if isinstance(device_id, int) and device_id < 0:
                 return False
             self.mb_device_id = device_id
-            with self.mb_client_lock:
+            async with self.mb_client_lock:
                 self.mb_client = NonExclusiveSerialClient(
                     port=serial_port,
                     baudrate=115200,
@@ -164,39 +164,41 @@ class Driver(object):
                     trace_packet=None,
                     trace_pdu=None,
                 )
-                self.connected = self.mb_client.connect()
+                self.connected = await self.mb_client.connect()
 
         if self.connected:
             if update_cycle:
                 self.update_cycle = update_cycle
                 self.polling_thread = Thread(
-                    target=asyncio.run,
-                    args=(self._module_update(self.update_cycle),),
+                    target=self._run_async_loop,
                     daemon=True,
                 )
                 self.polling_thread.start()
-            type_enum = struct.unpack("h", self.read_module_parameter("0x0500"))[0]
+
+            type_enum = struct.unpack("h", await self.read_module_parameter("0x0500"))[
+                0
+            ]
             self.module_type = self.valid_module_types[str(type_enum)]
 
-        if not self.update_module_parameters():
+        if not await self.update_module_parameters():
             return False
         return self.connected
 
-    def disconnect(self) -> bool:
+    async def disconnect(self) -> bool:
         self.connected = False
         self.module_type = ""
         if self.polling_thread.is_alive():
             self.polling_thread.join()
 
         if self.mb_client and self.mb_client.connected:
-            with self.mb_client_lock:
-                self.mb_client.close()
+            async with self.mb_client_lock:
+                await self.mb_client.close()
 
         if self.web_client:
-            with self.web_client_lock:
+            async with self.web_client_lock:
                 self.web_client = None
 
-        self.update_module_parameters()
+        await self.update_module_parameters()
         return True
 
     async def acknowledge(self, scheduler: Scheduler | None = None) -> bool:
@@ -204,11 +206,11 @@ class Driver(object):
             return False
 
         async def do() -> bool:
-            self.clear_plc_output()
-            self.send_plc_output()
-            cmd_toggle_before = self.get_status_bit(bit=5)
-            self.set_control_bit(bit=2, value=True)
-            self.send_plc_output()
+            await self.clear_plc_output()
+            await self.send_plc_output()
+            cmd_toggle_before = await self.get_status_bit(bit=5)
+            await self.set_control_bit(bit=2, value=True)
+            await self.send_plc_output()
             desired_bits = {"0": 1, "5": cmd_toggle_before ^ 1}
             return await self.wait_for_status(bits=desired_bits)
 
@@ -222,13 +224,13 @@ class Driver(object):
             return False
 
         async def do() -> bool:
-            self.clear_plc_output()
-            self.send_plc_output()
-            cmd_toggle_before = self.get_status_bit(bit=5)
-            self.set_control_bit(
+            await self.clear_plc_output()
+            await self.send_plc_output()
+            cmd_toggle_before = await self.get_status_bit(bit=5)
+            await self.set_control_bit(
                 bit=0, value=False
             )  # activate fast stop (inverted behavior)
-            self.send_plc_output()
+            await self.send_plc_output()
             desired_bits = {"5": cmd_toggle_before ^ 1, "7": 1}
             return await self.wait_for_status(bits=desired_bits)
 
@@ -241,12 +243,12 @@ class Driver(object):
         if not self.connected:
             return False
 
-        self.clear_plc_output()
-        self.send_plc_output()
+        await self.clear_plc_output()
+        await self.send_plc_output()
 
-        cmd_toggle_before = self.get_status_bit(bit=5)
-        self.set_control_bit(bit=1, value=True)
-        self.send_plc_output()
+        cmd_toggle_before = await self.get_status_bit(bit=5)
+        await self.set_control_bit(bit=1, value=True)
+        await self.send_plc_output()
 
         desired_bits = {"5": cmd_toggle_before ^ 1, "13": 1, "4": 1}
         return await self.wait_for_status(bits=desired_bits)
@@ -260,23 +262,23 @@ class Driver(object):
     ) -> bool:
         if not self.connected:
             return False
-        if not self.set_target_position(position):
+        if not await self.set_target_position(position):
             return False
-        if not self.set_target_speed(velocity):
+        if not await self.set_target_speed(velocity):
             return False
 
         async def start():
-            self.clear_plc_output()
-            self.send_plc_output()
-            cmd_toggle_before = self.get_status_bit(bit=5)
-            self.set_control_bit(bit=13, value=True)
+            await self.clear_plc_output()
+            await self.send_plc_output()
+            cmd_toggle_before = await self.get_status_bit(bit=5)
+            await self.set_control_bit(bit=13, value=True)
             if self.gpe_available():
-                self.set_control_bit(bit=31, value=use_gpe)
+                await self.set_control_bit(bit=31, value=use_gpe)
             else:
-                self.set_control_bit(bit=31, value=False)
-            self.set_target_position(position)
-            self.set_target_speed(velocity)
-            self.send_plc_output()
+                await self.set_control_bit(bit=31, value=False)
+            await self.set_target_position(position)
+            await self.set_target_speed(velocity)
+            await self.send_plc_output()
             desired_bits = {"5": cmd_toggle_before ^ 1, "3": 0}
             return await self.wait_for_status(bits=desired_bits, timeout_sec=0.1)
 
@@ -284,7 +286,9 @@ class Driver(object):
             desired_bits = {"13": 1, "4": 1}
             return await self.wait_for_status(bits=desired_bits)
 
-        duration_sec = self.estimate_duration(position_abs=position, velocity=velocity)
+        duration_sec = await self.estimate_duration(
+            position_abs=position, velocity=velocity
+        )
         if scheduler:
             if not scheduler.execute(func=partial(start)).result():
                 return False
@@ -304,16 +308,16 @@ class Driver(object):
         if not self.connected:
             return False
 
-        self.clear_plc_output()
-        self.send_plc_output()
+        await self.clear_plc_output()
+        await self.send_plc_output()
 
-        cmd_toggle_before = self.get_status_bit(bit=5)
-        self.set_control_bit(bit=14, value=True)
-        self.set_control_bit(bit=31, value=use_gpe)
-        self.set_target_position(position)
-        self.set_target_speed(velocity)
+        cmd_toggle_before = await self.get_status_bit(bit=5)
+        await self.set_control_bit(bit=14, value=True)
+        await self.set_control_bit(bit=31, value=use_gpe)
+        await self.set_target_position(position)
+        await self.set_target_speed(velocity)
 
-        self.send_plc_output()
+        await self.send_plc_output()
         desired_bits = {"5": cmd_toggle_before ^ 1, "13": 1, "4": 1}
 
         return await self.wait_for_status(bits=desired_bits)
@@ -327,23 +331,23 @@ class Driver(object):
     ) -> bool:
         if not self.connected:
             return False
-        if not self.set_gripping_force(force):
+        if not await self.set_gripping_force(force):
             return False
 
         async def start() -> bool:
-            self.clear_plc_output()
-            self.send_plc_output()
+            await self.clear_plc_output()
+            await self.send_plc_output()
 
-            cmd_toggle_before = self.get_status_bit(bit=5)
-            self.set_control_bit(bit=12, value=True)
-            self.set_control_bit(bit=7, value=outward)
+            cmd_toggle_before = await self.get_status_bit(bit=5)
+            await self.set_control_bit(bit=12, value=True)
+            await self.set_control_bit(bit=7, value=outward)
             if self.gpe_available():
-                self.set_control_bit(bit=31, value=use_gpe)
+                await self.set_control_bit(bit=31, value=use_gpe)
             else:
-                self.set_control_bit(bit=31, value=False)
-            self.set_gripping_force(force)
-            self.set_target_speed(0)
-            self.send_plc_output()
+                await self.set_control_bit(bit=31, value=False)
+            await self.set_gripping_force(force)
+            await self.set_target_speed(0)
+            await self.send_plc_output()
             desired_bits = {"5": cmd_toggle_before ^ 1, "3": 0}
             return await self.wait_for_status(bits=desired_bits, timeout_sec=0.1)
 
@@ -351,7 +355,7 @@ class Driver(object):
             desired_bits = {"4": 1, "12": 1}
             return await self.wait_for_status(bits=desired_bits)
 
-        duration_sec = self.estimate_duration(force=force, outward=outward)
+        duration_sec = await self.estimate_duration(force=force, outward=outward)
         if scheduler:
             if not scheduler.execute(func=partial(start)).result():
                 return False
@@ -372,15 +376,15 @@ class Driver(object):
             return False
 
         async def start() -> bool:
-            self.clear_plc_output()
-            self.send_plc_output()
-            cmd_toggle_before = self.get_status_bit(bit=5)
-            self.set_control_bit(bit=11, value=True)
+            await self.clear_plc_output()
+            await self.send_plc_output()
+            cmd_toggle_before = await self.get_status_bit(bit=5)
+            await self.set_control_bit(bit=11, value=True)
             if self.gpe_available():
-                self.set_control_bit(bit=31, value=use_gpe)
+                await self.set_control_bit(bit=31, value=use_gpe)
             else:
-                self.set_control_bit(bit=31, value=False)
-            self.send_plc_output()
+                await self.set_control_bit(bit=31, value=False)
+            await self.send_plc_output()
             desired_bits = {
                 "5": cmd_toggle_before ^ 1,
                 "3": 0,
@@ -394,7 +398,7 @@ class Driver(object):
             }
             return await self.wait_for_status(bits=desired_bits)
 
-        duration_sec = self.estimate_duration(release=True)
+        duration_sec = await self.estimate_duration(release=True)
         if scheduler:
             if not scheduler.execute(func=partial(start)).result():
                 return False
@@ -421,7 +425,7 @@ class Driver(object):
         }
         return gripper_spec
 
-    def estimate_duration(
+    async def estimate_duration(
         self,
         release: bool = False,
         position_abs: int = 0,
@@ -437,32 +441,34 @@ class Driver(object):
         if not isinstance(position_abs, int):
             return 0.0
         if isinstance(velocity, int) and velocity > 0:
-            still_to_go = position_abs - self.get_actual_position()
+            still_to_go = position_abs - await self.get_actual_position()
             return abs(still_to_go) / velocity
         if isinstance(force, int) and force > 0 and force <= 100:
             if outward:
                 still_to_go = (
-                    self.module_parameters["max_pos"] - self.get_actual_position()
+                    self.module_parameters["max_pos"] - await self.get_actual_position()
                 )
             else:
                 still_to_go = (
-                    self.module_parameters["min_pos"] - self.get_actual_position()
+                    self.module_parameters["min_pos"] - await self.get_actual_position()
                 )
             ratio = force / 100
             return abs(still_to_go) / (ratio * self.module_parameters["max_grp_vel"])
         return 0.0
 
-    def receive_plc_input(self) -> bool:
-        with self.input_buffer_lock:
-            data = self.read_module_parameter(self.plc_input)
+    async def receive_plc_input(self) -> bool:
+        async with self.input_buffer_lock:
+            data = await self.read_module_parameter(self.plc_input)
             if data:
                 self.plc_input_buffer = data
                 return True
         return False
 
-    def send_plc_output(self) -> bool:
-        with self.output_buffer_lock:
-            return self.write_module_parameter(self.plc_output, self.plc_output_buffer)
+    async def send_plc_output(self) -> bool:
+        async with self.output_buffer_lock:
+            return await self.write_module_parameter(
+                self.plc_output, self.plc_output_buffer
+            )
 
     def gpe_available(self) -> bool:
         if not self.module_type:
@@ -474,7 +480,7 @@ class Driver(object):
             return True
         return False
 
-    def update_module_parameters(self) -> bool:
+    async def update_module_parameters(self) -> bool:
 
         if not self.connected:
             for key in self.module_parameters.keys():
@@ -485,7 +491,7 @@ class Driver(object):
         for param, fields in self.readable_parameters.items():
             if fields["name"] in self.module_parameters:
                 strtype = str(fields["type"])
-                if not (data := self.read_module_parameter(param)):
+                if not (data := await self.read_module_parameter(param)):
                     return False
                 if fields["type"] == "float":
                     value = int(struct.unpack("f", data)[0] * 1e3)
@@ -508,14 +514,14 @@ class Driver(object):
 
         return True
 
-    def read_module_parameter(self, param: str) -> bytearray:
+    async def read_module_parameter(self, param: str) -> bytearray:
         result = bytearray()
         if param not in self.readable_parameters:
             return result
 
         if self.mb_client and self.mb_client.connected:
-            with self.mb_client_lock:
-                pdu = self.mb_client.read_holding_registers(
+            async with self.mb_client_lock:
+                pdu = await self.mb_client.read_holding_registers(
                     address=int(param, 16) - 1,
                     count=int(self.readable_parameters[param]["registers"]),
                     slave=self.mb_device_id,
@@ -529,7 +535,7 @@ class Driver(object):
 
         if self.web_client and self.connected:
             params = {"inst": param, "count": "1"}
-            with self.web_client_lock:
+            async with self.web_client_lock:
                 response = self.web_client.get(
                     f"http://{self.host}:{self.port}/adi/data.json", params=params
                 )
@@ -544,7 +550,7 @@ class Driver(object):
 
         return result
 
-    def write_module_parameter(self, param: str, data: bytearray) -> bool:
+    async def write_module_parameter(self, param: str, data: bytearray) -> bool:
         if param not in self.writable_parameters:
             return False
         expected_size = self.writable_parameters[param]["registers"] * 2
@@ -559,8 +565,8 @@ class Driver(object):
                 int.from_bytes(data[i : i + 2], byteorder="big")
                 for i in range(0, param_size, 2)
             ]
-            with self.mb_client_lock:
-                pdu = self.mb_client.write_registers(
+            async with self.mb_client_lock:
+                pdu = await self.mb_client.write_registers(
                     address=int(param, 16) - 1,  # Modbus convention
                     values=values,
                     slave=self.mb_device_id,
@@ -570,7 +576,7 @@ class Driver(object):
 
         if self.web_client and self.connected:
             payload = {"inst": param, "value": data.hex().upper()}
-            with self.web_client_lock:
+            async with self.web_client_lock:
                 response = self.web_client.post(
                     url=f"http://{self.host}:{self.port}/adi/update.json", data=payload
                 )
@@ -587,10 +593,13 @@ class Driver(object):
             return False
         max_duration = time.time() + timeout_sec
         while not all(
-            [self.get_status_bit(int(bit)) == value for bit, value in bits.items()]
+            [
+                await self.get_status_bit(int(bit)) == value
+                for bit, value in bits.items()
+            ]
         ):
             await asyncio.sleep(0.001)
-            self.receive_plc_input()
+            await self.receive_plc_input()
             if time.time() > max_duration:
                 return False
         return True
@@ -602,7 +611,7 @@ class Driver(object):
             return False
         duration = time.time() + duration_sec
         while time.time() < duration:
-            if self.get_status_bit(bit=7) == 1:
+            if await self.get_status_bit(bit=7) == 1:
                 return True
             await asyncio.sleep(self.update_cycle)
         return False
@@ -610,8 +619,8 @@ class Driver(object):
     def contains_non_hex_chars(self, buffer: str) -> bool:
         return bool(re.search(r"[^0-9a-fA-F]", buffer))
 
-    def set_plc_input(self, buffer: str) -> bool:
-        with self.input_buffer_lock:
+    async def set_plc_input(self, buffer: str) -> bool:
+        async with self.input_buffer_lock:
             if len(buffer) != 32:
                 return False
             if self.contains_non_hex_chars(buffer):
@@ -619,12 +628,12 @@ class Driver(object):
             self.plc_input_buffer = bytearray(bytes.fromhex(buffer))
             return True
 
-    def get_plc_input(self) -> str:
-        with self.input_buffer_lock:
+    async def get_plc_input(self) -> str:
+        async with self.input_buffer_lock:
             return self.plc_input_buffer.hex().upper()
 
-    def set_plc_output(self, buffer: str) -> bool:
-        with self.output_buffer_lock:
+    async def set_plc_output(self, buffer: str) -> bool:
+        async with self.output_buffer_lock:
             if len(buffer) != 32:
                 return False
             if self.contains_non_hex_chars(buffer):
@@ -632,18 +641,18 @@ class Driver(object):
             self.plc_output_buffer = bytearray(bytes.fromhex(buffer))
             return True
 
-    def get_plc_output(self) -> str:
-        with self.output_buffer_lock:
+    async def get_plc_output(self) -> str:
+        async with self.output_buffer_lock:
             return self.plc_output_buffer.hex().upper()
 
-    def clear_plc_output(self) -> None:
-        self.set_plc_output("00" * 16)
-        self.set_control_bit(
+    async def clear_plc_output(self) -> None:
+        await self.set_plc_output("00" * 16)
+        await self.set_control_bit(
             bit=0, value=True
         )  # deactivate fast stop (inverted behavior)
 
-    def set_control_bit(self, bit: int, value: bool) -> bool:
-        with self.output_buffer_lock:
+    async def set_control_bit(self, bit: int, value: bool) -> bool:
+        async with self.output_buffer_lock:
             if bit < 0 or bit > 31:
                 return False
             if bit in self.reserved_control_bits:
@@ -655,8 +664,8 @@ class Driver(object):
                 self.plc_output_buffer[byte_index] &= ~(1 << bit_index)
             return True
 
-    def get_control_bit(self, bit: int) -> int | bool:
-        with self.output_buffer_lock:
+    async def get_control_bit(self, bit: int) -> int | bool:
+        async with self.output_buffer_lock:
             if bit < 0 or bit > 31:
                 return False
             if bit in self.reserved_control_bits:
@@ -666,8 +675,8 @@ class Driver(object):
                 1 if self.plc_output_buffer[byte_index] & (1 << bit_index) != 0 else 0
             )
 
-    def toggle_control_bit(self, bit: int) -> bool:
-        with self.output_buffer_lock:
+    async def toggle_control_bit(self, bit: int) -> bool:
+        async with self.output_buffer_lock:
             if bit < 0 or bit > 31:
                 return False
             if bit in self.reserved_control_bits:
@@ -676,8 +685,8 @@ class Driver(object):
             self.plc_output_buffer[byte_index] ^= 1 << bit_index
             return True
 
-    def get_status_bit(self, bit: int) -> int | bool:
-        with self.input_buffer_lock:
+    async def get_status_bit(self, bit: int) -> int | bool:
+        async with self.input_buffer_lock:
             if bit < 0 or bit > 31:
                 return False
             if bit in self.reserved_status_bits:
@@ -685,38 +694,38 @@ class Driver(object):
             byte_index, bit_index = divmod(bit, 8)
             return 1 if self.plc_input_buffer[byte_index] & (1 << bit_index) != 0 else 0
 
-    def get_error_code(self) -> str:
-        with self.input_buffer_lock:
+    async def get_error_code(self) -> str:
+        async with self.input_buffer_lock:
             return (
                 hex(self.plc_input_buffer[self.error_byte]).upper().replace("0X", "0x")
             )
 
-    def get_warning_code(self) -> str:
-        with self.input_buffer_lock:
+    async def get_warning_code(self) -> str:
+        async with self.input_buffer_lock:
             return (
                 hex(self.plc_input_buffer[self.warning_byte])
                 .upper()
                 .replace("0X", "0x")
             )
 
-    def get_additional_code(self) -> str:
-        with self.input_buffer_lock:
+    async def get_additional_code(self) -> str:
+        async with self.input_buffer_lock:
             return (
                 hex(self.plc_input_buffer[self.additional_byte])
                 .upper()
                 .replace("0X", "0x")
             )
 
-    def get_status_diagnostics(self) -> str:
+    async def get_status_diagnostics(self) -> str:
         diagnostics = (
-            f"error_code: {self.get_error_code()}"
-            + f", warning_code: {self.get_warning_code()}"
-            + f", additional_code: {self.get_additional_code()}"
+            f"error_code: {await self.get_error_code()}"
+            + f", warning_code: {await self.get_warning_code()}"
+            + f", additional_code: {await self.get_additional_code()}"
         )
         return diagnostics
 
-    def set_target_position(self, target_pos: int) -> bool:
-        with self.output_buffer_lock:
+    async def set_target_position(self, target_pos: int) -> bool:
+        async with self.output_buffer_lock:
             if not isinstance(target_pos, int):
                 return False
             if target_pos < 0:
@@ -724,12 +733,12 @@ class Driver(object):
             self.plc_output_buffer[4:8] = bytes(struct.pack("i", target_pos))
             return True
 
-    def get_target_position(self) -> int:  # um
-        with self.output_buffer_lock:
+    async def get_target_position(self) -> int:  # um
+        async with self.output_buffer_lock:
             return struct.unpack("i", self.plc_output_buffer[4:8])[0]
 
-    def set_target_speed(self, target_speed: int) -> bool:
-        with self.output_buffer_lock:
+    async def set_target_speed(self, target_speed: int) -> bool:
+        async with self.output_buffer_lock:
             if not isinstance(target_speed, int):
                 return False
             if target_speed < 0:
@@ -737,12 +746,12 @@ class Driver(object):
             self.plc_output_buffer[8:12] = bytes(struct.pack("i", target_speed))
             return True
 
-    def get_target_speed(self) -> float:
-        with self.output_buffer_lock:
+    async def get_target_speed(self) -> float:
+        async with self.output_buffer_lock:
             return struct.unpack("i", self.plc_output_buffer[8:12])[0]  # um/s
 
-    def set_gripping_force(self, gripping_force: int) -> bool:
-        with self.output_buffer_lock:
+    async def set_gripping_force(self, gripping_force: int) -> bool:
+        async with self.output_buffer_lock:
             if not isinstance(gripping_force, int):
                 return False
             if gripping_force <= 0:
@@ -752,16 +761,16 @@ class Driver(object):
             self.plc_output_buffer[12:16] = bytes(struct.pack("i", gripping_force))
             return True
 
-    def get_gripping_force(self) -> int:
-        with self.output_buffer_lock:
+    async def get_gripping_force(self) -> int:
+        async with self.output_buffer_lock:
             return struct.unpack("i", self.plc_output_buffer[12:16])[0]
 
-    def get_actual_position(self) -> int:  # um
-        with self.input_buffer_lock:
+    async def get_actual_position(self) -> int:  # um
+        async with self.input_buffer_lock:
             return struct.unpack("i", self.plc_input_buffer[4:8])[0]
 
-    def _set_status_bit(self, bit: int, value: bool) -> bool:
-        with self.input_buffer_lock:
+    async def _set_status_bit(self, bit: int, value: bool) -> bool:
+        async with self.input_buffer_lock:
             if bit < 0 or bit > 31:
                 return False
             if bit in self.reserved_status_bits:
@@ -773,9 +782,15 @@ class Driver(object):
                 self.plc_input_buffer[byte_index] &= ~(1 << bit_index)
             return True
 
+    def _run_async_loop(self) -> None:
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        loop.run_until_complete(self._module_update(self.update_cycle))
+        loop.close()
+
     async def _module_update(self, update_cycle: float) -> None:
         while self.connected:
-            self.receive_plc_input()
+            await self.receive_plc_input()
             await asyncio.sleep(update_cycle)
 
     def _trace_packet(self, sending: bool, data: bytes) -> bytes:
