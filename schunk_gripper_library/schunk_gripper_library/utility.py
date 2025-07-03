@@ -7,6 +7,25 @@ import asyncio
 from pathlib import Path
 from httpx import Client, ConnectTimeout, ConnectError
 import pytest
+import os
+import termios
+
+
+def supports_parity(serial_port: str) -> bool:
+    fd = None
+    try:
+        fd = os.open(serial_port, os.O_RDWR | os.O_NOCTTY | os.O_NONBLOCK)
+        attrs = termios.tcgetattr(fd)
+        attrs[2] |= termios.PARENB  # enable parity
+        attrs[2] &= ~termios.PARODD  # set even parity
+        termios.tcsetattr(fd, termios.TCSANOW, attrs)
+        return True
+    except Exception as e:
+        print(f"Parity setting failed on {serial_port}: {e}")
+        return False
+    finally:
+        if fd is not None:
+            os.close(fd)
 
 
 class Task(object):
