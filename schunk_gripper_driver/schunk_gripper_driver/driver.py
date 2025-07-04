@@ -36,8 +36,7 @@ from schunk_gripper_interfaces.msg import (  # type: ignore [attr-defined]
 from sensor_msgs.msg import JointState
 from std_srvs.srv import Trigger
 import asyncio
-from threading import Thread
-import time
+from threading import Thread, Timer as Countdown
 from rclpy.service import Service
 from rclpy.publisher import Publisher
 from rclpy.timer import Timer
@@ -98,6 +97,11 @@ class Driver(Node):
 
         # For concurrently running publishers
         self.callback_group = MutuallyExclusiveCallbackGroup()
+
+        # Process async calls in the background
+        self.loop = asyncio.new_event_loop()
+        self.loop_thread = Thread(target=self.loop.run_forever, daemon=True)
+        self.loop_thread.start()
 
     def list_grippers(self) -> list[str]:
         devices = []
@@ -297,11 +301,14 @@ class Driver(Node):
         # Get every gripper ready to go
         for idx, gripper in enumerate(self.grippers):
             if self.needs_synchronize(gripper):
-                success = asyncio.run(
-                    self.grippers[idx]["driver"].acknowledge(scheduler=self.scheduler)
-                )
+                success = asyncio.run_coroutine_threadsafe(
+                    self.grippers[idx]["driver"].acknowledge(scheduler=self.scheduler),
+                    self.loop,
+                ).result()
             else:
-                success = asyncio.run(self.grippers[idx]["driver"].acknowledge())
+                success = asyncio.run_coroutine_threadsafe(
+                    self.grippers[idx]["driver"].acknowledge(), self.loop
+                ).result()
             if not success:
                 return TransitionCallbackReturn.FAILURE
 
@@ -350,14 +357,13 @@ class Driver(Node):
 
     def on_shutdown(self, state: State) -> TransitionCallbackReturn:
         self.get_logger().debug("on_shutdown() is called.")
+        self.loop.call_soon_threadsafe(self.loop.stop)
+        self.loop_thread.join()
+        self.loop.close()
+        if state is None:
+            return TransitionCallbackReturn.SUCCESS
 
-        def kill() -> None:
-            time.sleep(0.1)
-            self.destroy_node()
-            rclpy.shutdown()
-
-        destroy = Thread(target=kill, daemon=True)
-        destroy.start()
+        Countdown(0.5, function=rclpy.try_shutdown).start()
         return TransitionCallbackReturn.SUCCESS
 
     def _param_cb(self, params):
@@ -496,11 +502,13 @@ class Driver(Node):
     ):
         self.get_logger().debug("---> Acknowledge")
         if self.needs_synchronize(gripper):
-            response.success = asyncio.run(
-                gripper["driver"].acknowledge(scheduler=self.scheduler)
-            )
+            response.success = asyncio.run_coroutine_threadsafe(
+                gripper["driver"].acknowledge(scheduler=self.scheduler), self.loop
+            ).result()
         else:
-            response.success = asyncio.run(gripper["driver"].acknowledge())
+            response.success = asyncio.run_coroutine_threadsafe(
+                gripper["driver"].acknowledge(), self.loop
+            ).result()
         response.message = gripper["driver"].get_status_diagnostics()
         return response
 
@@ -514,7 +522,9 @@ class Driver(Node):
         if self.needs_synchronize(gripper):
             response.success = gripper["driver"].fast_stop(scheduler=self.scheduler)
         else:
-            response.success = asyncio.run(gripper["driver"].fast_stop())
+            response.success = asyncio.run_coroutine_threadsafe(
+                gripper["driver"].fast_stop(), self.loop
+            ).result()
         response.message = gripper["driver"].get_status_diagnostics()
         return response
 
@@ -528,20 +538,22 @@ class Driver(Node):
         position = int(request.position * 1e6)
         velocity = int(request.velocity * 1e6)
         if self.needs_synchronize(gripper):
-            response.success = asyncio.run(
+            response.success = asyncio.run_coroutine_threadsafe(
                 gripper["driver"].move_to_absolute_position(
                     position=position,
                     velocity=velocity,
                     use_gpe=request.use_gpe,
                     scheduler=self.scheduler,
-                )
-            )
+                ),
+                self.loop,
+            ).result()
         else:
-            response.success = asyncio.run(
+            response.success = asyncio.run_coroutine_threadsafe(
                 gripper["driver"].move_to_absolute_position(
                     position=position, velocity=velocity, use_gpe=request.use_gpe
-                )
-            )
+                ),
+                self.loop,
+            ).result()
         response.message = gripper["driver"].get_status_diagnostics()
         return response
 
@@ -553,22 +565,24 @@ class Driver(Node):
     ):
         self.get_logger().debug("---> Grip")
         if self.needs_synchronize(gripper):
-            response.success = asyncio.run(
+            response.success = asyncio.run_coroutine_threadsafe(
                 gripper["driver"].grip(
                     force=request.force,
                     use_gpe=request.use_gpe,
                     outward=request.outward,
                     scheduler=self.scheduler,
-                )
-            )
+                ),
+                self.loop,
+            ).result()
         else:
-            response.success = asyncio.run(
+            response.success = asyncio.run_coroutine_threadsafe(
                 gripper["driver"].grip(
                     force=request.force,
                     use_gpe=request.use_gpe,
                     outward=request.outward,
-                )
-            )
+                ),
+                self.loop,
+            ).result()
         response.message = gripper["driver"].get_status_diagnostics()
         return response
 
@@ -580,18 +594,20 @@ class Driver(Node):
     ):
         self.get_logger().debug("---> Release")
         if self.needs_synchronize(gripper):
-            response.success = asyncio.run(
+            response.success = asyncio.run_coroutine_threadsafe(
                 gripper["driver"].release(
                     use_gpe=request.use_gpe,
                     scheduler=self.scheduler,
-                )
-            )
+                ),
+                self.loop,
+            ).result()
         else:
-            response.success = asyncio.run(
+            response.success = asyncio.run_coroutine_threadsafe(
                 gripper["driver"].release(
                     use_gpe=request.use_gpe,
-                )
-            )
+                ),
+                self.loop,
+            ).result()
         response.message = gripper["driver"].get_status_diagnostics()
         return response
 
@@ -604,6 +620,7 @@ def main():
     try:
         executor.spin()
     except (KeyboardInterrupt, ExternalShutdownException):
+        executor.shutdown()
         driver.destroy_node()
 
 

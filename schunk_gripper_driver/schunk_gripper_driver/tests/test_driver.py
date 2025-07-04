@@ -529,3 +529,13 @@ def test_publishing_calls_are_safe_without_publishers(ros2):
         driver._publish_gripper_state(gripper=gripper)
 
     driver.on_cleanup(state=None)
+
+
+def test_driver_uses_event_loop_in_the_background(ros2):
+    driver = Driver("test_event_loop")
+    assert driver.loop
+    assert driver.loop_thread.is_alive()
+
+    driver.on_shutdown(state=None)
+    assert not driver.loop.is_running()
+    assert not driver.loop_thread.is_alive()
