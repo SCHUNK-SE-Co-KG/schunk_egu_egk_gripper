@@ -14,6 +14,7 @@ from .utility import Scheduler, supports_parity
 from functools import partial
 from pymodbus.logging import Log
 import serial  # type: ignore [import-untyped]
+import inspect
 
 
 class NonExclusiveSerialClient(AsyncModbusSerialClient):
@@ -47,6 +48,46 @@ class NonExclusiveSerialClient(AsyncModbusSerialClient):
 
 
 class Driver(object):
+    def __init__(self):
+        self._loop = asyncio.new_event_loop()
+        self._thread = Thread(target=self._start_loop, daemon=True)
+        self._thread.start()
+        self._driver = AsyncDriver()
+
+    def _start_loop(self):
+        asyncio.set_event_loop(self._loop)
+        self._loop.run_forever()
+
+    def _run_sync(self, coroutine):
+        future = asyncio.run_coroutine_threadsafe(coroutine, self._loop)
+        return future.result()
+
+    def __getattr__(self, name):
+        attr = getattr(self._driver, name)
+        if inspect.iscoroutinefunction(attr):
+
+            def sync_wrapper(*args, **kwargs):
+                return self._run_sync(attr(*args, **kwargs))
+
+            return sync_wrapper
+        else:
+            return attr
+
+    def __setattr__(self, name, value):
+        if name.startswith("_"):
+            super().__setattr__(name, value)
+        else:
+            setattr(self._driver, name, value)
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self._loop.call_soon_threadsafe(self._loop.stop)
+        self._thread.join()
+
+
+class AsyncDriver(object):
     def __init__(self) -> None:
         self.plc_input: str = "0x0040"
         self.plc_output: str = "0x0048"
@@ -169,11 +210,9 @@ class Driver(object):
         if self.connected:
             if update_cycle:
                 self.update_cycle = update_cycle
-                self.polling_thread = Thread(
-                    target=self._run_async_loop,
-                    daemon=True,
+                self.polling_task = asyncio.create_task(
+                    self._module_update(self.update_cycle)
                 )
-                self.polling_thread.start()
 
             type_enum = struct.unpack("h", await self.read_module_parameter("0x0500"))[
                 0
@@ -192,7 +231,7 @@ class Driver(object):
 
         if self.mb_client and self.mb_client.connected:
             async with self.mb_client_lock:
-                await self.mb_client.close()
+                self.mb_client.close()
 
         if self.web_client:
             async with self.web_client_lock:
@@ -781,12 +820,6 @@ class Driver(object):
             else:
                 self.plc_input_buffer[byte_index] &= ~(1 << bit_index)
             return True
-
-    def _run_async_loop(self) -> None:
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-        loop.run_until_complete(self._module_update(self.update_cycle))
-        loop.close()
 
     async def _module_update(self, update_cycle: float) -> None:
         while self.connected:
