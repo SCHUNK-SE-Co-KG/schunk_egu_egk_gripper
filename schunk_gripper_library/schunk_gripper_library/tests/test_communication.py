@@ -1,4 +1,4 @@
-from schunk_gripper_library.driver import Driver
+from schunk_gripper_library.driver import Driver, AsyncDriver
 from schunk_gripper_library.utility import skip_without_gripper
 import asyncio
 import pytest
@@ -170,36 +170,38 @@ def test_driver_supports_waiting_for_desired_status():
 
         # Timeout for bitsets that don't come
         impossible_bits = {"0": 1, "7": 1}  # operational + error
-        assert not asyncio.run(
-            driver.wait_for_status(bits=impossible_bits, timeout_sec=0.1)
-        )
+        assert not driver.wait_for_status(bits=impossible_bits, timeout_sec=0.1)
 
         # Default timeout works
         impossible_bits = {"0": 1, "7": 1}
-        assert not asyncio.run(driver.wait_for_status(bits=impossible_bits))
+        assert not driver.wait_for_status(bits=impossible_bits)
 
         # Success when bits match
         matching_bits = {"0": 0, "7": 1}  # error on startup
-        assert asyncio.run(driver.wait_for_status(bits=matching_bits, timeout_sec=0.1))
+        assert driver.wait_for_status(bits=matching_bits, timeout_sec=0.1)
 
         # Fails but survives invalid bits
         invalid_bits = {"33": 1, "-1": 0}
-        assert not asyncio.run(
-            driver.wait_for_status(bits=invalid_bits, timeout_sec=0.1)
-        )
+        assert not driver.wait_for_status(bits=invalid_bits, timeout_sec=0.1)
 
         # Fails but survives invalid timeouts
         matching_bits = {"0": 0, "7": 1}
         invalid_timeouts = [0.0, 0, -1.5]
         for timeout in invalid_timeouts:
-            assert not asyncio.run(
-                driver.wait_for_status(bits=matching_bits, timeout_sec=timeout)
-            )
+            assert not driver.wait_for_status(bits=matching_bits, timeout_sec=timeout)
 
         # Fails with empty bits
-        assert not asyncio.run(driver.wait_for_status(bits={}))
+        assert not driver.wait_for_status(bits={})
 
-        # Async calls don't block
+        # Finish
+        driver.disconnect()
+
+    # Async calls don't block
+    driver = AsyncDriver()
+    for host, port, serial_port in zip(
+        ["0.0.0.0", None], [8000, None], [None, "/dev/ttyUSB0"]
+    ):
+
         async def wait() -> bool:
             matching_bits = {"0": 0, "7": 1}
             return await driver.wait_for_status(bits=matching_bits)
@@ -208,10 +210,8 @@ def test_driver_supports_waiting_for_desired_status():
             succeeded = await asyncio.gather(wait(), wait(), wait())
             return all(succeeded)
 
-        assert asyncio.run(test())
-
-        # Finish
-        driver.disconnect()
+        asyncio.run(test())
+        asyncio.run(driver.disconnect())
 
 
 @skip_without_gripper
@@ -479,6 +479,7 @@ def test_driver_estimates_duration_of_release():
     )
     estimated = driver.estimate_duration(release=True)
     assert pytest.approx(estimated) == expected
+    driver.disconnect()
 
 
 @skip_without_gripper
@@ -505,7 +506,7 @@ def test_connected_driver_has_module_parameters():
     ):
         driver.connect(host=host, port=port, serial_port=serial_port, device_id=12)
         for param in params:
-            assert driver.module_parameters[param] is not None
+            assert driver.module_parameters[param] is not None, f"param: {param}"
 
         driver.disconnect()
         for param in params:
@@ -544,16 +545,16 @@ def test_driver_offers_waiting_until_error():
 
     # Without error
     driver._set_status_bit(bit=error_bit, value=False)
-    assert not asyncio.run(driver.error_in(duration_sec=0.1))
+    assert not driver.error_in(duration_sec=0.1)
 
     # With invalid duration
     invalid_durations = [-1.0, 0, 0.0, None]
     for duration in invalid_durations:
-        assert not asyncio.run(driver.error_in(duration_sec=duration))
+        assert not driver.error_in(duration_sec=duration)
 
     # With error from the beginning
     driver._set_status_bit(bit=error_bit, value=True)
-    assert asyncio.run(driver.error_in(duration_sec=1.0))
+    assert driver.error_in(duration_sec=1.0)
 
     # With error in between
     driver._set_status_bit(bit=error_bit, value=False)
@@ -562,7 +563,7 @@ def test_driver_offers_waiting_until_error():
         driver._set_status_bit(bit=error_bit, value=True)
 
     Timer(interval=0.5, function=fail).start()
-    assert asyncio.run(driver.error_in(duration_sec=1.0))
+    assert driver.error_in(duration_sec=1.0)
 
 
 @skip_without_gripper
