@@ -168,12 +168,12 @@ def test_driver_runs_receiving_background_thread():
     for host, port, serial_port in zip(
         ["0.0.0.0", None], [8000, None], [None, "/dev/ttyUSB0"]
     ):
-        assert not driver.polling_thread.is_alive()
+        driver.polling_task is None
         driver.connect(host=host, port=port, serial_port=serial_port, device_id=12)
-        assert driver.polling_thread.is_alive()
+        assert driver.polling_task is not None and not driver.polling_task.done()
         time.sleep(1)  # Let it run a little
         driver.disconnect()
-        assert not driver.polling_thread.is_alive()
+        assert driver.polling_task is None
 
 
 @skip_without_gripper
@@ -209,6 +209,6 @@ def test_driver_skips_background_thread_without_update_cycle():
                 device_id=12,
                 update_cycle=None,
             )
-            assert not driver.polling_thread.is_alive()
+            assert driver.polling_task is None
             assert pytest.approx(driver.update_cycle) == as_before
             driver.disconnect()

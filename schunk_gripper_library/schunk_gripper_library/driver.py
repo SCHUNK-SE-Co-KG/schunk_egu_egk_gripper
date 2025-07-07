@@ -151,7 +151,7 @@ class AsyncDriver(object):
         self.mb_client_lock: Lock = Lock()
         self.web_client_lock: Lock = Lock()
         self.connected: bool = False
-        self.polling_thread: Thread = Thread()
+        self.polling_task: asyncio.Task | None = None
         self.update_cycle: float = 0.05  # sec
 
     async def connect(
@@ -226,8 +226,9 @@ class AsyncDriver(object):
     async def disconnect(self) -> bool:
         self.connected = False
         self.module_type = ""
-        if self.polling_thread.is_alive():
-            self.polling_thread.join()
+        if self.polling_task:
+            await self.polling_task
+            self.polling_task = None
 
         if self.mb_client and self.mb_client.connected:
             async with self.mb_client_lock:
