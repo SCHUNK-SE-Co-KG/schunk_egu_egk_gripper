@@ -483,6 +483,8 @@ class Driver(Node):
         response.specification.max_force = spec["max_force"]
         response.specification.serial_number = spec["serial_number"]
         response.specification.firmware_version = spec["firmware_version"]
+        response.specification.device_id = spec.get("device_id", 0)
+        response.specification.ip_address = spec.get("ip_address", "")
         response.success = True
         response.message = gripper["driver"].get_status_diagnostics()
         return response

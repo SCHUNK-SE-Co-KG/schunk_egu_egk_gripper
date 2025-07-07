@@ -411,12 +411,17 @@ class Driver(object):
         if not self.connected:
             return {}
 
+        connection_info = {
+            "ip_address": self.host if self.web_client is not None else "",
+            "device_id": self.mb_device_id if self.mb_client is not None else 0,
+        }
         gripper_spec = {
             "max_stroke": self.module_parameters["max_phys_stroke"] / 1000,
             "max_speed": self.module_parameters["max_vel"] / 1000,
             "max_force": self.module_parameters["max_grp_force"] / 1000,
             "serial_number": self.module_parameters["serial_no_txt"],
             "firmware_version": self.module_parameters["sw_version_txt"],
+            **connection_info,
         }
         return gripper_spec
 
