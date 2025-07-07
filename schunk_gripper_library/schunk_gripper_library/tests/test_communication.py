@@ -548,50 +548,37 @@ def test_driver_offers_waiting_until_error():
 
 
 @skip_without_gripper
-def test_driver_offers_showing_gripper_specification_modbus():
-    driver = Driver()
+def test_driver_offers_showing_gripper_specification():
+    expected_keys = [
+        "max_stroke",
+        "max_speed",
+        "max_force",
+        "serial_number",
+        "firmware_version",
+    ]
 
-    # Without driver connected
+    # Test Modbus connection
+    driver = Driver()
     assert driver.show_gripper_specification() == {}
 
-    # With driver connected
     driver.connect(serial_port="/dev/ttyUSB0", device_id=12)
     spec = driver.show_gripper_specification()
     assert spec != {}
     assert spec["device_id"] == 12
     assert spec["ip_address"] == ""
-    for param in [
-        "max_stroke",
-        "max_speed",
-        "max_force",
-        "serial_number",
-        "firmware_version",
-    ]:
-        assert param in spec
-
+    for key in expected_keys:
+        assert key in spec
     driver.disconnect()
 
-
-@skip_without_gripper
-def test_driver_offers_showing_gripper_specification_ethernet():
+    # Test Ethernet connection
     driver = Driver()
-
-    # Without driver connected
     assert driver.show_gripper_specification() == {}
 
-    # With driver connected
     driver.connect(host="0.0.0.0", port=8000)
     spec = driver.show_gripper_specification()
     assert spec != {}
-    assert spec["ip_address"] == "0.0.0.0"
     assert spec["device_id"] == 0
-    for param in [
-        "max_stroke",
-        "max_speed",
-        "max_force",
-        "serial_number",
-        "firmware_version",
-    ]:
-        assert param in spec
-
+    assert spec["ip_address"] == "0.0.0.0"
+    for key in expected_keys:
+        assert key in spec
     driver.disconnect()
