@@ -568,3 +568,5 @@ def test_driver_offers_showing_gripper_specification():
     ]
     for param in params:
         assert param in spec
+
+    driver.disconnect()
