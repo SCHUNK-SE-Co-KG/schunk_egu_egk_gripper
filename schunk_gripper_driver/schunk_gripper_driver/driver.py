@@ -19,7 +19,7 @@ import rclpy
 
 from rclpy.lifecycle import Node, State, TransitionCallbackReturn
 import rclpy.logging
-from schunk_gripper_library.driver import Driver as GripperDriver
+from schunk_gripper_library.driver import AsyncDriver as GripperDriver
 from schunk_gripper_interfaces.srv import (  # type: ignore [attr-defined]
     ListGrippers,
     AddGripper,
@@ -179,13 +179,16 @@ class Driver(Node):
                 )
             else:
                 update_cycle = 0.05
-            if not driver.connect(
-                host=gripper["host"],
-                port=gripper["port"],
-                serial_port=gripper["serial_port"],
-                device_id=gripper["device_id"],
-                update_cycle=update_cycle,
-            ):
+            if not asyncio.run_coroutine_threadsafe(
+                driver.connect(
+                    host=gripper["host"],
+                    port=gripper["port"],
+                    serial_port=gripper["serial_port"],
+                    device_id=gripper["device_id"],
+                    update_cycle=update_cycle,
+                ),
+                self.loop,
+            ).result():
                 self.get_logger().warn(f"Gripper connect failed: {gripper}")
                 return TransitionCallbackReturn.FAILURE
             else:
@@ -335,7 +338,9 @@ class Driver(Node):
         self.get_logger().debug("on_cleanup() is called.")
         self.scheduler.stop()
         for gripper in self.grippers:
-            asyncio.run(gripper["driver"].disconnect())
+            asyncio.run_coroutine_threadsafe(
+                gripper["driver"].disconnect(), self.loop
+            ).result()
             gripper["driver"] = GripperDriver()
 
         # Release info services
@@ -395,7 +400,12 @@ class Driver(Node):
         msg.header.frame_id = gripper_id
         msg.header.stamp = self.get_clock().now().to_msg()
         msg.name.append(gripper_id)
-        msg.position.append(asyncio.run(gripper["driver"].get_actual_position()) / 1e6)
+        msg.position.append(
+            asyncio.run_coroutine_threadsafe(
+                gripper["driver"].get_actual_position(), self.loop
+            ).result()
+            / 1e6
+        )
         if gripper_id in self.joint_state_publishers:
             self.joint_state_publishers[gripper_id].publish(msg)
 
@@ -405,39 +415,101 @@ class Driver(Node):
         msg.header.frame_id = gripper_id
         msg.header.stamp = self.get_clock().now().to_msg()
 
-        status = asyncio.run(gripper["driver"].get_status_diagnostics()).split(",")
+        status = (
+            asyncio.run_coroutine_threadsafe(
+                gripper["driver"].get_status_diagnostics(), self.loop
+            )
+            .result()
+            .split(",")
+        )
         msg.error_code = status[0].strip()
         msg.warning_code = status[1].strip()
         msg.additional_code = status[2].strip()
 
-        msg.bit0_ready_for_operation = bool(gripper["driver"].get_status_bit(bit=0))
+        msg.bit0_ready_for_operation = bool(
+            asyncio.run_coroutine_threadsafe(
+                gripper["driver"].get_status_bit(bit=0), self.loop
+            ).result()
+        )
         msg.bit1_control_authority_fieldbus = bool(
-            gripper["driver"].get_status_bit(bit=1)
+            asyncio.run_coroutine_threadsafe(
+                gripper["driver"].get_status_bit(bit=1), self.loop
+            ).result()
         )
-        msg.bit2_ready_for_shutdown = bool(gripper["driver"].get_status_bit(bit=2))
-        msg.bit3_not_feasible = bool(gripper["driver"].get_status_bit(bit=3))
+        msg.bit2_ready_for_shutdown = bool(
+            asyncio.run_coroutine_threadsafe(
+                gripper["driver"].get_status_bit(bit=2), self.loop
+            ).result()
+        )
+        msg.bit3_not_feasible = bool(
+            asyncio.run_coroutine_threadsafe(
+                gripper["driver"].get_status_bit(bit=3), self.loop
+            ).result()
+        )
         msg.bit4_command_successfully_processed = bool(
-            gripper["driver"].get_status_bit(bit=4)
+            asyncio.run_coroutine_threadsafe(
+                gripper["driver"].get_status_bit(bit=4), self.loop
+            ).result()
         )
-        msg.bit5_command_received_toggle = bool(gripper["driver"].get_status_bit(bit=5))
-        msg.bit6_warning = bool(gripper["driver"].get_status_bit(bit=6))
-        msg.bit7_error = bool(gripper["driver"].get_status_bit(bit=7))
+        msg.bit5_command_received_toggle = bool(
+            asyncio.run_coroutine_threadsafe(
+                gripper["driver"].get_status_bit(bit=5), self.loop
+            ).result()
+        )
+        msg.bit6_warning = bool(
+            asyncio.run_coroutine_threadsafe(
+                gripper["driver"].get_status_bit(bit=6), self.loop
+            ).result()
+        )
+        msg.bit7_error = bool(
+            asyncio.run_coroutine_threadsafe(
+                gripper["driver"].get_status_bit(bit=7), self.loop
+            ).result()
+        )
         msg.bit8_released_for_manual_movement = bool(
-            gripper["driver"].get_status_bit(bit=8)
+            asyncio.run_coroutine_threadsafe(
+                gripper["driver"].get_status_bit(bit=8), self.loop
+            ).result()
         )
-        msg.bit9_software_limit_reached = bool(gripper["driver"].get_status_bit(bit=9))
-        msg.bit11_no_workpiece_detected = bool(gripper["driver"].get_status_bit(bit=11))
-        msg.bit12_workpiece_gripped = bool(gripper["driver"].get_status_bit(bit=12))
-        msg.bit13_position_reached = bool(gripper["driver"].get_status_bit(bit=13))
+        msg.bit9_software_limit_reached = bool(
+            asyncio.run_coroutine_threadsafe(
+                gripper["driver"].get_status_bit(bit=9), self.loop
+            ).result()
+        )
+        msg.bit11_no_workpiece_detected = bool(
+            asyncio.run_coroutine_threadsafe(
+                gripper["driver"].get_status_bit(bit=11), self.loop
+            ).result()
+        )
+        msg.bit12_workpiece_gripped = bool(
+            asyncio.run_coroutine_threadsafe(
+                gripper["driver"].get_status_bit(bit=12), self.loop
+            ).result()
+        )
+        msg.bit13_position_reached = bool(
+            asyncio.run_coroutine_threadsafe(
+                gripper["driver"].get_status_bit(bit=13), self.loop
+            ).result()
+        )
         msg.bit14_workpiece_pre_grip_started = bool(
-            gripper["driver"].get_status_bit(bit=14)
+            asyncio.run_coroutine_threadsafe(
+                gripper["driver"].get_status_bit(bit=14), self.loop
+            ).result()
         )
-        msg.bit16_workpiece_lost = bool(gripper["driver"].get_status_bit(bit=16))
+        msg.bit16_workpiece_lost = bool(
+            asyncio.run_coroutine_threadsafe(
+                gripper["driver"].get_status_bit(bit=16), self.loop
+            ).result()
+        )
         msg.bit17_wrong_workpiece_gripped = bool(
-            gripper["driver"].get_status_bit(bit=17)
+            asyncio.run_coroutine_threadsafe(
+                gripper["driver"].get_status_bit(bit=17), self.loop
+            ).result()
         )
         msg.bit31_grip_force_and_position_maintenance_activated = bool(
-            gripper["driver"].get_status_bit(bit=31)
+            asyncio.run_coroutine_threadsafe(
+                gripper["driver"].get_status_bit(bit=31), self.loop
+            ).result()
         )
 
         if gripper_id in self.gripper_state_publishers:
@@ -482,7 +554,9 @@ class Driver(Node):
         spec = gripper["driver"].show_gripper_specification()
         if not spec:
             response.success = False
-            response.message = gripper["driver"].get_status_diagnostics()
+            response.message = asyncio.run_coroutine_threadsafe(
+                gripper["driver"].get_status_diagnostics(), self.loop
+            ).result()
             return response
 
         response.specification.max_stroke = spec["max_stroke"]
@@ -491,7 +565,9 @@ class Driver(Node):
         response.specification.serial_number = spec["serial_number"]
         response.specification.firmware_version = spec["firmware_version"]
         response.success = True
-        response.message = gripper["driver"].get_status_diagnostics()
+        response.message = asyncio.run_coroutine_threadsafe(
+            gripper["driver"].get_status_diagnostics(), self.loop
+        ).result()
         return response
 
     def _acknowledge_cb(
@@ -509,7 +585,9 @@ class Driver(Node):
             response.success = asyncio.run_coroutine_threadsafe(
                 gripper["driver"].acknowledge(), self.loop
             ).result()
-        response.message = gripper["driver"].get_status_diagnostics()
+        response.message = asyncio.run_coroutine_threadsafe(
+            gripper["driver"].get_status_diagnostics(), self.loop
+        ).result()
         return response
 
     def _fast_stop_cb(
@@ -520,12 +598,16 @@ class Driver(Node):
     ):
         self.get_logger().debug("---> Fast stop")
         if self.needs_synchronize(gripper):
-            response.success = gripper["driver"].fast_stop(scheduler=self.scheduler)
+            response.success = asyncio.run_coroutine_threadsafe(
+                gripper["driver"].fast_stop(scheduler=self.scheduler), self.loop
+            ).result()
         else:
             response.success = asyncio.run_coroutine_threadsafe(
                 gripper["driver"].fast_stop(), self.loop
             ).result()
-        response.message = gripper["driver"].get_status_diagnostics()
+        response.message = asyncio.run_coroutine_threadsafe(
+            gripper["driver"].get_status_diagnostics(), self.loop
+        ).result()
         return response
 
     def _move_to_absolute_position_cb(
@@ -554,7 +636,9 @@ class Driver(Node):
                 ),
                 self.loop,
             ).result()
-        response.message = gripper["driver"].get_status_diagnostics()
+        response.message = asyncio.run_coroutine_threadsafe(
+            gripper["driver"].get_status_diagnostics(), self.loop
+        ).result()
         return response
 
     def _grip_cb(
@@ -583,7 +667,9 @@ class Driver(Node):
                 ),
                 self.loop,
             ).result()
-        response.message = gripper["driver"].get_status_diagnostics()
+        response.message = asyncio.run_coroutine_threadsafe(
+            gripper["driver"].get_status_diagnostics(), self.loop
+        ).result()
         return response
 
     def _release_cb(
@@ -608,7 +694,9 @@ class Driver(Node):
                 ),
                 self.loop,
             ).result()
-        response.message = gripper["driver"].get_status_diagnostics()
+        response.message = asyncio.run_coroutine_threadsafe(
+            gripper["driver"].get_status_diagnostics(), self.loop
+        ).result()
         return response
 
 
