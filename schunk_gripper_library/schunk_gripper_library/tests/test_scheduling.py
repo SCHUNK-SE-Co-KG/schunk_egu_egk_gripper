@@ -3,7 +3,6 @@ import threading
 from queue import PriorityQueue
 from functools import partial
 import time
-import asyncio
 
 
 def YES() -> bool:
@@ -153,18 +152,6 @@ def test_scheduler_executes_tasks_according_to_their_priorities():
     thread_high_priority.join()
     scheduler.stop()
     assert high_priority_finished < low_priority_finished
-
-
-def test_scheduler_supports_executing_coroutines():
-    scheduler = Scheduler()
-    scheduler.start()
-
-    async def coroutine():
-        await asyncio.sleep(1)
-        return True
-
-    assert scheduler.execute(func=partial(coroutine)).result()
-    scheduler.stop()
 
 
 def test_scheduler_can_execute_cyclic_tasks():

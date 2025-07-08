@@ -4,7 +4,6 @@ from pymodbus.client import ModbusSerialClient
 from pymodbus.pdu import ModbusPDU
 import re
 from threading import Thread
-import asyncio
 import time
 from httpx import Client, ConnectError, ConnectTimeout
 from importlib.resources import files
@@ -170,8 +169,8 @@ class Driver(object):
             if update_cycle:
                 self.update_cycle = update_cycle
                 self.polling_thread = Thread(
-                    target=asyncio.run,
-                    args=(self._module_update(self.update_cycle),),
+                    target=self._module_update,
+                    args=(self.update_cycle,),
                     daemon=True,
                 )
                 self.polling_thread.start()
@@ -199,29 +198,29 @@ class Driver(object):
         self.update_module_parameters()
         return True
 
-    async def acknowledge(self, scheduler: Scheduler | None = None) -> bool:
+    def acknowledge(self, scheduler: Scheduler | None = None) -> bool:
         if not self.connected:
             return False
 
-        async def do() -> bool:
+        def do() -> bool:
             self.clear_plc_output()
             self.send_plc_output()
             cmd_toggle_before = self.get_status_bit(bit=5)
             self.set_control_bit(bit=2, value=True)
             self.send_plc_output()
             desired_bits = {"0": 1, "5": cmd_toggle_before ^ 1}
-            return await self.wait_for_status(bits=desired_bits)
+            return self.wait_for_status(bits=desired_bits)
 
         if scheduler:
             return scheduler.execute(func=partial(do)).result()
         else:
-            return await do()
+            return do()
 
-    async def fast_stop(self, scheduler: Scheduler | None = None) -> bool:
+    def fast_stop(self, scheduler: Scheduler | None = None) -> bool:
         if not self.connected:
             return False
 
-        async def do() -> bool:
+        def do() -> bool:
             self.clear_plc_output()
             self.send_plc_output()
             cmd_toggle_before = self.get_status_bit(bit=5)
@@ -230,14 +229,14 @@ class Driver(object):
             )  # activate fast stop (inverted behavior)
             self.send_plc_output()
             desired_bits = {"5": cmd_toggle_before ^ 1, "7": 1}
-            return await self.wait_for_status(bits=desired_bits)
+            return self.wait_for_status(bits=desired_bits)
 
         if scheduler:
             return scheduler.execute(func=partial(do)).result()
         else:
-            return await do()
+            return do()
 
-    async def stop(self) -> bool:
+    def stop(self) -> bool:
         if not self.connected:
             return False
 
@@ -249,9 +248,9 @@ class Driver(object):
         self.send_plc_output()
 
         desired_bits = {"5": cmd_toggle_before ^ 1, "13": 1, "4": 1}
-        return await self.wait_for_status(bits=desired_bits)
+        return self.wait_for_status(bits=desired_bits)
 
-    async def move_to_absolute_position(
+    def move_to_absolute_position(
         self,
         position: int,
         velocity: int,
@@ -265,7 +264,7 @@ class Driver(object):
         if not self.set_target_speed(velocity):
             return False
 
-        async def start():
+        def start():
             self.clear_plc_output()
             self.send_plc_output()
             cmd_toggle_before = self.get_status_bit(bit=5)
@@ -278,27 +277,27 @@ class Driver(object):
             self.set_target_speed(velocity)
             self.send_plc_output()
             desired_bits = {"5": cmd_toggle_before ^ 1, "3": 0}
-            return await self.wait_for_status(bits=desired_bits, timeout_sec=0.1)
+            return self.wait_for_status(bits=desired_bits, timeout_sec=0.1)
 
-        async def check():
+        def check():
             desired_bits = {"13": 1, "4": 1}
-            return await self.wait_for_status(bits=desired_bits)
+            return self.wait_for_status(bits=desired_bits)
 
         duration_sec = self.estimate_duration(position_abs=position, velocity=velocity)
         if scheduler:
             if not scheduler.execute(func=partial(start)).result():
                 return False
-            if await self.error_in(duration_sec):
+            if self.error_in(duration_sec):
                 return False
             return scheduler.execute(func=partial(check)).result()
         else:
-            if not await start():
+            if not start():
                 return False
-            if await self.error_in(duration_sec):
+            if self.error_in(duration_sec):
                 return False
-            return await check()
+            return check()
 
-    async def move_to_relative_position(
+    def move_to_relative_position(
         self, position: int, velocity: int, use_gpe: bool
     ) -> bool:
         if not self.connected:
@@ -316,9 +315,9 @@ class Driver(object):
         self.send_plc_output()
         desired_bits = {"5": cmd_toggle_before ^ 1, "13": 1, "4": 1}
 
-        return await self.wait_for_status(bits=desired_bits)
+        return self.wait_for_status(bits=desired_bits)
 
-    async def grip(
+    def grip(
         self,
         force: int,
         use_gpe: bool = False,
@@ -330,7 +329,7 @@ class Driver(object):
         if not self.set_gripping_force(force):
             return False
 
-        async def start() -> bool:
+        def start() -> bool:
             self.clear_plc_output()
             self.send_plc_output()
 
@@ -345,33 +344,33 @@ class Driver(object):
             self.set_target_speed(0)
             self.send_plc_output()
             desired_bits = {"5": cmd_toggle_before ^ 1, "3": 0}
-            return await self.wait_for_status(bits=desired_bits, timeout_sec=0.1)
+            return self.wait_for_status(bits=desired_bits, timeout_sec=0.1)
 
-        async def check() -> bool:
+        def check() -> bool:
             desired_bits = {"4": 1, "12": 1}
-            return await self.wait_for_status(bits=desired_bits)
+            return self.wait_for_status(bits=desired_bits)
 
         duration_sec = self.estimate_duration(force=force, outward=outward)
         if scheduler:
             if not scheduler.execute(func=partial(start)).result():
                 return False
-            if await self.error_in(duration_sec):
+            if self.error_in(duration_sec):
                 return False
             return scheduler.execute(func=partial(check)).result()
         else:
-            if not await start():
+            if not start():
                 return False
-            if await self.error_in(duration_sec):
+            if self.error_in(duration_sec):
                 return False
-            return await check()
+            return check()
 
-    async def release(
+    def release(
         self, use_gpe: bool = False, scheduler: Scheduler | None = None
     ) -> bool:
         if not self.connected:
             return False
 
-        async def start() -> bool:
+        def start() -> bool:
             self.clear_plc_output()
             self.send_plc_output()
             cmd_toggle_before = self.get_status_bit(bit=5)
@@ -385,28 +384,28 @@ class Driver(object):
                 "5": cmd_toggle_before ^ 1,
                 "3": 0,
             }
-            return await self.wait_for_status(bits=desired_bits)
+            return self.wait_for_status(bits=desired_bits)
 
-        async def check() -> bool:
+        def check() -> bool:
             desired_bits = {
                 "4": 1,
                 "13": 1,
             }
-            return await self.wait_for_status(bits=desired_bits)
+            return self.wait_for_status(bits=desired_bits)
 
         duration_sec = self.estimate_duration(release=True)
         if scheduler:
             if not scheduler.execute(func=partial(start)).result():
                 return False
-            if await self.error_in(duration_sec):
+            if self.error_in(duration_sec):
                 return False
             return scheduler.execute(func=partial(check)).result()
         else:
-            if not await start():
+            if not start():
                 return False
-            if await self.error_in(duration_sec):
+            if self.error_in(duration_sec):
                 return False
-            return await check()
+            return check()
 
     def show_gripper_specification(self) -> dict[str, float | str]:
         if not self.connected:
@@ -578,7 +577,7 @@ class Driver(object):
 
         return False
 
-    async def wait_for_status(
+    def wait_for_status(
         self, bits: dict[str, int] = {}, timeout_sec: float = 1.0
     ) -> bool:
         if not timeout_sec > 0.0:
@@ -589,13 +588,13 @@ class Driver(object):
         while not all(
             [self.get_status_bit(int(bit)) == value for bit, value in bits.items()]
         ):
-            await asyncio.sleep(0.001)
+            time.sleep(0.001)
             self.receive_plc_input()
             if time.time() > max_duration:
                 return False
         return True
 
-    async def error_in(self, duration_sec: float) -> bool:
+    def error_in(self, duration_sec: float) -> bool:
         if not isinstance(duration_sec, float):
             return False
         if duration_sec < 0.0:
@@ -604,7 +603,7 @@ class Driver(object):
         while time.time() < duration:
             if self.get_status_bit(bit=7) == 1:
                 return True
-            await asyncio.sleep(self.update_cycle)
+            time.sleep(self.update_cycle)
         return False
 
     def contains_non_hex_chars(self, buffer: str) -> bool:
@@ -773,10 +772,10 @@ class Driver(object):
                 self.plc_input_buffer[byte_index] &= ~(1 << bit_index)
             return True
 
-    async def _module_update(self, update_cycle: float) -> None:
+    def _module_update(self, update_cycle: float) -> None:
         while self.connected:
             self.receive_plc_input()
-            await asyncio.sleep(update_cycle)
+            time.sleep(update_cycle)
 
     def _trace_packet(self, sending: bool, data: bytes) -> bytes:
         txt = "REQUEST stream" if sending else "RESPONSE stream"
