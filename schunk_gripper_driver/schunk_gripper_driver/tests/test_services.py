@@ -49,7 +49,7 @@ def test_driver_advertises_state_depending_services(lifecycle_interface):
         "move_to_absolute_position",
         "grip",
         "release",
-        "show_gripper_specification",
+        "show_specification",
     ]
     until_change_takes_effect = 0.1
 
@@ -308,7 +308,7 @@ def test_driver_implements_show_specification(lifecycle_interface):
     for gripper in driver.list_grippers():
         client = node.create_client(
             ShowGripperSpecification,
-            f"/schunk/driver/{gripper}/show_gripper_specification",
+            f"/schunk/driver/{gripper}/show_specification",
         )
         assert client.wait_for_service(timeout_sec=2), f"gripper: {gripper}"
         future = client.call_async(ShowGripperSpecification.Request())
