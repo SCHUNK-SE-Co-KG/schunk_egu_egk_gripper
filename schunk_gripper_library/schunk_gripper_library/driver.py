@@ -12,39 +12,7 @@ from typing import Union
 import json
 from .utility import Scheduler, supports_parity
 from functools import partial
-from pymodbus.logging import Log
-import serial  # type: ignore [import-untyped]
 import inspect
-
-
-class NonExclusiveSerialClient(AsyncModbusSerialClient):
-    async def connect(self) -> bool:
-        """
-        Exact copy of the original connect() method with the sole exception of
-        using `exclusive=False` for the serial connection. We need this to have
-        several driver instances connect and speak over the same Modbus wire. A
-        high-level entity will manage concurrency with a scheduler for
-        multi-gripper scenarios.
-
-        """
-        if self.socket:  # type: ignore [has-type]
-            return True
-        try:
-            self.socket = serial.serial_for_url(
-                self.comm_params.host,
-                timeout=self.comm_params.timeout_connect,
-                bytesize=self.comm_params.bytesize,
-                stopbits=self.comm_params.stopbits,
-                baudrate=self.comm_params.baudrate,
-                parity=self.comm_params.parity,
-                exclusive=False,
-            )
-            self.socket.inter_byte_timeout = self.inter_byte_timeout
-            self.last_frame_end = None
-        except Exception as msg:
-            Log.error("{}", msg)
-            self.close()
-        return self.socket is not None
 
 
 class Driver(object):
@@ -143,7 +111,7 @@ class AsyncDriver(object):
         self.input_buffer_lock: Lock = Lock()
         self.output_buffer_lock: Lock = Lock()
 
-        self.mb_client: NonExclusiveSerialClient | None = None
+        self.mb_client: AsyncModbusSerialClient | None = None
         self.mb_device_id: int = 0
         self.web_client: Client | None = None
         self.host: str = "0.0.0.0"
@@ -196,7 +164,7 @@ class AsyncDriver(object):
                 return False
             self.mb_device_id = device_id
             async with self.mb_client_lock:
-                self.mb_client = NonExclusiveSerialClient(
+                self.mb_client = AsyncModbusSerialClient(
                     port=serial_port,
                     baudrate=115200,
                     parity="E" if supports_parity(serial_port) else "N",
