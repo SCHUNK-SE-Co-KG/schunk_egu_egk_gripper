@@ -3,7 +3,6 @@ from queue import PriorityQueue
 from concurrent.futures import Future
 from functools import partial
 import time
-import asyncio
 from pathlib import Path
 from httpx import Client, ConnectTimeout, ConnectError
 import pytest
@@ -87,20 +86,20 @@ class Scheduler(object):
             return False
         task = Task(func=func, future=None)
         Thread(
-            target=asyncio.run,
-            args=(
-                self._cyclic_add(task=task, cycle_time=cycle_time, priority=priority),
-            ),
+            target=self._cyclic_add,
+            kwargs={
+                "task": task,
+                "cycle_time": cycle_time,
+                "priority": priority,
+            },
             daemon=True,
         ).start()
         return True
 
-    async def _cyclic_add(
-        self, task: Task, cycle_time: float, priority: int = 2
-    ) -> None:
+    def _cyclic_add(self, task: Task, cycle_time: float, priority: int = 2) -> None:
         while self.worker_thread.is_alive():
             self.tasks.put((priority, task))
-            await asyncio.sleep(cycle_time)
+            time.sleep(cycle_time)
 
     def _process(self) -> None:
         while True:
@@ -108,8 +107,6 @@ class Scheduler(object):
             if not task:
                 break
             result = task.func()
-            if asyncio.iscoroutine(result):
-                result = asyncio.run(result)
             if task.future:
                 task.future.set_result(result)
             self.tasks.task_done()
