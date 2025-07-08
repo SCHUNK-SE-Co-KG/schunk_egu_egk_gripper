@@ -561,11 +561,11 @@ def test_driver_offers_showing_gripper_specification():
 
     # Not connected
     driver = Driver()
-    assert driver.show_gripper_specification() == {}
+    assert driver.show_specification() == {}
 
     # Modbus connection
     driver.connect(serial_port="/dev/ttyUSB0", device_id=12)
-    spec = driver.show_gripper_specification()
+    spec = driver.show_specification()
     assert spec != {}
     for key in expected_keys:
         assert key in spec
@@ -577,7 +577,7 @@ def test_driver_offers_showing_gripper_specification():
     # Ethernet connection
     driver = Driver()
     driver.connect(host="0.0.0.0", port=8000)
-    spec = driver.show_gripper_specification()
+    spec = driver.show_specification()
     assert spec != {}
     for key in expected_keys:
         assert key in spec

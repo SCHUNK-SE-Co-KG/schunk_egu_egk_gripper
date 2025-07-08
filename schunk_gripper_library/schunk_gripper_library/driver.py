@@ -407,7 +407,7 @@ class Driver(object):
                 return False
             return check()
 
-    def show_gripper_specification(self) -> dict[str, float | str]:
+    def show_specification(self) -> dict[str, float | str]:
         if not self.connected:
             return {}
 
@@ -415,7 +415,7 @@ class Driver(object):
             "ip_address": self.host,
             "device_id": self.mb_device_id,
         }
-        gripper_spec = {
+        spec = {
             "max_stroke": self.module_parameters["max_phys_stroke"] / 1000,
             "max_speed": self.module_parameters["max_vel"] / 1000,
             "max_force": self.module_parameters["max_grp_force"] / 1000,
@@ -423,7 +423,7 @@ class Driver(object):
             "firmware_version": self.module_parameters["sw_version_txt"],
             **connection_info,
         }
-        return gripper_spec
+        return spec
 
     def estimate_duration(
         self,

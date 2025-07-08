@@ -253,7 +253,7 @@ class Driver(Node):
             self.gripper_services.append(
                 self.create_service(
                     ShowGripperSpecification,
-                    f"~/{gripper['gripper_id']}/show_gripper_specification",
+                    f"~/{gripper['gripper_id']}/show_specification",
                     partial(self._show_gripper_specification_cb, gripper=gripper),
                 )
             )
@@ -471,8 +471,8 @@ class Driver(Node):
         response: ShowGripperSpecification.Response,
         gripper: Gripper,
     ):
-        self.get_logger().info("---> Show Specification")
-        spec = gripper["driver"].show_gripper_specification()
+        self.get_logger().debug("---> Show specification")
+        spec = gripper["driver"].show_specification()
         if not spec:
             response.success = False
             response.message = gripper["driver"].get_status_diagnostics()
