@@ -29,6 +29,8 @@ from schunk_gripper_interfaces.msg import (  # type: ignore [attr-defined]
 )
 from schunk_gripper_driver.driver import Gripper
 from rclpy.lifecycle import TransitionCallbackReturn
+from threading import Thread
+import time
 
 
 def test_driver_manages_a_list_of_grippers(ros2: None):
@@ -129,40 +131,26 @@ def test_driver_manages_publishers_for_each_gripper(ros2: None):
 
 
 @skip_without_gripper
-def test_driver_manages_timers_for_each_gripper(ros2: None):
+def test_driver_manages_two_timers_for_all_grippers(ros2: None):
     driver = Driver("driver")
 
-    # Check how many timers we have for this setup
-    driver.on_configure(state=None)
-    driver.on_activate(state=None)
-    n_timers = len(driver.gripper_timers)
-    driver.on_deactivate(state=None)
-    driver.on_cleanup(state=None)
+    assert driver.joint_states_timer is not None
+    assert driver.gripper_states_timer is not None
 
-    # Check that the list of timers stays constant
+    # Check that we re-use the same timers during lifetime
+    initial_joints_timer = driver.joint_states_timer
+    initial_states_timer = driver.gripper_states_timer
     for _ in range(3):
         driver.on_configure(state=None)
         driver.on_activate(state=None)
-        assert len(driver.gripper_timers) == n_timers
-
         driver.on_deactivate(state=None)
-        assert len(driver.gripper_timers) == n_timers
-
         driver.on_cleanup(state=None)
+        assert driver.joint_states_timer == initial_joints_timer
+        assert driver.gripper_states_timer == initial_states_timer
 
-    # Check that new timers are created
-    driver.on_configure(state=None)
-    driver.on_activate(state=None)
-
-    timers_first_run = {i: item for i, item in enumerate(driver.gripper_timers)}
-    driver.on_deactivate(state=None)
-
-    driver.on_activate(state=None)
-    timers_second_run = {i: item for i, item in enumerate(driver.gripper_timers)}
-    assert timers_first_run != timers_second_run
-
-    driver.on_deactivate(state=None)
-    driver.on_cleanup(state=None)
+    driver.on_shutdown(state=None)
+    assert driver.joint_states_timer.is_canceled()
+    assert driver.gripper_states_timer.is_canceled()
 
 
 def test_driver_checks_if_grippers_need_synchronization(ros2: None):
@@ -478,8 +466,8 @@ def test_driver_uses_separate_callback_group_for_publishers(ros2: None):
             assert handler.callback_group != driver.default_callback_group
 
     # Timers
-    for timer in driver.gripper_timers:
-        assert timer.callback_group != driver.default_callback_group
+    assert driver.joint_states_timer.callback_group != driver.default_callback_group
+    assert driver.gripper_states_timer.callback_group != driver.default_callback_group
 
     driver.on_deactivate(state=None)
     driver.on_cleanup(state=None)
@@ -494,26 +482,6 @@ def test_driver_doesnt_configure_with_empty_grippers(ros2):
 
 
 @skip_without_gripper
-def test_driver_avoids_invalid_handle_accesses_for_timers(ros2):
-    driver = Driver("test_timer_accesses")
-
-    driver.on_configure(state=None)
-
-    for _ in range(100):
-        driver.on_activate(state=None)
-        driver.on_deactivate(state=None)
-        for i in range(len(driver.gripper_timers)):
-            assert driver.gripper_timers[i].is_canceled()
-
-        # Access timers to mimic the executor's callback processing.
-        # If the timers are destroyed, this will raise an InvalidHandle exception.
-        for i in range(len(driver.gripper_timers)):
-            driver.gripper_timers[i].is_ready()
-
-    driver.on_cleanup(state=None)
-
-
-@skip_without_gripper
 def test_publishing_calls_are_safe_without_publishers(ros2):
     driver = Driver("test_publishing_calls")
 
@@ -524,8 +492,33 @@ def test_publishing_calls_are_safe_without_publishers(ros2):
     # orphaned publishing callbacks after `on_deactivate`.
     assert driver.joint_state_publishers == {}
     assert driver.gripper_state_publishers == {}
-    for gripper in driver.grippers:
-        driver._publish_joint_states(gripper=gripper)
-        driver._publish_gripper_state(gripper=gripper)
+    driver._publish_joint_states()
+    driver._publish_gripper_states()
 
+    driver.on_cleanup(state=None)
+
+
+@skip_without_gripper
+def test_timer_callbacks_dont_collide_with_lifecycle_transitions(ros2):
+    driver = Driver("test_timer_collisions")
+    driver.on_configure(state=None)
+
+    # Mimic the timers' callbacks by explicitly calling the publish methods
+    done = False
+
+    def stay_busy() -> None:
+        while not done:
+            driver._publish_joint_states()
+            driver._publish_gripper_states()
+
+    timer_thread = Thread(target=stay_busy)
+    timer_thread.start()
+
+    start = time.time()
+    while time.time() < start + 2.0:
+        driver.on_activate(state=None)
+        driver.on_deactivate(state=None)
+    done = True
+
+    timer_thread.join()
     driver.on_cleanup(state=None)
