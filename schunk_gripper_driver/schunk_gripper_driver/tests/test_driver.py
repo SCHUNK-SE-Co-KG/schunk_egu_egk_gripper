@@ -29,6 +29,8 @@ from schunk_gripper_interfaces.msg import (  # type: ignore [attr-defined]
 )
 from schunk_gripper_driver.driver import Gripper
 from rclpy.lifecycle import TransitionCallbackReturn
+from threading import Thread
+import time
 
 
 def test_driver_manages_a_list_of_grippers(ros2: None):
@@ -491,6 +493,32 @@ def test_publishing_calls_are_safe_without_publishers(ros2):
     assert driver.joint_state_publishers == {}
     assert driver.gripper_state_publishers == {}
     driver._publish_joint_states()
-    driver._publish_gripper_state()
+    driver._publish_gripper_states()
 
+    driver.on_cleanup(state=None)
+
+
+@skip_without_gripper
+def test_timer_callbacks_dont_collide_with_lifecycle_transitions(ros2):
+    driver = Driver("test_timer_collisions")
+    driver.on_configure(state=None)
+
+    # Mimic the timers' callbacks by explicitly calling the publish methods
+    done = False
+
+    def stay_busy() -> None:
+        while not done:
+            driver._publish_joint_states()
+            driver._publish_gripper_states()
+
+    timer_thread = Thread(target=stay_busy)
+    timer_thread.start()
+
+    start = time.time()
+    while time.time() < start + 2.0:
+        driver.on_activate(state=None)
+        driver.on_deactivate(state=None)
+    done = True
+
+    timer_thread.join()
     driver.on_cleanup(state=None)

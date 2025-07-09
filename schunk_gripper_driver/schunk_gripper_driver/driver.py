@@ -35,7 +35,7 @@ from schunk_gripper_interfaces.msg import (  # type: ignore [attr-defined]
 )
 from sensor_msgs.msg import JointState
 from std_srvs.srv import Trigger
-from threading import Timer as Countdown
+from threading import Lock, Timer as Countdown
 from rclpy.service import Service
 from rclpy.publisher import Publisher
 from rclpy.timer import Timer
@@ -80,6 +80,8 @@ class Driver(Node):
         self.gripper_services: list[Service] = []
         self.joint_state_publishers: dict[str, Publisher] = {}
         self.gripper_state_publishers: dict[str, Publisher] = {}
+        self.joint_state_lock: Lock = Lock()
+        self.gripper_state_lock: Lock = Lock()
 
         # Setup services
         self.add_gripper_srv = self.create_service(
@@ -104,7 +106,7 @@ class Driver(Node):
         )
         self.gripper_states_timer: Timer = self.create_timer(
             timer_period_sec=0.05,
-            callback=partial(self._publish_gripper_state),
+            callback=partial(self._publish_gripper_states),
             callback_group=self.callback_group,
         )
 
@@ -312,8 +314,10 @@ class Driver(Node):
 
         # Remove gripper-specific publishers
         for gripper in self.list_grippers():
-            self.destroy_publisher(self.joint_state_publishers.pop(gripper))
-            self.destroy_publisher(self.gripper_state_publishers.pop(gripper))
+            with self.joint_state_lock:
+                self.destroy_publisher(self.joint_state_publishers.pop(gripper))
+            with self.gripper_state_lock:
+                self.destroy_publisher(self.gripper_state_publishers.pop(gripper))
 
         return super().on_deactivate(state)
 
@@ -384,10 +388,12 @@ class Driver(Node):
             msg.header.stamp = self.get_clock().now().to_msg()
             msg.name.append(gripper_id)
             msg.position.append(gripper["driver"].get_actual_position() / 1e6)
-            if gripper_id in self.joint_state_publishers:
-                self.joint_state_publishers[gripper_id].publish(msg)
 
-    def _publish_gripper_state(self) -> None:
+            with self.joint_state_lock:
+                if gripper_id in self.joint_state_publishers:
+                    self.joint_state_publishers[gripper_id].publish(msg)
+
+    def _publish_gripper_states(self) -> None:
 
         for gripper in self.grippers:
             msg = GripperState()
@@ -436,8 +442,9 @@ class Driver(Node):
                 gripper["driver"].get_status_bit(bit=31)
             )
 
-            if gripper_id in self.gripper_state_publishers:
-                self.gripper_state_publishers[gripper_id].publish(msg)
+            with self.gripper_state_lock:
+                if gripper_id in self.gripper_state_publishers:
+                    self.gripper_state_publishers[gripper_id].publish(msg)
 
     # Service callbacks
     def _add_gripper_cb(
