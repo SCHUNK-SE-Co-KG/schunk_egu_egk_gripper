@@ -19,8 +19,7 @@ def supports_parity(serial_port: str) -> bool:
         attrs[2] &= ~termios.PARODD  # set even parity
         termios.tcsetattr(fd, termios.TCSANOW, attrs)
         return True
-    except Exception as e:
-        print(f"Parity setting failed on {serial_port}: {e}")
+    except Exception:
         return False
     finally:
         if fd is not None:
