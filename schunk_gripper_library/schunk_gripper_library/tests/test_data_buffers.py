@@ -78,3 +78,13 @@ def test_driver_knows_valid_module_types():
     for key, value in driver.valid_module_types.items():
         assert isinstance(key, str)
         assert isinstance(value, str)
+
+        assert len(value.split("_")) == 4
+
+
+def test_driver_knows_valid_fieldbus_types():
+    driver = Driver()
+    assert isinstance(driver.valid_fieldbus_types, dict)
+    for key, value in driver.valid_fieldbus_types.items():
+        assert isinstance(key, str)
+        assert isinstance(value, str)
