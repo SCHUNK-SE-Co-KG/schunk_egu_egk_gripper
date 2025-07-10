@@ -110,7 +110,7 @@ class Driver(object):
         self.output_buffer_lock: Lock = Lock()
 
         self.mb_client: NonExclusiveSerialClient | None = None
-        self.mb_device_id: int = 0
+        self.mb_device_id: int = -1
         self.web_client: Client | None = None
         self.host: str = ""
         self.port: int = 80
