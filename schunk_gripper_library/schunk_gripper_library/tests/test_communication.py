@@ -274,18 +274,24 @@ def test_driver_supports_writing_module_parameters():
 
 
 @skip_without_gripper
-def test_connected_driver_has_module_type():
+def test_connected_driver_has_associated_module_and_fieldbus():
     driver = Driver()
-    assert not driver.module_type  # empty on startup
+
+    # empty on startup
+    assert not driver.module
+    assert not driver.fieldbus
 
     for host, port, serial_port in zip(
         ["0.0.0.0", None], [8000, None], [None, "/dev/ttyUSB0"]
     ):
         driver.connect(host=host, port=port, serial_port=serial_port, device_id=12)
-        assert driver.module_type in driver.valid_module_types.values()
+        assert driver.module in driver.valid_module_types.values()
+        assert driver.fieldbus in driver.valid_fieldbus_types.values()
 
+        # empty after disconnect
         driver.disconnect()
-        assert not driver.module_type  # empty after disconnect
+        assert not driver.module
+        assert not driver.fieldbus
 
 
 def test_driver_can_check_for_gpe_support():
@@ -315,11 +321,11 @@ def test_driver_can_check_for_gpe_support():
     ]
 
     for type in types_with_gpe:
-        driver.module_type = type
+        driver.module = type
         assert driver.gpe_available()
 
     for type in types_without_gpe:
-        driver.module_type = type
+        driver.module = type
         assert not driver.gpe_available()
 
 
@@ -467,6 +473,7 @@ def test_driver_estimates_duration_of_release():
 def test_connected_driver_has_module_parameters():
     driver = Driver()
     params = [
+        "module_type",
         "max_grp_vel",
         "max_vel",
         "min_pos",
@@ -585,3 +592,69 @@ def test_driver_offers_showing_gripper_specification():
     assert spec["device_id"] == 0
     assert spec["ip_address"] == "0.0.0.0"
     driver.disconnect()
+
+
+@skip_without_gripper
+def test_connected_driver_has_associated_gripper():
+    driver = Driver()
+    assert not driver.gripper  # empty on startup
+
+    for host, port, serial_port in zip(
+        ["0.0.0.0", None], [8000, None], [None, "/dev/ttyUSB0"]
+    ):
+        driver.connect(host=host, port=port, serial_port=serial_port, device_id=12)
+
+        # We have this convention: {EGU|EGK|EZU}_{xx}_{PN|EI|EC|MB}_{M|N}_{B|SD}
+        parts = driver.gripper.split("_")
+        print(parts)
+        assert parts[0] in ["EGU", "EGK", "EZU"]
+        assert int(parts[1])
+        assert parts[2] in ["PN", "EI", "EC", "MB"]
+        assert parts[3] in ["M", "N"]
+        assert parts[4] in ["B", "SD"]
+
+        driver.disconnect()
+        assert not driver.gripper  # empty after disconnect
+
+
+def test_driver_offers_method_for_composing_gripper_type():
+    driver = Driver()
+
+    invalid_combinations = [
+        {"args": {"module": "EGU_50_", "fieldbus": "EC"}},
+        {"args": {"module": "EGU_50_M_B", "fieldbus": "AA"}},
+        {"args": {"module": "0x?|^$%", "fieldbus": "PN"}},
+    ]
+    for entry in invalid_combinations:
+        gripper_type = driver.compose_gripper_type(**entry["args"])
+        assert gripper_type == ""
+
+    valid_combinations = [
+        {
+            "args": {"module": "EGU_50_M_B", "fieldbus": "EC"},
+            "expected": "EGU_50_EC_M_B",
+        },
+        {
+            "args": {"module": "EGU_80_N_SD", "fieldbus": "EI"},
+            "expected": "EGU_80_EI_N_SD",
+        },
+        {
+            "args": {"module": "EZU_35_N_B", "fieldbus": "MB"},
+            "expected": "EZU_35_MB_N_B",
+        },
+        {
+            "args": {"module": "EZU_40_N_SD", "fieldbus": "MB"},
+            "expected": "EZU_40_MB_N_SD",
+        },
+        {
+            "args": {"module": "EGK_25_M_B", "fieldbus": "MB"},
+            "expected": "EGK_25_MB_M_B",
+        },
+        {
+            "args": {"module": "EGK_50_N_B", "fieldbus": "PN"},
+            "expected": "EGK_50_PN_N_B",
+        },
+    ]
+    for entry in valid_combinations:
+        gripper_type = driver.compose_gripper_type(**entry["args"])
+        assert gripper_type == entry["expected"]

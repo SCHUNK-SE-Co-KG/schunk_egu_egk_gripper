@@ -52,18 +52,21 @@ class Driver(object):
         self.error_byte: int = 12
         self.warning_byte: int = 14
         self.additional_byte: int = 15
-        self.module_type: str = ""
+        self.gripper: str = ""
+        self.module: str = ""
+        self.fieldbus: str = ""
         self.module_parameters: dict = {
+            "module_type": None,
+            "fieldbus_type": None,
+            "serial_no_txt": None,
+            "sw_version_txt": None,
             "min_pos": None,
             "max_pos": None,
             "max_vel": None,
             "max_grp_vel": None,
             "wp_release_delta": None,
-            "fieldbus_type": None,
             "max_phys_stroke": None,
             "max_grp_force": None,
-            "serial_no_txt": None,
-            "sw_version_txt": None,
         }
         # fmt: off
         self.valid_status_bits: list[int] = (
@@ -79,6 +82,9 @@ class Driver(object):
         valid_module_types = str(
             files(__package__).joinpath("config/module_types.json")
         )
+        valid_fieldbus_types = str(
+            files(__package__).joinpath("config/fieldbus_types.json")
+        )
         readable_params = str(
             files(__package__).joinpath("config/readable_parameters.json")
         )
@@ -87,6 +93,8 @@ class Driver(object):
         )
         with open(valid_module_types, "r") as f:
             self.valid_module_types: dict[str, str] = json.load(f)
+        with open(valid_fieldbus_types, "r") as f:
+            self.valid_fieldbus_types: dict[str, str] = json.load(f)
         with open(readable_params, "r") as f:
             self.readable_parameters: dict[str, dict[str, Union[int, str]]] = json.load(
                 f
@@ -174,16 +182,29 @@ class Driver(object):
                     daemon=True,
                 )
                 self.polling_thread.start()
-            type_enum = struct.unpack("h", self.read_module_parameter("0x0500"))[0]
-            self.module_type = self.valid_module_types[str(type_enum)]
 
-        if not self.update_module_parameters():
-            return False
+            if not self.update_module_parameters():
+                return False
+
+            self.module = self.valid_module_types.get(
+                str(self.module_parameters["module_type"]), ""
+            )
+            self.fieldbus = self.valid_fieldbus_types.get(
+                str(self.module_parameters["fieldbus_type"]), ""
+            )
+            self.gripper = self.compose_gripper_type(
+                module=self.module, fieldbus=self.fieldbus
+            )
+            if not self.gripper:
+                return False
+
         return self.connected
 
     def disconnect(self) -> bool:
         self.connected = False
-        self.module_type = ""
+        self.module = ""
+        self.fieldbus = ""
+        self.gripper = ""
         if self.polling_thread.is_alive():
             self.polling_thread.join()
 
@@ -469,9 +490,9 @@ class Driver(object):
             return self.write_module_parameter(self.plc_output, self.plc_output_buffer)
 
     def gpe_available(self) -> bool:
-        if not self.module_type:
+        if not self.module:
             return False
-        keys = self.module_type.split("_")
+        keys = self.module.split("_")
         if len(keys) < 3:
             return False
         if keys[2] == "M":
@@ -613,6 +634,18 @@ class Driver(object):
 
     def contains_non_hex_chars(self, buffer: str) -> bool:
         return bool(re.search(r"[^0-9a-fA-F]", buffer))
+
+    def compose_gripper_type(self, module: str, fieldbus: str) -> str:
+        if (
+            module not in self.valid_module_types.values()
+            or fieldbus not in self.valid_fieldbus_types.values()
+        ):
+            return ""
+        entries = module.split("_")
+        gripper_type = "_".join(
+            [entries[0], entries[1], fieldbus, entries[2], entries[3]]
+        )
+        return gripper_type
 
     def set_plc_input(self, buffer: str) -> bool:
         with self.input_buffer_lock:

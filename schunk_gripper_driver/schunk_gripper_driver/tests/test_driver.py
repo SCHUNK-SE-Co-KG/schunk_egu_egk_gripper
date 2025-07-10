@@ -62,11 +62,9 @@ def test_driver_offers_list_of_connected_grippers(ros2: None):
     driver = Driver("driver")
 
     def assert_gripper_ids(device_ids: list[str]) -> None:
-        # Device IDs should contain the module type and a trailing count, e.g.
-        # EGK_40_M_B_1, EGK_40_M_B_2
+        # Device IDs should contain some name and a trailing count, e.g.
+        # EGK_40_MB_M_B_1, EGK_40_PN_M_B_2
         for id in device_ids:
-            module_type = id[:-2]
-            assert module_type in GripperDriver().valid_module_types.values()
             nr = int(id.split("_")[-1])
             assert nr >= 1
 
