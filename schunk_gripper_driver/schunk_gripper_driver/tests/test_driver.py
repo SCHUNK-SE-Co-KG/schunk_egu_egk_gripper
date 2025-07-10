@@ -23,6 +23,7 @@ from schunk_gripper_interfaces.srv import (  # type: ignore [attr-defined]
     Grip,
     Release,
     ShowGripperSpecification,
+    Scan,
 )
 from schunk_gripper_interfaces.msg import (  # type: ignore [attr-defined]
     Gripper as GripperConfig,
@@ -544,3 +545,21 @@ def test_driver_uses_separate_callback_group_for_gripper_services(ros2: None):
 
     driver.on_deactivate(state=None)
     driver.on_cleanup(state=None)
+
+
+@skip_without_gripper
+def test_scanning_fills_gripper_list(ros2):
+    driver = Driver("test_scanning")
+
+    driver.reset_grippers()
+
+    request = Scan.Request()
+    request.num_devices = 1
+    response = Scan.Response()
+    driver._scan_cb(request=request, response=response)
+
+    assert len(driver.grippers) > 0
+
+    # check that the grippers have individual IDs
+    gripper_ids = [gripper["device_id"] for gripper in driver.grippers]
+    assert len(gripper_ids) == len(set(gripper_ids))
