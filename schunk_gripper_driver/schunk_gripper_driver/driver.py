@@ -195,12 +195,6 @@ class Driver(Node):
             else:
                 self.grippers[idx]["driver"] = driver
 
-            # Start cyclic updates in the background
-            if self.needs_synchronize(gripper):
-                self.scheduler.cyclic_execute(
-                    func=partial(driver.receive_plc_input), cycle_time=0.01
-                )
-
         # Set unique gripper IDs
         devices = []
         for idx, gripper in enumerate(self.grippers):
@@ -210,6 +204,14 @@ class Driver(Node):
                 id = id[:-2] + f"_{count}"
             devices.append(id)
             self.grippers[idx]["gripper_id"] = id
+
+        # Start cyclic updates for each gripper
+        for idx, _ in enumerate(self.grippers):
+            gripper = self.grippers[idx]
+            if self.needs_synchronize(gripper):
+                self.scheduler.cyclic_execute(
+                    func=partial(gripper["driver"].receive_plc_input), cycle_time=0.05
+                )
 
         # Start info services
         self.list_grippers_srv = self.create_service(
