@@ -69,18 +69,22 @@ class Driver(Node):
         self.declare_parameter("serial_port", "/dev/ttyUSB0")
         self.declare_parameter("device_id", 12)
         self.declare_parameter("log_level", "INFO")
+        self.declare_parameter("create_default_gripper", True)
 
         self.scheduler: Scheduler = Scheduler()
         self.grippers: list[Gripper] = []
-        gripper: Gripper = {
-            "host": self.get_parameter("host").value,
-            "port": self.get_parameter("port").value,
-            "serial_port": self.get_parameter("serial_port").value,
-            "device_id": self.get_parameter("device_id").value,
-            "driver": GripperDriver(),
-            "gripper_id": "",
-        }
-        self.grippers.append(gripper)
+
+        create_default = self.get_parameter("create_default_gripper").value
+        if create_default:
+            gripper: Gripper = {
+                "host": self.get_parameter("host").value,
+                "port": self.get_parameter("port").value,
+                "serial_port": self.get_parameter("serial_port").value,
+                "device_id": self.get_parameter("device_id").value,
+                "driver": GripperDriver(),
+                "gripper_id": "",
+            }
+            self.grippers.append(gripper)
         self.gripper_services: list[Service] = []
         self.joint_state_publishers: dict[str, Publisher] = {}
         self.gripper_state_publishers: dict[str, Publisher] = {}

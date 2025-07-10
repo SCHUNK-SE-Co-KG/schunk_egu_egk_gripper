@@ -39,7 +39,14 @@ device_id = DeclareLaunchArgument(
     default_value="12",
     description="The gripper's Modbus device id",
 )
-args = [host, port, serial_port, device_id]
+
+create_default_gripper = DeclareLaunchArgument(
+    "create_default_gripper",
+    default_value="true",
+    description="Use the default gripper configuration",
+)
+
+args = [host, port, serial_port, device_id, create_default_gripper]
 
 
 def generate_launch_description():
@@ -56,6 +63,11 @@ def generate_launch_description():
                     {"port": LaunchConfiguration("port")},
                     {"serial_port": LaunchConfiguration("serial_port")},
                     {"device_id": LaunchConfiguration("device_id")},
+                    {
+                        "create_default_gripper": LaunchConfiguration(
+                            "create_default_gripper"
+                        )
+                    },
                 ],
                 respawn=True,
                 output="both",

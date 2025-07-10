@@ -20,7 +20,14 @@ from rcl_interfaces.msg import Parameter, ParameterValue, ParameterType
 from schunk_gripper_library.utility import skip_without_gripper
 
 
-DRIVER_PARAMETERS = ["host", "port", "serial_port", "device_id", "log_level"]
+DRIVER_PARAMETERS = [
+    "host",
+    "port",
+    "serial_port",
+    "device_id",
+    "log_level",
+    "create_default_gripper",
+]
 
 
 @skip_without_gripper
@@ -76,6 +83,10 @@ def test_driver_has_expected_parameters_after_startup(driver):
                 type=ParameterType.PARAMETER_STRING, string_value="INFO"
             ),
         ),
+        Parameter(
+            name="create_default_gripper",
+            value=ParameterValue(type=ParameterType.PARAMETER_BOOL, bool_value=True),
+        ),
     ]
     future = get_params_client.call_async(
         GetParameters.Request(names=DRIVER_PARAMETERS)
@@ -127,6 +138,10 @@ def test_driver_supports_setting_parameters(driver):
             value=ParameterValue(
                 type=ParameterType.PARAMETER_STRING, string_value="DEBUG"
             ),
+        ),
+        Parameter(
+            name="create_default_gripper",
+            value=ParameterValue(type=ParameterType.PARAMETER_BOOL, bool_value=False),
         ),
     ]
 
