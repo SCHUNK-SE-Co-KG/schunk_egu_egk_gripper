@@ -274,18 +274,24 @@ def test_driver_supports_writing_module_parameters():
 
 
 @skip_without_gripper
-def test_connected_driver_has_module_type():
+def test_connected_driver_has_associated_module_and_fieldbus():
     driver = Driver()
-    assert not driver.module_type  # empty on startup
+
+    # empty on startup
+    assert not driver.module
+    assert not driver.fieldbus
 
     for host, port, serial_port in zip(
         ["0.0.0.0", None], [8000, None], [None, "/dev/ttyUSB0"]
     ):
         driver.connect(host=host, port=port, serial_port=serial_port, device_id=12)
-        assert driver.module_type in driver.valid_module_types.values()
+        assert driver.module in driver.valid_module_types.values()
+        assert driver.fieldbus in driver.valid_fieldbus_types.values()
 
+        # empty after disconnect
         driver.disconnect()
-        assert not driver.module_type  # empty after disconnect
+        assert not driver.module
+        assert not driver.fieldbus
 
 
 def test_driver_can_check_for_gpe_support():
@@ -315,11 +321,11 @@ def test_driver_can_check_for_gpe_support():
     ]
 
     for type in types_with_gpe:
-        driver.module_type = type
+        driver.module = type
         assert driver.gpe_available()
 
     for type in types_without_gpe:
-        driver.module_type = type
+        driver.module = type
         assert not driver.gpe_available()
 
 
@@ -589,9 +595,9 @@ def test_driver_offers_showing_gripper_specification():
 
 
 @skip_without_gripper
-def test_connected_driver_has_gripper_type():
+def test_connected_driver_has_associated_gripper():
     driver = Driver()
-    assert not driver.gripper_type  # empty on startup
+    assert not driver.gripper  # empty on startup
 
     for host, port, serial_port in zip(
         ["0.0.0.0", None], [8000, None], [None, "/dev/ttyUSB0"]
@@ -599,7 +605,7 @@ def test_connected_driver_has_gripper_type():
         driver.connect(host=host, port=port, serial_port=serial_port, device_id=12)
 
         # We have this convention: {EGU|EGK|EZU}_{xx}_{PN|EI|EC|MB}_{M|N}_{B|SD}
-        parts = driver.gripper_type.split("_")
+        parts = driver.gripper.split("_")
         print(parts)
         assert parts[0] in ["EGU", "EGK", "EZU"]
         assert int(parts[1])
@@ -608,7 +614,7 @@ def test_connected_driver_has_gripper_type():
         assert parts[4] in ["B", "SD"]
 
         driver.disconnect()
-        assert not driver.gripper_type  # empty after disconnect
+        assert not driver.gripper  # empty after disconnect
 
 
 def test_driver_offers_method_for_composing_gripper_type():

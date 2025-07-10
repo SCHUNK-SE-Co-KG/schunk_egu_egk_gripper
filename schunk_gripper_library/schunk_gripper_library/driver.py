@@ -52,8 +52,9 @@ class Driver(object):
         self.error_byte: int = 12
         self.warning_byte: int = 14
         self.additional_byte: int = 15
-        self.gripper_type: str = ""
-        self.module_type: str = ""
+        self.gripper: str = ""
+        self.module: str = ""
+        self.fieldbus: str = ""
         self.module_parameters: dict = {
             "module_type": None,
             "fieldbus_type": None,
@@ -185,24 +186,25 @@ class Driver(object):
             if not self.update_module_parameters():
                 return False
 
-            self.module_type = self.valid_module_types.get(
+            self.module = self.valid_module_types.get(
                 str(self.module_parameters["module_type"]), ""
             )
-            fieldbus = self.valid_fieldbus_types.get(
+            self.fieldbus = self.valid_fieldbus_types.get(
                 str(self.module_parameters["fieldbus_type"]), ""
             )
-            self.gripper_type = self.compose_gripper_type(
-                module=self.module_type, fieldbus=fieldbus
+            self.gripper = self.compose_gripper_type(
+                module=self.module, fieldbus=self.fieldbus
             )
-            if not self.gripper_type:
+            if not self.gripper:
                 return False
 
         return self.connected
 
     def disconnect(self) -> bool:
         self.connected = False
-        self.module_type = ""
-        self.gripper_type = ""
+        self.module = ""
+        self.fieldbus = ""
+        self.gripper = ""
         if self.polling_thread.is_alive():
             self.polling_thread.join()
 
@@ -488,9 +490,9 @@ class Driver(object):
             return self.write_module_parameter(self.plc_output, self.plc_output_buffer)
 
     def gpe_available(self) -> bool:
-        if not self.module_type:
+        if not self.module:
             return False
-        keys = self.module_type.split("_")
+        keys = self.module.split("_")
         if len(keys) < 3:
             return False
         if keys[2] == "M":

@@ -201,7 +201,7 @@ class Driver(Node):
         # Set unique gripper IDs
         devices = []
         for idx, gripper in enumerate(self.grippers):
-            id = f"{gripper['driver'].module_type}_1"
+            id = f"{gripper['driver'].gripper}_1"
             while id in devices:
                 count = int(id.split("_")[-1]) + 1
                 id = id[:-2] + f"_{count}"
