@@ -47,6 +47,8 @@ from rclpy.callback_groups import MutuallyExclusiveCallbackGroup
 from rcl_interfaces.msg import SetParametersResult
 from pathlib import Path
 import tempfile
+import json
+from collections import OrderedDict
 
 
 class Gripper(TypedDict):
@@ -143,14 +145,30 @@ class Driver(Node):
         except Exception:
             return False
 
+        with open(path.joinpath("configuration.json"), "w") as f:
+            configuration = []
+            for gripper in self.grippers:
+                entry: OrderedDict[str, str | int] = OrderedDict()
+                entry["host"] = gripper["host"]
+                entry["port"] = gripper["port"]
+                entry["serial_port"] = gripper["serial_port"]
+                entry["device_id"] = gripper["device_id"]
+                configuration.append(entry)
+            json.dump(configuration, f, indent=2)
         return True
 
     def load_previous_configuration(
         self, location: str = "/tmp/schunk_gripper"
     ) -> bool:
-        path = Path(location)
-        if not path.is_dir():
+        config_file = Path(location).joinpath("configuration.json")
+        if not config_file.exists():
             return False
+
+        with open(config_file, "r") as f:
+            content = json.load(f)
+
+        for entry in content:
+            self.add_gripper(**entry)
         return True
 
     def add_gripper(
