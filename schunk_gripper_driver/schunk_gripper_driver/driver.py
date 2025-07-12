@@ -45,6 +45,8 @@ from schunk_gripper_library.utility import Scheduler
 from typing import TypedDict
 from rclpy.callback_groups import MutuallyExclusiveCallbackGroup
 from rcl_interfaces.msg import SetParametersResult
+from pathlib import Path
+import tempfile
 
 
 class Gripper(TypedDict):
@@ -128,6 +130,28 @@ class Driver(Node):
             cfg.device_id = gripper["device_id"]
             configuration.append(cfg)
         return configuration
+
+    def save_configuration(self, location: str = "/tmp/schunk_gripper") -> bool:
+        if not self.show_configuration():
+            return False
+
+        path = Path(location)
+        try:
+            path.mkdir(parents=True, exist_ok=True)
+            with tempfile.TemporaryFile(dir=path):
+                pass
+        except Exception:
+            return False
+
+        return True
+
+    def load_previous_configuration(
+        self, location: str = "/tmp/schunk_gripper"
+    ) -> bool:
+        path = Path(location)
+        if not path.is_dir():
+            return False
+        return True
 
     def add_gripper(
         self, host: str = "", port: int = 0, serial_port: str = "", device_id: int = 0
