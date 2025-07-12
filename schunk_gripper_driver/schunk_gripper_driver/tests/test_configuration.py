@@ -13,6 +13,9 @@
 # limitations under the License.
 
 from schunk_gripper_driver.driver import Driver
+import json
+from pathlib import Path
+from unittest import mock
 
 
 def test_driver_offers_saving_gripper_configuration(ros2):
@@ -51,3 +54,52 @@ def test_driver_offers_loading_previous_gripper_configuration(ros2):
     assert len(driver.grippers) == 1
     for key, value in config.items():
         assert driver.grippers[0][key] == value
+
+
+def test_driver_rejects_loading_invalid_configuration(ros2):
+    driver = Driver("driver")
+    driver.reset_grippers()
+
+    invalid_configurations = [
+        {"host": "", "port": 0, "serial_port": "", "device_id": 0},  # all empty
+        {"host": "", "port": 0, "serial_port": ""},  # missing entry
+        {"hots": "", "prot": 0, "sirial_port": "", "divice_id": 0},  # typos
+        {
+            "host": "",
+            "port": "not-ok",
+            "serial_port": "",
+            "device_id": "not-ok",
+        },  # wrong types
+        {},  # completely empty
+        [
+            {"host": "0.0.0.0", "port": 8000, "serial_port": "", "device_id": 0}
+        ],  # valid entries, but nested
+    ]
+
+    location = Path("/tmp/schunk_gripper")
+
+    for config in invalid_configurations:
+        with open(location.joinpath("configuration.json"), "w") as f:
+            json.dump([config], f)
+
+        assert not driver.load_previous_configuration(location=location)
+        assert len(driver.grippers) == 0
+
+
+def test_driver_rejects_loading_incorrectly_formatted_configuration(ros2):
+    driver = Driver("driver")
+    driver.reset_grippers()
+
+    location = Path("/tmp/schunk_gripper")
+
+    # With nonsense content
+    with open(location.joinpath("configuration.json"), "w") as f:
+        f.write("This should not crash the driver! #^$%&\0\n")
+
+    assert not driver.load_previous_configuration(location=location)
+    assert len(driver.grippers) == 0
+
+    # Simulate permission errors
+    with mock.patch("builtins.open", side_effect=PermissionError()):
+        assert not driver.load_previous_configuration(location=location)
+        assert len(driver.grippers) == 0

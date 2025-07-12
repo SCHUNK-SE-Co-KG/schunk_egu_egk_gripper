@@ -164,11 +164,21 @@ class Driver(Node):
         if not config_file.exists():
             return False
 
-        with open(config_file, "r") as f:
-            content = json.load(f)
+        try:
+            with open(config_file, "r") as f:
+                try:
+                    content = json.load(f)
+                except json.JSONDecodeError:
+                    return False
+        except Exception:
+            return False
 
-        for entry in content:
-            self.add_gripper(**entry)
+        for gripper in content:
+            try:
+                if not self.add_gripper(**gripper):
+                    return False
+            except TypeError:
+                return False
         return True
 
     def add_gripper(
