@@ -133,7 +133,7 @@ class Driver(Node):
             configuration.append(cfg)
         return configuration
 
-    def save_configuration(self, location: str = "/tmp/schunk_gripper") -> bool:
+    def save_configuration(self, location: str = "/var/tmp/schunk_gripper") -> bool:
         LOG_NS = "Save configuration:"
 
         if not self.show_configuration():
@@ -162,7 +162,7 @@ class Driver(Node):
         return True
 
     def load_previous_configuration(
-        self, location: str = "/tmp/schunk_gripper"
+        self, location: str = "/var/tmp/schunk_gripper"
     ) -> bool:
         LOG_NS = "Load configuration:"
 

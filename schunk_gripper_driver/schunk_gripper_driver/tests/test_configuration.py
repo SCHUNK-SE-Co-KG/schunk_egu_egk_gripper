@@ -76,7 +76,7 @@ def test_driver_rejects_loading_invalid_configuration(ros2):
         ],  # valid entries, but nested
     ]
 
-    location = Path("/tmp/schunk_gripper")
+    location = Path("/var/tmp/schunk_gripper")
 
     for config in invalid_configurations:
         with open(location.joinpath("configuration.json"), "w") as f:
@@ -90,7 +90,7 @@ def test_driver_rejects_loading_incorrectly_formatted_configuration(ros2):
     driver = Driver("driver")
     driver.reset_grippers()
 
-    location = Path("/tmp/schunk_gripper")
+    location = Path("/var/tmp/schunk_gripper")
 
     # With nonsense content
     with open(location.joinpath("configuration.json"), "w") as f:
@@ -151,7 +151,7 @@ def test_driver_keeps_current_grippers_when_loading_invalid_configuration():
 
     # Store invalid parameters
     config = {"invalid_parameter": -1}
-    location = Path("/tmp/schunk_gripper")
+    location = Path("/var/tmp/schunk_gripper")
     with open(location.joinpath("configuration.json"), "w") as f:
         json.dump([config], f)
 
