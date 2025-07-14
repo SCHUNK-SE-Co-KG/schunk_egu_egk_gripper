@@ -15,6 +15,10 @@
 # --------------------------------------------------------------------------------
 from rclpy.node import Node
 from lifecycle_msgs.srv import GetState
+import rclpy
+from schunk_gripper_interfaces.srv import (  # type: ignore [attr-defined]
+    ShowConfiguration,
+)
 
 
 def test_normal_startup_works(driver):
@@ -23,3 +27,24 @@ def test_normal_startup_works(driver):
 
     # The driver started correctly if the lifecycle interface is reachable
     assert client.wait_for_service(timeout_sec=2)
+
+
+# The driver is started without default gripper
+create_default_gripper = False
+
+
+def test_show_configuration_is_empty_without_default_gripper(driver):
+    node = Node("test_show_configuration_node")
+
+    client = node.create_client(ShowConfiguration, "/schunk/driver/show_configuration")
+
+    assert client.wait_for_service(timeout_sec=2.0)
+
+    request = ShowConfiguration.Request()
+    future = client.call_async(request)
+
+    rclpy.spin_until_future_complete(node, future, timeout_sec=2.0)
+    response = future.result()
+    assert response.configuration == [], "Expected empty configuration list"
+
+    node.destroy_node()
