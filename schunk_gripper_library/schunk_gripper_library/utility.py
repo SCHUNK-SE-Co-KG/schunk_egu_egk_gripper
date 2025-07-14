@@ -303,7 +303,7 @@ class Scanner(object):
         gripper_num: int,
         start_id: int = 20,
         universal_id: int = 12,
-        lambda_target: float = 0.3,  # tune 0.2-0.5 to trade speed vs. collision risk
+        expected_response_rate: float = 0.3,  # tune 0.2-0.5, speed vs. collision risk
     ) -> list[int]:
         """
         Discover every gripper still listening on `universal_id`
@@ -317,7 +317,7 @@ class Scanner(object):
             First individual ID to assign.
         universal_id : int, default 12
             Temporary ID put on all grippers so they answer the same request.
-        lambda_target : float, default 0.4
+        expected_response_rate : float, default 0.4
             Desired expected-answer rate (n/k). 0.2-0.5 works well.
         """
 
@@ -338,7 +338,7 @@ class Scanner(object):
 
         while remaining > 0:
             # 2. choose an expectancy and broadcast it
-            k = max(1, math.ceil(remaining / lambda_target))
+            k = max(1, math.ceil(remaining / expected_response_rate))
 
             if remaining == 1:
                 k = 1
