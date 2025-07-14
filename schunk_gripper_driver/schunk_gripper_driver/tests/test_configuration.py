@@ -103,3 +103,59 @@ def test_driver_rejects_loading_incorrectly_formatted_configuration(ros2):
     with mock.patch("builtins.open", side_effect=PermissionError()):
         assert not driver.load_previous_configuration(location=location)
         assert len(driver.grippers) == 0
+
+
+def test_driver_overwrites_grippers_when_loading_configuration():
+    driver = Driver("driver")
+    driver.get_logger().set_level(10)  # Debug
+
+    # Save a defined configuration
+    driver.reset_grippers()
+    saved_config = {
+        "host": "0.0.0.0",
+        "port": 1,
+        "serial_port": "some",
+        "device_id": 23,
+    }
+    driver.add_gripper(**saved_config)
+    assert driver.save_configuration()
+    driver.reset_grippers()
+
+    # Add some grippers to overwrite
+    device_ids = [1, 2, 3, 4, 5]
+    for device in device_ids:
+        config = {"host": "", "port": 0, "serial_port": "abc", "device_id": device}
+        assert driver.add_gripper(**config)
+
+    # We should have the one stored initially
+    assert driver.load_previous_configuration()
+    assert len(driver.grippers) == 1
+    for key, value in saved_config.items():
+        assert driver.grippers[0][key] == value
+
+
+def test_driver_keeps_current_grippers_when_loading_invalid_configuration():
+    driver = Driver("driver")
+
+    # Store two identical grippers to obtain an invalid configuration file
+    driver.reset_grippers()
+    gripper = {"host": "a", "port": 0, "serial_port": "/", "device_id": 42}
+    for _ in range(2):
+        driver.grippers.append(gripper)
+    assert driver.save_configuration()
+
+    driver = Driver("driver")
+    before = driver.grippers.copy()
+    assert not driver.load_previous_configuration()
+    assert driver.grippers == before
+
+    # Store invalid parameters
+    config = {"invalid_parameter": -1}
+    location = Path("/tmp/schunk_gripper")
+    with open(location.joinpath("configuration.json"), "w") as f:
+        json.dump([config], f)
+
+    driver = Driver("driver")
+    before = driver.grippers.copy()
+    assert not driver.load_previous_configuration()
+    assert driver.grippers == before

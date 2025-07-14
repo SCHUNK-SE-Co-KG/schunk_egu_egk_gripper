@@ -134,7 +134,10 @@ class Driver(Node):
         return configuration
 
     def save_configuration(self, location: str = "/tmp/schunk_gripper") -> bool:
+        LOG_NS = "Save configuration:"
+
         if not self.show_configuration():
+            self.get_logger().debug(f"{LOG_NS} Configuration empty")
             return False
 
         path = Path(location)
@@ -143,6 +146,7 @@ class Driver(Node):
             with tempfile.TemporaryFile(dir=path):
                 pass
         except Exception:
+            self.get_logger().debug(f"{LOG_NS} Can't write to {path}")
             return False
 
         with open(path.joinpath("configuration.json"), "w") as f:
@@ -160,24 +164,36 @@ class Driver(Node):
     def load_previous_configuration(
         self, location: str = "/tmp/schunk_gripper"
     ) -> bool:
+        LOG_NS = "Load configuration:"
+
         config_file = Path(location).joinpath("configuration.json")
         if not config_file.exists():
+            self.get_logger().debug(f"{LOG_NS} Missing file: {config_file}")
             return False
-
         try:
             with open(config_file, "r") as f:
                 try:
                     content = json.load(f)
                 except json.JSONDecodeError:
+                    self.get_logger().debug(f"{LOG_NS} Wrong layout")
                     return False
-        except Exception:
+        except Exception as e:
+            self.get_logger().debug(f"{LOG_NS} {e}")
             return False
 
+        backup = self.grippers.copy()
+        self.reset_grippers()
         for gripper in content:
             try:
                 if not self.add_gripper(**gripper):
+                    self.grippers = backup
+                    self.get_logger().debug(
+                        f"{LOG_NS} Failed adding gripper: {gripper}"
+                    )
                     return False
             except TypeError:
+                self.grippers = backup
+                self.get_logger().debug(f"{LOG_NS} Unknown parameter")
                 return False
         return True
 
