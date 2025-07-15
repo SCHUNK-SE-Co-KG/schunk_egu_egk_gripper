@@ -30,7 +30,7 @@ def test_normal_startup_works(driver):
 
 
 # The driver is started without default gripper
-create_default_gripper = False
+initial_gripper = False
 
 
 def test_show_configuration_is_empty_without_default_gripper(driver):

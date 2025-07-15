@@ -26,7 +26,7 @@ DRIVER_PARAMETERS = [
     "serial_port",
     "device_id",
     "log_level",
-    "create_default_gripper",
+    "initial_gripper",
 ]
 
 
@@ -84,7 +84,7 @@ def test_driver_has_expected_parameters_after_startup(driver):
             ),
         ),
         Parameter(
-            name="create_default_gripper",
+            name="initial_gripper",
             value=ParameterValue(type=ParameterType.PARAMETER_BOOL, bool_value=True),
         ),
     ]
@@ -140,7 +140,7 @@ def test_driver_supports_setting_parameters(driver):
             ),
         ),
         Parameter(
-            name="create_default_gripper",
+            name="initial_gripper",
             value=ParameterValue(type=ParameterType.PARAMETER_BOOL, bool_value=False),
         ),
     ]

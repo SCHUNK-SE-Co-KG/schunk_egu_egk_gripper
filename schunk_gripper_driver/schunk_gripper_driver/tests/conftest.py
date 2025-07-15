@@ -63,7 +63,7 @@ def ros2():
 
 @launch_pytest.fixture(scope="module")
 def driver(request, ros2):
-    create_default_gripper = getattr(request.module, "create_default_gripper", True)
+    initial_gripper = getattr(request.module, "initial_gripper", True)
     setup = IncludeLaunchDescription(
         PythonLaunchDescriptionSource(
             PathJoinSubstitution(
@@ -74,9 +74,7 @@ def driver(request, ros2):
                 ]
             )
         ),
-        launch_arguments={
-            "create_default_gripper": str(create_default_gripper).lower()
-        }.items(),
+        launch_arguments={"initial_gripper": str(initial_gripper).lower()}.items(),
     )
     return LaunchDescription([setup, launch_pytest.actions.ReadyToTest()])
 
