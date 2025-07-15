@@ -29,12 +29,11 @@ def test_normal_startup_works(driver):
     assert client.wait_for_service(timeout_sec=2)
 
 
-# The driver is started without default gripper
-initial_gripper = False
+start_empty = True
 
 
-def test_show_configuration_is_empty_without_default_gripper(driver):
-    node = Node("test_show_configuration_node")
+def test_driver_can_start_without_initial_gripper(driver):
+    node = Node("test_without_initial_gripper")
 
     client = node.create_client(ShowConfiguration, "/schunk/driver/show_configuration")
 
@@ -45,6 +44,6 @@ def test_show_configuration_is_empty_without_default_gripper(driver):
 
     rclpy.spin_until_future_complete(node, future, timeout_sec=2.0)
     response = future.result()
-    assert response.configuration == [], "Expected empty configuration list"
+    assert response.configuration == []
 
     node.destroy_node()
