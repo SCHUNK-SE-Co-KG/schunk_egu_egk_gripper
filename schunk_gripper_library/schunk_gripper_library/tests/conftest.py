@@ -1,8 +1,5 @@
 import pytest
 from .etc.pseudo_terminals import Connection
-from .etc.modbus_server import ModbusServer
-import asyncio
-import threading
 from .etc.scanner_helper import stop_all, start_bks_simulation, stop_bks_simulation
 
 
@@ -32,6 +29,7 @@ def pseudo_terminals():
 
     print("Closing both pseudo terminals")
     connection.close()
+
 
 @pytest.fixture()
 def cleanup():
