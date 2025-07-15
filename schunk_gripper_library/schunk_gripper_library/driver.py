@@ -174,6 +174,12 @@ class Driver(object):
                 self.connected = self.mb_client.connect()
 
         if self.connected:
+            if not (data := self.read_module_parameter("0x1130")):
+                return False
+            self.fieldbus = self.valid_fieldbus_types.get(
+                str(struct.unpack("h", data)[0]), ""
+            )
+
             if update_cycle:
                 self.update_cycle = update_cycle
                 self.polling_thread = Thread(
@@ -188,9 +194,6 @@ class Driver(object):
 
             self.module = self.valid_module_types.get(
                 str(self.module_parameters["module_type"]), ""
-            )
-            self.fieldbus = self.valid_fieldbus_types.get(
-                str(self.module_parameters["fieldbus_type"]), ""
             )
             self.gripper = self.compose_gripper_type(
                 module=self.module, fieldbus=self.fieldbus
@@ -509,18 +512,24 @@ class Driver(object):
         value: int | str
         for param, fields in self.readable_parameters.items():
             if fields["name"] in self.module_parameters:
-                strtype = str(fields["type"])
+                field_type = str(fields["type"])
                 if not (data := self.read_module_parameter(param)):
                     return False
-                if fields["type"] == "float":
-                    value = int(struct.unpack("f", data)[0] * 1e3)
-                elif fields["type"] == "enum":
+
+                if field_type == "float":
+                    if self.fieldbus == "PN":
+                        value = int(struct.unpack("f", data[::-1])[0] * 1e3)
+                    else:
+                        value = int(struct.unpack("f", data)[0] * 1e3)
+
+                elif field_type == "enum":
                     value = int(struct.unpack("h", data)[0])
-                elif strtype.startswith("char"):
-                    start = strtype.find("[")
-                    end = strtype.find("]")
+
+                elif field_type.startswith("char"):
+                    start = field_type.find("[")
+                    end = field_type.find("]")
                     if start != -1 and end != -1:
-                        length = int(strtype[start + 1 : end])
+                        length = int(field_type[start + 1 : end])
                         value = data[:length].decode("ascii").strip("\x00")
                     else:
                         return False
@@ -758,12 +767,18 @@ class Driver(object):
                 return False
             if target_pos < 0:
                 return False
-            self.plc_output_buffer[4:8] = bytes(struct.pack("i", target_pos))
+            data = bytes(struct.pack("i", target_pos))
+            if self.fieldbus == "PN":
+                data = data[::-1]
+            self.plc_output_buffer[4:8] = data
             return True
 
     def get_target_position(self) -> int:  # um
         with self.output_buffer_lock:
-            return struct.unpack("i", self.plc_output_buffer[4:8])[0]
+            data = self.plc_output_buffer[4:8]
+            if self.fieldbus == "PN":
+                data = data[::-1]
+            return struct.unpack("i", data)[0]
 
     def set_target_speed(self, target_speed: int) -> bool:
         with self.output_buffer_lock:
@@ -771,12 +786,18 @@ class Driver(object):
                 return False
             if target_speed < 0:
                 return False
-            self.plc_output_buffer[8:12] = bytes(struct.pack("i", target_speed))
+            data = bytes(struct.pack("i", target_speed))
+            if self.fieldbus == "PN":
+                data = data[::-1]
+            self.plc_output_buffer[8:12] = data
             return True
 
     def get_target_speed(self) -> float:
         with self.output_buffer_lock:
-            return struct.unpack("i", self.plc_output_buffer[8:12])[0]  # um/s
+            data = self.plc_output_buffer[8:12]
+            if self.fieldbus == "PN":
+                data = data[::-1]
+            return struct.unpack("i", data)[0]  # um/s
 
     def set_gripping_force(self, gripping_force: int) -> bool:
         with self.output_buffer_lock:
@@ -786,16 +807,25 @@ class Driver(object):
                 return False
             if gripping_force > 100:
                 return False
-            self.plc_output_buffer[12:16] = bytes(struct.pack("i", gripping_force))
+            data = bytes(struct.pack("i", gripping_force))
+            if self.fieldbus == "PN":
+                data = data[::-1]
+            self.plc_output_buffer[12:16] = data
             return True
 
     def get_gripping_force(self) -> int:
         with self.output_buffer_lock:
-            return struct.unpack("i", self.plc_output_buffer[12:16])[0]
+            data = self.plc_output_buffer[12:16]
+            if self.fieldbus == "PN":
+                data = data[::-1]
+            return struct.unpack("i", data)[0]
 
     def get_actual_position(self) -> int:  # um
         with self.input_buffer_lock:
-            return struct.unpack("i", self.plc_input_buffer[4:8])[0]
+            data = self.plc_input_buffer[4:8]
+            if self.fieldbus == "PN":
+                data = data[::-1]
+            return struct.unpack("i", data)[0]
 
     def _set_status_bit(self, bit: int, value: bool) -> bool:
         with self.input_buffer_lock:
