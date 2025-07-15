@@ -24,6 +24,7 @@ import launch_pytest
 from lifecycle_msgs.srv import ChangeState, GetState
 from rcl_interfaces.srv import SetParameters
 from schunk_gripper_interfaces.srv import ListGrippers  # type: ignore [attr-defined]
+from launch.launch_description_sources import PythonLaunchDescriptionSource
 
 from rclpy.node import Node
 import os
@@ -61,15 +62,19 @@ def ros2():
 
 
 @launch_pytest.fixture(scope="module")
-def driver(ros2):
+def driver(request, ros2):
+    start_empty = getattr(request.module, "start_empty", False)
     setup = IncludeLaunchDescription(
-        PathJoinSubstitution(
-            [
-                FindPackageShare("schunk_gripper_driver"),
-                "launch",
-                "driver.launch.py",
-            ]
-        )
+        PythonLaunchDescriptionSource(
+            PathJoinSubstitution(
+                [
+                    FindPackageShare("schunk_gripper_driver"),
+                    "launch",
+                    "driver.launch.py",
+                ]
+            )
+        ),
+        launch_arguments={"start_empty": str(start_empty).lower()}.items(),
     )
     return LaunchDescription([setup, launch_pytest.actions.ReadyToTest()])
 
