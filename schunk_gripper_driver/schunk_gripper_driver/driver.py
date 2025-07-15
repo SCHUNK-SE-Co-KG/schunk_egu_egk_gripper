@@ -97,6 +97,14 @@ class Driver(Node):
         self.show_configuration_srv = self.create_service(
             ShowConfiguration, "~/show_configuration", self._show_configuration_cb
         )
+        self.save_configuration_srv = self.create_service(
+            Trigger, "~/save_configuration", self._save_configuration_cb
+        )
+        self.load_previous_configuration_srv = self.create_service(
+            Trigger,
+            "~/load_previous_configuration",
+            self._load_previous_configuration_cb,
+        )
         self.add_on_set_parameters_callback(self._param_cb)
 
         # For concurrently running publishers
@@ -415,6 +423,14 @@ class Driver(Node):
         self.show_configuration_srv = self.create_service(
             ShowConfiguration, "~/show_configuration", self._show_configuration_cb
         )
+        self.save_configuration_srv = self.create_service(
+            Trigger, "~/save_configuration", self._save_configuration_cb
+        )
+        self.load_previous_configuration_srv = self.create_service(
+            Trigger,
+            "~/load_previous_configuration",
+            self._load_previous_configuration_cb,
+        )
 
         return TransitionCallbackReturn.SUCCESS
 
@@ -539,6 +555,18 @@ class Driver(Node):
         self, request: ShowConfiguration.Request, response: ShowConfiguration.Response
     ):
         response.configuration = self.show_configuration()
+        return response
+
+    def _save_configuration_cb(
+        self, request: Trigger.Request, response: Trigger.Response
+    ):
+        response.success = self.save_configuration()
+        return response
+
+    def _load_previous_configuration_cb(
+        self, request: Trigger.Request, response: Trigger.Response
+    ):
+        response.success = self.load_previous_configuration()
         return response
 
     def _list_grippers_cb(

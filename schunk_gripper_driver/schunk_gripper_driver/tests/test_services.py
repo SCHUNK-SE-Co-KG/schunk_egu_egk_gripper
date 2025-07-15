@@ -32,6 +32,8 @@ from schunk_gripper_interfaces.msg import (  # type: ignore [attr-defined]
 from rclpy.node import Node
 import rclpy
 import time
+from pathlib import Path
+import json
 
 
 @skip_without_gripper
@@ -42,6 +44,8 @@ def test_driver_advertises_state_depending_services(lifecycle_interface):
         "/schunk/driver/add_gripper",
         "/schunk/driver/reset_grippers",
         "/schunk/driver/show_configuration",
+        "/schunk/driver/save_configuration",
+        "/schunk/driver/load_previous_configuration",
     ]
     gripper_services = [
         "acknowledge",
@@ -315,6 +319,47 @@ def test_driver_implements_show_specification(lifecycle_interface):
         rclpy.spin_until_future_complete(node, future, timeout_sec=1)
 
         assert future.result().success
+
+    driver.change_state(Transition.TRANSITION_DEACTIVATE)
+    driver.change_state(Transition.TRANSITION_CLEANUP)
+
+
+@skip_without_gripper
+def test_driver_implements_saving_configuration(lifecycle_interface):
+    driver = lifecycle_interface
+    driver.change_state(Transition.TRANSITION_CONFIGURE)
+    driver.change_state(Transition.TRANSITION_ACTIVATE)
+
+    node = Node("check_save_configuration")
+    client = node.create_client(Trigger, "/schunk/driver/save_configuration")
+    assert client.wait_for_service(timeout_sec=2)
+
+    future = client.call_async(Trigger.Request())
+    rclpy.spin_until_future_complete(node, future)
+    assert future.result().success
+
+    driver.change_state(Transition.TRANSITION_DEACTIVATE)
+    driver.change_state(Transition.TRANSITION_CLEANUP)
+
+
+@skip_without_gripper
+def test_driver_implements_loading_previous_configuration(lifecycle_interface):
+    driver = lifecycle_interface
+    driver.change_state(Transition.TRANSITION_CONFIGURE)
+    driver.change_state(Transition.TRANSITION_ACTIVATE)
+
+    node = Node("check_load_previous_configuration")
+    client = node.create_client(Trigger, "/schunk/driver/load_previous_configuration")
+    assert client.wait_for_service(timeout_sec=2)
+
+    # Store a valid configuration
+    config = {"host": "0.0.0.0", "port": 80}
+    location = Path("/var/tmp/schunk_gripper")
+    with open(location.joinpath("configuration.json"), "w") as f:
+        json.dump([config], f)
+    future = client.call_async(Trigger.Request())
+    rclpy.spin_until_future_complete(node, future)
+    assert future.result().success
 
     driver.change_state(Transition.TRANSITION_DEACTIVATE)
     driver.change_state(Transition.TRANSITION_CLEANUP)
