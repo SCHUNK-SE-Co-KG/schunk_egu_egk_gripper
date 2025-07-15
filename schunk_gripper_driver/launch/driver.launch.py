@@ -59,6 +59,7 @@ def generate_launch_description():
                 ],
                 respawn=True,
                 output="both",
+                # arguments=['--ros-args', '--log-level', 'DEBUG'],
             )
         ]
     )

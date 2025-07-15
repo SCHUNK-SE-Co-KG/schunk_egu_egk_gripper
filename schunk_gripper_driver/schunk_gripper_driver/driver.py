@@ -208,21 +208,35 @@ class Driver(Node):
     def add_gripper(
         self, host: str = "", port: int = 0, serial_port: str = "", device_id: int = 0
     ) -> bool:
+        LOG_NS = "Add gripper:"
         if not any([host, port, serial_port, device_id]):
+            self.get_logger().debug(f"{LOG_NS} empty gripper")
             return False
         if (host and not port) or (port and not host):
+            self.get_logger().debug(
+                f"{LOG_NS} missing host or port."
+                " You need to specify both or none of them"
+            )
             return False
         if (serial_port and not device_id) or (device_id and not serial_port):
+            self.get_logger().debug(
+                f"{LOG_NS} missing serial_port or device_id."
+                " You need to specify both or none of them"
+            )
             return False
         for gripper in self.grippers:
             if host:
                 if host == gripper["host"] and port == gripper["port"]:
+                    self.get_logger().debug(f"{LOG_NS} host and port already used")
                     return False
             else:
                 if (
                     serial_port == gripper["serial_port"]
                     and device_id == gripper["device_id"]
                 ):
+                    self.get_logger().debug(
+                        f"{LOG_NS} serial_port and device_id already used"
+                    )
                     return False
         self.grippers.append(
             {
