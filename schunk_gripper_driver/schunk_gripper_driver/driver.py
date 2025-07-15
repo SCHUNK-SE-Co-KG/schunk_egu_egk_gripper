@@ -318,6 +318,17 @@ class Driver(Node):
     def on_activate(self, state: State) -> TransitionCallbackReturn:
         self.get_logger().debug("on_activate() is called.")
 
+        # Get every gripper ready to go
+        for idx, gripper in enumerate(self.grippers):
+            if self.needs_synchronize(gripper):
+                success = self.grippers[idx]["driver"].acknowledge(
+                    scheduler=self.scheduler
+                )
+            else:
+                success = self.grippers[idx]["driver"].acknowledge()
+            if not success:
+                return TransitionCallbackReturn.FAILURE
+
         # Gripper-specific services
         for idx, _ in enumerate(self.grippers):
             gripper = self.grippers[idx]
@@ -385,17 +396,6 @@ class Driver(Node):
                 qos_profile=1,
                 callback_group=self.callback_group,
             )
-
-        # Get every gripper ready to go
-        for idx, gripper in enumerate(self.grippers):
-            if self.needs_synchronize(gripper):
-                success = self.grippers[idx]["driver"].acknowledge(
-                    scheduler=self.scheduler
-                )
-            else:
-                success = self.grippers[idx]["driver"].acknowledge()
-            if not success:
-                return TransitionCallbackReturn.FAILURE
 
         return super().on_activate(state)
 
