@@ -45,6 +45,10 @@ from schunk_gripper_library.utility import Scheduler
 from typing import TypedDict
 from rclpy.callback_groups import MutuallyExclusiveCallbackGroup
 from rcl_interfaces.msg import SetParametersResult
+from pathlib import Path
+import tempfile
+import json
+from collections import OrderedDict
 
 
 class Gripper(TypedDict):
@@ -93,6 +97,14 @@ class Driver(Node):
         self.show_configuration_srv = self.create_service(
             ShowConfiguration, "~/show_configuration", self._show_configuration_cb
         )
+        self.save_configuration_srv = self.create_service(
+            Trigger, "~/save_configuration", self._save_configuration_cb
+        )
+        self.load_previous_configuration_srv = self.create_service(
+            Trigger,
+            "~/load_previous_configuration",
+            self._load_previous_configuration_cb,
+        )
         self.add_on_set_parameters_callback(self._param_cb)
 
         # For concurrently running publishers
@@ -129,24 +141,102 @@ class Driver(Node):
             configuration.append(cfg)
         return configuration
 
+    def save_configuration(self, location: str = "/var/tmp/schunk_gripper") -> bool:
+        LOG_NS = "Save configuration:"
+
+        if not self.show_configuration():
+            self.get_logger().debug(f"{LOG_NS} Configuration empty")
+            return False
+
+        path = Path(location)
+        try:
+            path.mkdir(parents=True, exist_ok=True)
+            with tempfile.TemporaryFile(dir=path):
+                pass
+        except Exception:
+            self.get_logger().debug(f"{LOG_NS} Can't write to {path}")
+            return False
+
+        with open(path.joinpath("configuration.json"), "w") as f:
+            configuration = []
+            for gripper in self.grippers:
+                entry: OrderedDict[str, str | int] = OrderedDict()
+                entry["host"] = gripper["host"]
+                entry["port"] = gripper["port"]
+                entry["serial_port"] = gripper["serial_port"]
+                entry["device_id"] = gripper["device_id"]
+                configuration.append(entry)
+            json.dump(configuration, f, indent=2)
+        return True
+
+    def load_previous_configuration(
+        self, location: str = "/var/tmp/schunk_gripper"
+    ) -> bool:
+        LOG_NS = "Load configuration:"
+
+        config_file = Path(location).joinpath("configuration.json")
+        if not config_file.exists():
+            self.get_logger().debug(f"{LOG_NS} Missing file: {config_file}")
+            return False
+        try:
+            with open(config_file, "r") as f:
+                try:
+                    content = json.load(f)
+                except json.JSONDecodeError:
+                    self.get_logger().debug(f"{LOG_NS} Wrong layout")
+                    return False
+        except Exception as e:
+            self.get_logger().debug(f"{LOG_NS} {e}")
+            return False
+
+        backup = self.grippers.copy()
+        self.reset_grippers()
+        for gripper in content:
+            try:
+                if not self.add_gripper(**gripper):
+                    self.grippers = backup
+                    self.get_logger().debug(
+                        f"{LOG_NS} Failed adding gripper: {gripper}"
+                    )
+                    return False
+            except TypeError:
+                self.grippers = backup
+                self.get_logger().debug(f"{LOG_NS} Unknown parameter")
+                return False
+        return True
+
     def add_gripper(
         self, host: str = "", port: int = 0, serial_port: str = "", device_id: int = 0
     ) -> bool:
+        LOG_NS = "Add gripper:"
         if not any([host, port, serial_port, device_id]):
+            self.get_logger().debug(f"{LOG_NS} empty gripper")
             return False
         if (host and not port) or (port and not host):
+            self.get_logger().debug(
+                f"{LOG_NS} missing host or port."
+                " You need to specify both or none of them"
+            )
             return False
         if (serial_port and not device_id) or (device_id and not serial_port):
+            self.get_logger().debug(
+                f"{LOG_NS} missing serial_port or device_id."
+                " You need to specify both or none of them"
+            )
             return False
         for gripper in self.grippers:
             if host:
                 if host == gripper["host"] and port == gripper["port"]:
+                    self.get_logger().debug(f"{LOG_NS} host and port already used")
                     return False
             else:
                 if (
                     serial_port == gripper["serial_port"]
                     and device_id == gripper["device_id"]
                 ):
+                    self.get_logger().debug(
+                        f"{LOG_NS} serial_port and device_id already used"
+                    )
                     return False
         self.grippers.append(
             {
@@ -347,6 +437,14 @@ class Driver(Node):
         self.show_configuration_srv = self.create_service(
             ShowConfiguration, "~/show_configuration", self._show_configuration_cb
         )
+        self.save_configuration_srv = self.create_service(
+            Trigger, "~/save_configuration", self._save_configuration_cb
+        )
+        self.load_previous_configuration_srv = self.create_service(
+            Trigger,
+            "~/load_previous_configuration",
+            self._load_previous_configuration_cb,
+        )
 
         return TransitionCallbackReturn.SUCCESS
 
@@ -471,6 +569,18 @@ class Driver(Node):
         self, request: ShowConfiguration.Request, response: ShowConfiguration.Response
     ):
         response.configuration = self.show_configuration()
+        return response
+
+    def _save_configuration_cb(
+        self, request: Trigger.Request, response: Trigger.Response
+    ):
+        response.success = self.save_configuration()
+        return response
+
+    def _load_previous_configuration_cb(
+        self, request: Trigger.Request, response: Trigger.Response
+    ):
+        response.success = self.load_previous_configuration()
         return response
 
     def _list_grippers_cb(
