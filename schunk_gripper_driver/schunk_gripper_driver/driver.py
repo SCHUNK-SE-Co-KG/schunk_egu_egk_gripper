@@ -88,6 +88,7 @@ class Driver(Node):
         self.gripper_services: list[Service] = []
         self.joint_state_publishers: dict[str, Publisher] = {}
         self.gripper_state_publishers: dict[str, Publisher] = {}
+        self.gripper_callback_groups: dict[str, MutuallyExclusiveCallbackGroup] = {}
         self.joint_state_lock: Lock = Lock()
         self.gripper_state_lock: Lock = Lock()
 
@@ -336,47 +337,57 @@ class Driver(Node):
         # Gripper-specific services
         for idx, _ in enumerate(self.grippers):
             gripper = self.grippers[idx]
+            gripper_id = gripper["gripper_id"]
+            callback_group = MutuallyExclusiveCallbackGroup()
+            self.gripper_callback_groups[gripper_id] = callback_group
+
             self.gripper_services.append(
                 self.create_service(
                     Trigger,
-                    f"~/{gripper['gripper_id']}/acknowledge",
+                    f"~/{gripper_id}/acknowledge",
                     partial(self._acknowledge_cb, gripper=gripper),
+                    callback_group=callback_group,
                 )
             )
             self.gripper_services.append(
                 self.create_service(
                     Trigger,
-                    f"~/{gripper['gripper_id']}/fast_stop",
+                    f"~/{gripper_id}/fast_stop",
                     partial(self._fast_stop_cb, gripper=gripper),
+                    callback_group=callback_group,
                 )
             )
             self.gripper_services.append(
                 self.create_service(
                     MoveToAbsolutePosition,
-                    f"~/{gripper['gripper_id']}/move_to_absolute_position",
+                    f"~/{gripper_id}/move_to_absolute_position",
                     partial(self._move_to_absolute_position_cb, gripper=gripper),
+                    callback_group=callback_group,
                 )
             )
             self.gripper_services.append(
                 self.create_service(
                     Grip,
-                    f"~/{gripper['gripper_id']}/grip",
+                    f"~/{gripper_id}/grip",
                     partial(self._grip_cb, gripper=gripper),
+                    callback_group=callback_group,
                 )
             )
             self.gripper_services.append(
                 self.create_service(
                     Release,
-                    f"~/{gripper['gripper_id']}/release",
+                    f"~/{gripper_id}/release",
                     partial(self._release_cb, gripper=gripper),
+                    callback_group=callback_group,
                 )
             )
 
             self.gripper_services.append(
                 self.create_service(
                     ShowGripperSpecification,
-                    f"~/{gripper['gripper_id']}/show_specification",
+                    f"~/{gripper_id}/show_specification",
                     partial(self._show_gripper_specification_cb, gripper=gripper),
+                    callback_group=callback_group,
                 )
             )
 
@@ -410,6 +421,7 @@ class Driver(Node):
         for idx, _ in enumerate(self.gripper_services):
             self.destroy_service(self.gripper_services[idx])
         self.gripper_services.clear()
+        self.gripper_callback_groups.clear()
 
         # Remove gripper-specific publishers
         for gripper in self.list_grippers():

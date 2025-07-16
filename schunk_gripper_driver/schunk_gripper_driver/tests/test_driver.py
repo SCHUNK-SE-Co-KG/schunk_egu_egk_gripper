@@ -520,3 +520,41 @@ def test_timer_callbacks_dont_collide_with_lifecycle_transitions(ros2):
 
     timer_thread.join()
     driver.on_cleanup(state=None)
+
+
+@skip_without_gripper
+def test_driver_uses_separate_callback_group_for_each_gripper(ros2: None):
+    driver = Driver("driver")
+
+    # Build a defined setup
+    driver.reset_grippers()
+    assert driver.add_gripper(host="0.0.0.0", port=8000)
+    assert driver.add_gripper(serial_port="/dev/ttyUSB0", device_id=12)
+
+    driver.on_configure(state=None)
+    assert driver.gripper_callback_groups == {}
+
+    driver.on_activate(state=None)
+    assert len(driver.gripper_callback_groups) == len(driver.grippers)
+
+    for gripper in driver.grippers:
+        id = gripper["gripper_id"]
+        assert id in driver.gripper_callback_groups.keys()
+
+    # Check that callback groups are exclusive
+    for group in driver.gripper_callback_groups.values():
+        assert group != driver.default_callback_group
+    assert len(driver.gripper_callback_groups.values()) == len(
+        set(driver.gripper_callback_groups.values())
+    )
+
+    # Check that services use these groups
+    for service in driver.gripper_services:
+        assert (
+            service.callback_group != driver.default_callback_group
+        ), f"service: {service.srv_name}"
+
+    driver.on_deactivate(state=None)
+    assert driver.gripper_callback_groups == {}
+
+    driver.on_cleanup(state=None)
