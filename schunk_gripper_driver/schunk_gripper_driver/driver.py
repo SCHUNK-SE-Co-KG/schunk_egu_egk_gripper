@@ -43,7 +43,7 @@ from rclpy.executors import MultiThreadedExecutor, ExternalShutdownException
 from functools import partial
 from schunk_gripper_library.utility import Scheduler
 from typing import TypedDict
-from rclpy.callback_groups import MutuallyExclusiveCallbackGroup
+from rclpy.callback_groups import MutuallyExclusiveCallbackGroup, ReentrantCallbackGroup
 from rcl_interfaces.msg import SetParametersResult
 from pathlib import Path
 import tempfile
@@ -112,18 +112,28 @@ class Driver(Node):
         self.add_on_set_parameters_callback(self._param_cb)
 
         # For concurrently running publishers
-        self.callback_group = MutuallyExclusiveCallbackGroup()
+        self.timers_cb_group: MutuallyExclusiveCallbackGroup = (
+            MutuallyExclusiveCallbackGroup()
+        )
+        self.publishers_cb_group: MutuallyExclusiveCallbackGroup = (
+            MutuallyExclusiveCallbackGroup()
+        )
+
+        # For running gripper services in parallel
+        self.gripper_services_cb_group: ReentrantCallbackGroup = (
+            ReentrantCallbackGroup()
+        )
 
         # Timers
         self.joint_states_timer: Timer = self.create_timer(
             timer_period_sec=0.05,
             callback=partial(self._publish_joint_states),
-            callback_group=self.callback_group,
+            callback_group=self.timers_cb_group,
         )
         self.gripper_states_timer: Timer = self.create_timer(
             timer_period_sec=0.05,
             callback=partial(self._publish_gripper_states),
-            callback_group=self.callback_group,
+            callback_group=self.timers_cb_group,
         )
 
     def list_grippers(self) -> list[str]:
@@ -336,47 +346,55 @@ class Driver(Node):
         # Gripper-specific services
         for idx, _ in enumerate(self.grippers):
             gripper = self.grippers[idx]
+            gripper_id = gripper["gripper_id"]
+
             self.gripper_services.append(
                 self.create_service(
                     Trigger,
-                    f"~/{gripper['gripper_id']}/acknowledge",
+                    f"~/{gripper_id}/acknowledge",
                     partial(self._acknowledge_cb, gripper=gripper),
+                    callback_group=self.gripper_services_cb_group,
                 )
             )
             self.gripper_services.append(
                 self.create_service(
                     Trigger,
-                    f"~/{gripper['gripper_id']}/fast_stop",
+                    f"~/{gripper_id}/fast_stop",
                     partial(self._fast_stop_cb, gripper=gripper),
+                    callback_group=self.gripper_services_cb_group,
                 )
             )
             self.gripper_services.append(
                 self.create_service(
                     MoveToAbsolutePosition,
-                    f"~/{gripper['gripper_id']}/move_to_absolute_position",
+                    f"~/{gripper_id}/move_to_absolute_position",
                     partial(self._move_to_absolute_position_cb, gripper=gripper),
+                    callback_group=self.gripper_services_cb_group,
                 )
             )
             self.gripper_services.append(
                 self.create_service(
                     Grip,
-                    f"~/{gripper['gripper_id']}/grip",
+                    f"~/{gripper_id}/grip",
                     partial(self._grip_cb, gripper=gripper),
+                    callback_group=self.gripper_services_cb_group,
                 )
             )
             self.gripper_services.append(
                 self.create_service(
                     Release,
-                    f"~/{gripper['gripper_id']}/release",
+                    f"~/{gripper_id}/release",
                     partial(self._release_cb, gripper=gripper),
+                    callback_group=self.gripper_services_cb_group,
                 )
             )
 
             self.gripper_services.append(
                 self.create_service(
                     ShowGripperSpecification,
-                    f"~/{gripper['gripper_id']}/show_specification",
+                    f"~/{gripper_id}/show_specification",
                     partial(self._show_gripper_specification_cb, gripper=gripper),
+                    callback_group=self.gripper_services_cb_group,
                 )
             )
 
@@ -390,7 +408,7 @@ class Driver(Node):
                 msg_type=JointState,
                 topic=f"~/{gripper_id}/joint_states",
                 qos_profile=1,
-                callback_group=self.callback_group,
+                callback_group=self.publishers_cb_group,
             )
 
             # Gripper state
@@ -398,7 +416,7 @@ class Driver(Node):
                 msg_type=GripperState,
                 topic=f"~/{gripper_id}/gripper_state",
                 qos_profile=1,
-                callback_group=self.callback_group,
+                callback_group=self.publishers_cb_group,
             )
 
         return super().on_activate(state)

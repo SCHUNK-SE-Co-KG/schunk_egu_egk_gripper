@@ -110,7 +110,7 @@ class Driver(object):
         self.output_buffer_lock: Lock = Lock()
 
         self.mb_client: NonExclusiveSerialClient | None = None
-        self.mb_device_id: int = -1
+        self.mb_device_id: int | None = None
         self.web_client: Client | None = None
         self.host: str = ""
         self.port: int = 80
@@ -434,7 +434,7 @@ class Driver(object):
 
         connection_info = {
             "ip_address": self.host,
-            "device_id": self.mb_device_id,
+            "device_id": self.mb_device_id or 0,
         }
         spec = {
             "max_stroke": self.module_parameters["max_phys_stroke"] / 1000,
