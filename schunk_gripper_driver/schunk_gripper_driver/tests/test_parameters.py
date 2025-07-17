@@ -21,12 +21,7 @@ from schunk_gripper_library.utility import skip_without_gripper
 
 
 DRIVER_PARAMETERS = [
-    "host",
-    "port",
-    "serial_port",
-    "device_id",
     "log_level",
-    "start_empty",
 ]
 
 
@@ -56,36 +51,10 @@ def test_driver_has_expected_parameters_after_startup(driver):
 
     default_parameters = [
         Parameter(
-            name="host",
-            value=ParameterValue(type=ParameterType.PARAMETER_STRING, string_value=""),
-        ),
-        Parameter(
-            name="port",
-            value=ParameterValue(
-                type=ParameterType.PARAMETER_INTEGER, integer_value=80
-            ),
-        ),
-        Parameter(
-            name="serial_port",
-            value=ParameterValue(
-                type=ParameterType.PARAMETER_STRING, string_value="/dev/ttyUSB0"
-            ),
-        ),
-        Parameter(
-            name="device_id",
-            value=ParameterValue(
-                type=ParameterType.PARAMETER_INTEGER, integer_value=12
-            ),
-        ),
-        Parameter(
             name="log_level",
             value=ParameterValue(
                 type=ParameterType.PARAMETER_STRING, string_value="INFO"
             ),
-        ),
-        Parameter(
-            name="start_empty",
-            value=ParameterValue(type=ParameterType.PARAMETER_BOOL, bool_value=False),
         ),
     ]
     future = get_params_client.call_async(
@@ -110,38 +79,10 @@ def test_driver_supports_setting_parameters(driver):
 
     parameters = [
         Parameter(
-            name="host",
-            value=ParameterValue(
-                type=ParameterType.PARAMETER_STRING, string_value="0.0.0.0"
-            ),
-        ),
-        Parameter(
-            name="port",
-            value=ParameterValue(
-                type=ParameterType.PARAMETER_INTEGER, integer_value=1234
-            ),
-        ),
-        Parameter(
-            name="serial_port",
-            value=ParameterValue(
-                type=ParameterType.PARAMETER_STRING, string_value="/dev/serial-port"
-            ),
-        ),
-        Parameter(
-            name="device_id",
-            value=ParameterValue(
-                type=ParameterType.PARAMETER_INTEGER, integer_value=123
-            ),
-        ),
-        Parameter(
             name="log_level",
             value=ParameterValue(
                 type=ParameterType.PARAMETER_STRING, string_value="DEBUG"
             ),
-        ),
-        Parameter(
-            name="start_empty",
-            value=ParameterValue(type=ParameterType.PARAMETER_BOOL, bool_value=True),
         ),
     ]
 
