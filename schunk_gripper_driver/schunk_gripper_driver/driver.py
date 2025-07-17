@@ -64,15 +64,18 @@ class Driver(Node):
 
     def __init__(self, node_name: str, **kwargs):
         super().__init__(node_name, **kwargs)
-        self.declare_parameter("host", "")
-        self.declare_parameter("port", 80)
-        self.declare_parameter("serial_port", "/dev/ttyUSB0")
-        self.declare_parameter("device_id", 12)
-        self.declare_parameter("log_level", "INFO")
-        self.declare_parameter("start_empty", False)
-
-        self.scheduler: Scheduler = Scheduler()
         self.grippers: list[Gripper] = []
+
+        # Initialization parameters
+        self.init_parameters = {
+            "host": "",
+            "port": 80,
+            "serial_port": "/dev/ttyUSB0",
+            "device_id": 12,
+            "start_empty": False,
+        }
+        for name, default_value in self.init_parameters.items():
+            self.declare_parameter(name, default_value)
 
         start_empty = self.get_parameter("start_empty").value
         if not start_empty:
@@ -85,6 +88,15 @@ class Driver(Node):
                 "gripper_id": "",
             }
             self.grippers.append(gripper)
+
+        # Clean up initialization parameters
+        for name in self.init_parameters.keys():
+            self.undeclare_parameter(name)
+
+        # Node parameters
+        self.declare_parameter("log_level", "INFO")
+
+        self.scheduler: Scheduler = Scheduler()
         self.gripper_services: list[Service] = []
         self.joint_state_publishers: dict[str, Publisher] = {}
         self.gripper_state_publishers: dict[str, Publisher] = {}
