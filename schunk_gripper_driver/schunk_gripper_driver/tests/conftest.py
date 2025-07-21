@@ -112,12 +112,30 @@ class LifecycleInterface(object):
         rclpy.spin_until_future_complete(self.node, future)
         return future.result().current_state.id == state_id
 
-    def exist(self, services: list[str]) -> bool:
-        existing = getattr(self.node, "get_service_names_and_types_by_node")(
+    def check(self, services: list[str], should_exist: bool = True) -> bool:
+        service_names = []
+        for name in services:
+            if not name.startswith("/schunk/driver"):
+                for gripper in self.list_grippers():
+                    service_names.append(f"/schunk/driver/{gripper}/{name}")
+            else:
+                service_names.append(name)
+
+        existing_services = getattr(self.node, "get_service_names_and_types_by_node")(
             node_name="driver", node_namespace="/schunk"
         )
-        advertised = [i[0] for i in existing]
-        return all([service in advertised for service in services])
+        advertised_services = [i[0] for i in existing_services]
+        advertised = [name in advertised_services for name in service_names]
+        if should_exist:
+            for idx, exists in enumerate(advertised):
+                if not exists:
+                    print(f"service {service_names[idx]} not advertised")
+            return all(advertised)
+        else:
+            for idx, exists in enumerate(advertised):
+                if exists:
+                    print(f"service {service_names[idx]} incorrectly advertised")
+            return not any(advertised)
 
     def list_grippers(self) -> list[str]:
         req = ListGrippers.Request()

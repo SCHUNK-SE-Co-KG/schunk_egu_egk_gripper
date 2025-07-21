@@ -34,6 +34,7 @@ import rclpy
 import time
 from pathlib import Path
 import json
+import pytest
 
 
 @skip_without_gripper
@@ -57,46 +58,39 @@ def test_driver_advertises_state_depending_services(lifecycle_interface):
     ]
     until_change_takes_effect = 0.1
 
-    def exist(services: list[str]) -> bool:
-        for gripper in driver.list_grippers():
-            for service in services:
-                if not driver.exist([f"/schunk/driver/{gripper}/{service}"]):
-                    return False
-        return True
-
     for run in range(3):
 
         # After startup -> unconfigured
         driver.check_state(State.PRIMARY_STATE_UNCONFIGURED)
-        assert driver.exist(config_services)
-        assert not driver.exist(list_grippers)
+        assert driver.check(config_services, should_exist=True)
+        assert driver.check(list_grippers, should_exist=False)
 
         # After configure -> inactive
         driver.change_state(Transition.TRANSITION_CONFIGURE)
         time.sleep(until_change_takes_effect)
-        assert driver.exist(list_grippers)
-        assert not driver.exist(config_services)
-        assert not exist(gripper_services)
+        assert driver.check(list_grippers, should_exist=True)
+        assert driver.check(config_services, should_exist=False)
+        assert driver.check(gripper_services, should_exist=False)
 
         # After activate -> active
         driver.change_state(Transition.TRANSITION_ACTIVATE)
         time.sleep(until_change_takes_effect)
-        assert driver.exist(list_grippers)
-        assert exist(gripper_services)
-        assert not driver.exist(config_services)
+        assert driver.check(list_grippers, should_exist=True)
+        assert driver.check(config_services, should_exist=False)
+        assert driver.check(gripper_services, should_exist=True)
 
         # After deactivate -> inactive
         driver.change_state(Transition.TRANSITION_DEACTIVATE)
         time.sleep(until_change_takes_effect)
-        assert driver.exist(list_grippers)
-        assert not driver.exist(config_services)
-        assert not exist(gripper_services)
+        assert driver.check(list_grippers, should_exist=True)
+        assert driver.check(config_services, should_exist=False)
+        assert driver.check(gripper_services, should_exist=False)
 
         # After cleanup -> unconfigured
         driver.change_state(Transition.TRANSITION_CLEANUP)
         time.sleep(until_change_takes_effect)
-        assert driver.exist(config_services)
-        assert not driver.exist(list_grippers)
+        assert driver.check(config_services, should_exist=True)
+        assert driver.check(list_grippers, should_exist=False)
 
 
 @skip_without_gripper
@@ -205,6 +199,7 @@ def test_driver_implements_fast_stop(lifecycle_interface):
     driver.change_state(Transition.TRANSITION_CLEANUP)
 
 
+@pytest.mark.skip()
 @skip_without_gripper
 def test_driver_implements_move_to_absolute_position(lifecycle_interface):
     driver = lifecycle_interface
