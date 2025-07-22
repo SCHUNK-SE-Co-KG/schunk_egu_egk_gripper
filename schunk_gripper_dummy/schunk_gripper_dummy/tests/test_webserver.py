@@ -2,12 +2,6 @@ from schunk_gripper_dummy.main import server, dummy
 from fastapi.testclient import TestClient
 
 
-def test_info_route_is_available():
-    client = TestClient(server)
-    assert client.get("/adi/info.json").is_success
-    dummy.stop()
-
-
 def test_data_route_is_available():
     client = TestClient(server)
     assert client.get("/adi/data.json").is_success

@@ -43,8 +43,6 @@ async def post(
 async def get(request: Request):
     path = request.path_params["path"]
     params = dict(request.query_params)
-    if path == "info.json":
-        return dummy.get_info(params)
     if path == "data.json":
         return dummy.get_data(params)
     return None

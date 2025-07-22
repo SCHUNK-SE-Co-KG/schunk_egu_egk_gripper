@@ -3,13 +3,6 @@ from schunk_gripper_dummy.main import server, dummy as client_dummy
 from fastapi.testclient import TestClient
 
 
-def test_dummy_responds_correctly_to_info_requests():
-    dummy = Dummy()
-    query = ""
-    expected = {"dataformat": 0}
-    assert dummy.get_info(query) == expected
-
-
 def test_dummy_responds_correctly_to_data_instance_requests():
     dummy = Dummy()
     inst = "0x0040"

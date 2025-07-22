@@ -124,9 +124,6 @@ class Dummy(object):
         self.process_control_bits()
         return {"result": 0}
 
-    def get_info(self, query: dict[str, str]) -> dict:
-        return {"dataformat": 0}  # 0: Little endian, 1: Big endian
-
     def get_data(self, query: dict[str, str]) -> list:
         result: list = []
 
