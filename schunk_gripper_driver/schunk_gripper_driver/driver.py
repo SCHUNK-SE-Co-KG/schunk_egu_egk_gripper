@@ -338,6 +338,8 @@ class Driver(Node):
         self.destroy_service(self.add_gripper_srv)
         self.destroy_service(self.reset_grippers_srv)
         self.destroy_service(self.show_configuration_srv)
+        self.destroy_service(self.save_configuration_srv)
+        self.destroy_service(self.load_previous_configuration_srv)
 
         return TransitionCallbackReturn.SUCCESS
 
