@@ -41,7 +41,6 @@ class Dummy(object):
         self.thread = Thread(target=self._run)
         self.running = False
         self.done = False
-        self.enum = None
         self.metadata = None
         self.data = None
         self.plc_input = "0x0040"
@@ -56,12 +55,9 @@ class Dummy(object):
         self.reserved_status_bits = [10, 15] + list(range(18, 31))
         self.reserved_control_bits = [10, 15] + list(range(17, 30))
 
-        enum_config = files(__package__).joinpath("config/enum.json")
         metadata_config = files(__package__).joinpath("config/metadata.json")
         data_config = files(__package__).joinpath("config/data.json")
 
-        with open(enum_config, "r") as f:
-            self.enum = json.load(f)
         with open(metadata_config, "r") as f:
             self.metadata = json.load(f)
         with open(data_config, "r") as f:
@@ -135,17 +131,6 @@ class Dummy(object):
 
     def get_info(self, query: dict[str, str]) -> dict:
         return {"dataformat": 0}  # 0: Little endian, 1: Big endian
-
-    def get_enum(self, query: dict[str, str]) -> list:
-        if "inst" not in query or "value" not in query:
-            return []
-        inst = query["inst"]
-        value = int(query["value"])
-        if inst in self.enum:
-            string = self.enum[inst][value]["string"]
-            return [{"string": string, "value": value}]
-        else:
-            return []
 
     def get_data(self, query: dict[str, str]) -> list:
         result: list = []

@@ -10,23 +10,6 @@ def test_dummy_responds_correctly_to_info_requests():
     assert dummy.get_info(query) == expected
 
 
-def test_dummy_responds_correctly_to_enum_requests():
-    dummy = Dummy()
-    inst = "0x0118"
-    value = 0
-    query = {"inst": inst, "value": value}
-    expected = [dummy.enum[inst][value]]
-    assert dummy.get_enum(query) == expected
-
-
-def test_dummy_survives_invalid_enum_requests():
-    dummy = Dummy()
-    invalid_inst = "0x0"
-    query = {"inst": invalid_inst, "value": 0}
-    expected = []
-    assert dummy.get_enum(query) == expected
-
-
 def test_dummy_responds_correctly_to_data_offset_requests():
     dummy = Dummy()
     query = {"offset": 15, "count": 3}

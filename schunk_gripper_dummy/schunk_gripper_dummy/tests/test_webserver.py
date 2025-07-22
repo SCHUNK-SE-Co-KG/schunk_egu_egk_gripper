@@ -8,12 +8,6 @@ def test_info_route_is_available():
     dummy.stop()
 
 
-def test_enum_route_is_available():
-    client = TestClient(server)
-    assert client.get("/adi/enum.json").is_success
-    dummy.stop()
-
-
 def test_data_route_is_available():
     client = TestClient(server)
     assert client.get("/adi/data.json").is_success

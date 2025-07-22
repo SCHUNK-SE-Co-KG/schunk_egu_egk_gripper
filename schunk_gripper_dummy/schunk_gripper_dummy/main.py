@@ -45,8 +45,6 @@ async def get(request: Request):
     params = dict(request.query_params)
     if path == "info.json":
         return dummy.get_info(params)
-    if path == "enum.json":
-        return dummy.get_enum(params)
     if path == "data.json":
         return dummy.get_data(params)
     return None
