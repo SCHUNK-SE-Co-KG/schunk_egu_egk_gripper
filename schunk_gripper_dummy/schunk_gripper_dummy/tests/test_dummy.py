@@ -29,7 +29,6 @@ def test_dummy_survives_repeated_starts_and_stops():
 def test_dummy_reads_configuration_on_startup():
     dummy = Dummy()
     assert dummy.data is not None
-    assert dummy.metadata is not None
 
 
 def test_dummy_has_min_max_parameters():

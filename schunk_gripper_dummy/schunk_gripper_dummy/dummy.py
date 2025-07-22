@@ -41,7 +41,6 @@ class Dummy(object):
         self.thread = Thread(target=self._run)
         self.running = False
         self.done = False
-        self.metadata = None
         self.data = None
         self.plc_input = "0x0040"
         self.plc_output = "0x0048"
@@ -55,11 +54,7 @@ class Dummy(object):
         self.reserved_status_bits = [10, 15] + list(range(18, 31))
         self.reserved_control_bits = [10, 15] + list(range(17, 30))
 
-        metadata_config = files(__package__).joinpath("config/metadata.json")
         data_config = files(__package__).joinpath("config/data.json")
-
-        with open(metadata_config, "r") as f:
-            self.metadata = json.load(f)
         with open(data_config, "r") as f:
             self.data = json.load(f)
 
@@ -134,19 +129,6 @@ class Dummy(object):
 
     def get_data(self, query: dict[str, str]) -> list:
         result: list = []
-        if "offset" in query and "count" in query:
-            offset = int(query["offset"])
-            count = int(query["count"])
-            if offset < 0 or count < 0:
-                return result
-            if offset + count >= len(self.metadata):
-                return result
-            for i in range(count):
-                id = self.metadata[offset + i]["instance"]
-                inst = hex(id)[2:].upper().zfill(4)
-                inst = "0x" + inst
-                result.append(self.data[inst][0])
-            return result
 
         if "inst" in query and "count" in query:
             inst = query["inst"]
