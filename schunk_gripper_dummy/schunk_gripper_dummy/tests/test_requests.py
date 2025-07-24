@@ -1,5 +1,5 @@
 from schunk_gripper_dummy.dummy import Dummy
-from schunk_gripper_dummy.main import server, dummy as client_dummy
+from schunk_gripper_dummy.main import create_webserver
 from fastapi.testclient import TestClient
 
 
@@ -51,8 +51,10 @@ def test_dummy_stores_post_requests():
 
 
 def test_dummy_rejects_invalid_post_requests():
+    dummy = Dummy()
+    dummy.start()
+    server = create_webserver(dummy)
     client = TestClient(server)
-    client_dummy.start()
 
     valid_data = "AABBCCDD"
     valid_inst = "0x0238"
@@ -68,7 +70,8 @@ def test_dummy_rejects_invalid_post_requests():
     invalid_inst = "0x9999"
     data = {"inst": invalid_inst, "value": valid_data}
     assert client.post("/adi/update.json", data=data).json() == {"result": 1}
-    client_dummy.stop()
+
+    dummy.stop()
 
 
 def test_dummy_resets_success_status_bits_with_new_post_requests():

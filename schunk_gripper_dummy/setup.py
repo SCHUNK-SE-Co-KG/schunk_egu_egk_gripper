@@ -32,7 +32,9 @@ setup(
     license="GPL-3.0-or-later",
     tests_require=["pytest", "coverage"],
     entry_points={
-        "console_scripts": [],
+        "console_scripts": [
+            "start_dummy = schunk_gripper_dummy.main:main",
+        ],
     },
     scripts=["start_dummy"],
 )
