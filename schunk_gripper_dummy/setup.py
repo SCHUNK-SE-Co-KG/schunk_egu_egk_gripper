@@ -14,8 +14,8 @@ setup(
         ("share/" + package_name, ["package.xml"]),
         (os.path.join("lib", package_name), ["start_dummy"]),
         (
-            os.path.join("share", package_name, "config"),
-            glob(package_name + "/config/*.json"),
+            os.path.join("share", package_name, "config/grippers"),
+            glob(package_name + "/config/grippers/*.json"),
         ),
     ],
     install_requires=[

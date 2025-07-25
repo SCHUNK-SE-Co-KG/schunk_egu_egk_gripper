@@ -4,6 +4,7 @@ from importlib.resources import files
 import json
 import struct
 from typing import Tuple
+from pathlib import Path
 
 
 class LinearMotion(object):
@@ -36,12 +37,25 @@ class LinearMotion(object):
 
 
 class Dummy(object):
-    def __init__(self):
+    def __init__(self, gripper: str = "EGK40_PN_M_B"):
+
+        self.available_grippers: dict = {}
+        gripper_folder = str(files(__package__).joinpath("config/grippers"))
+        for json_file in Path(gripper_folder).glob("*.json"):
+            with open(json_file, "r", encoding="utf-8") as f:
+                self.available_grippers[json_file.stem] = json.load(f)
+        self.data = self.available_grippers.get(gripper, [])
+        if not self.data:
+            print(
+                f"Unknown gripper: {gripper}. "
+                f"Available grippers: {list(self.available_grippers.keys())}"
+            )
+            raise ValueError("Unknown gripper")
+
         self.starttime = time.time()
         self.thread = Thread(target=self._run)
         self.running = False
         self.done = False
-        self.data = None
         self.plc_input = "0x0040"
         self.plc_output = "0x0048"
         self.actual_position = "0x0230"
@@ -53,11 +67,6 @@ class Dummy(object):
         self.valid_control_bits = list(range(0, 10)) + [11, 12, 13, 14, 16, 30, 31]
         self.reserved_status_bits = [10, 15] + list(range(18, 31))
         self.reserved_control_bits = [10, 15] + list(range(17, 30))
-
-        data_config = files(__package__).joinpath("config/data.json")
-        with open(data_config, "r") as f:
-            self.data = json.load(f)
-
         self.plc_input_buffer = bytearray(bytes.fromhex(self.data[self.plc_input][0]))
         self.plc_output_buffer = bytearray(bytes.fromhex(self.data[self.plc_output][0]))
         self.initial_state = [self.plc_input_buffer.hex().upper()]

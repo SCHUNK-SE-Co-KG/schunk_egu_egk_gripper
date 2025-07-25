@@ -26,9 +26,25 @@ def test_dummy_survives_repeated_starts_and_stops():
     assert not dummy.running
 
 
-def test_dummy_reads_configuration_on_startup():
+def test_dummy_loads_available_grippers_on_startup():
     dummy = Dummy()
-    assert dummy.data is not None
+    assert isinstance(dummy.available_grippers, dict)
+
+
+def test_dummy_reads_configuration_on_startup():
+
+    # Existing grippers
+    valid_grippers = ["EGK40_PN_M_B"]
+    for gripper in valid_grippers:
+        dummy = Dummy(gripper=gripper)
+        assert gripper in dummy.available_grippers.keys()
+        assert dummy.data == dummy.available_grippers[gripper]
+
+    # Non-existent grippers
+    invalid_grippers = ["non-existent"]
+    for gripper in invalid_grippers:
+        with pytest.raises(ValueError, match="Unknown gripper"):
+            Dummy(gripper)
 
 
 def test_dummy_has_min_max_parameters():

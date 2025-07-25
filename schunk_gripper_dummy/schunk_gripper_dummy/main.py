@@ -49,16 +49,22 @@ def create_webserver(dummy: Dummy):
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--port", type=int, default=8000)
+    parser.add_argument("--gripper", type=str, default="EGK40_PN_M_B")
     args = parser.parse_args()
 
-    dummy = Dummy()
-    dummy.start()
-    webserver = create_webserver(dummy)
+    dummy = None
     try:
+        dummy = Dummy(args.gripper)
+        dummy.start()
+        webserver = create_webserver(dummy)
         uvicorn.run(webserver, host="0.0.0.0", port=args.port)
+    except ValueError:
+        pass
     except KeyboardInterrupt:
-        dummy.stop()
         print("Server stopped by user.")
+    finally:
+        if dummy:
+            dummy.stop()
 
 
 if __name__ == "__main__":
