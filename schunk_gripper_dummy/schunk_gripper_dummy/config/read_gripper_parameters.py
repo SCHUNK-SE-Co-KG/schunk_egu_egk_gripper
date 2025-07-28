@@ -10,7 +10,7 @@ parser.add_argument(
 )
 args = parser.parse_args()
 
-parameter_codes = "./system_parameter_codes"
+parameter_codes = "./gripper_parameter_codes"
 
 driver = Driver()
 driver.connect(host=args.ip)
