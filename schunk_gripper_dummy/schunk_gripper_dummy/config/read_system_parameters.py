@@ -2,6 +2,7 @@
 import requests  # type: ignore
 import json
 import argparse
+from schunk_gripper_library.driver import Driver
 
 parser = argparse.ArgumentParser()
 parser.add_argument(
@@ -10,7 +11,11 @@ parser.add_argument(
 args = parser.parse_args()
 
 parameter_codes = "./system_parameter_codes"
-parameters = "./data.json"
+
+driver = Driver()
+driver.connect(host=args.ip)
+outfile = f"./grippers/{driver.gripper}.json"
+driver.disconnect()
 
 
 def read_parameter_codes(filepath: str) -> list[str]:
@@ -44,7 +49,7 @@ def main():
         except Exception as e:
             print(f"error reading code {code}: {e}")
 
-    with open(parameters, "w") as f:
+    with open(outfile, "w") as f:
         json.dump(values, f, indent=4)
 
 
