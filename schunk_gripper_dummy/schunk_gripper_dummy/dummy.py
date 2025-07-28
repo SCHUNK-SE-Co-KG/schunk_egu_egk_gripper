@@ -37,7 +37,7 @@ class LinearMotion(object):
 
 
 class Dummy(object):
-    def __init__(self, gripper: str = "EGK40_PN_M_B"):
+    def __init__(self, gripper: str = "EGU_60_EI_M_B"):
 
         self.available_grippers: dict = {}
         gripper_folder = str(files(__package__).joinpath("config/grippers"))

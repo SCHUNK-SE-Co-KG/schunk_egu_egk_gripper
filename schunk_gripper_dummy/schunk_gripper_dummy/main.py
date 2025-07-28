@@ -49,7 +49,7 @@ def create_webserver(dummy: Dummy):
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--port", type=int, default=8000)
-    parser.add_argument("--gripper", type=str, default="EGK40_PN_M_B")
+    parser.add_argument("--gripper", type=str, default="EGU_60_EI_M_B")
     args = parser.parse_args()
 
     dummy = None

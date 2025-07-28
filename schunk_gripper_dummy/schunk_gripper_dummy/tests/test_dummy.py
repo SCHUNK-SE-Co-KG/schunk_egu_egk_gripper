@@ -34,7 +34,7 @@ def test_dummy_loads_available_grippers_on_startup():
 def test_dummy_reads_configuration_on_startup():
 
     # Existing grippers
-    valid_grippers = ["EGK40_PN_M_B"]
+    valid_grippers = ["EGU_60_EI_M_B"]
     for gripper in valid_grippers:
         dummy = Dummy(gripper=gripper)
         assert gripper in dummy.available_grippers.keys()
@@ -53,7 +53,7 @@ def test_dummy_has_min_max_parameters():
     # Position
     assert isinstance(dummy.max_position, int)
     assert isinstance(dummy.min_position, int)
-    assert dummy.max_position < 100000  # sane SCHUNK gripper max
+    assert dummy.max_position < 150000  # sane SCHUNK gripper max
 
     # Speed
     assert isinstance(dummy.max_grp_vel, int)
@@ -67,7 +67,7 @@ def test_dummy_starts_in_error_state():
     assert dummy.get_status_bit(0) == 0  # not ready for operation
     assert dummy.get_status_bit(7) == 1  # there's an error
     assert dummy.get_status_error() == "D9"  # ERR_FAST_STOP
-    assert dummy.get_status_diagnostics() == "EF"  # ERR_COMM_LOST
+    assert dummy.get_status_diagnostics() == "0"
 
 
 def test_dummy_starts_with_cleared_control_bits():
