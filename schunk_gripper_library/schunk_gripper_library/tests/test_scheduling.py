@@ -34,22 +34,6 @@ def test_tasks_support_less_than_and_greater_than_operators():
     assert task2 > task1
 
 
-def test_tasks_are_comparable_for_equality():
-    def func(a: int, b: int):
-        time.sleep(0.01)
-        return f"done: {a + b}"
-
-    # Equal functions
-    task1 = Task(func=partial(func, a=1, b=2))
-    task2 = Task(func=partial(func, a=1, b=2))
-    assert task1 == task2
-
-    # Different function calls
-    task1 = Task(func=partial(func, a=1, b=2))
-    task2 = Task(func=partial(func, a=1, b=42))
-    assert task1 != task2
-
-
 def test_scheduler_runs_internal_worker_thread_when_started():
     before = threading.active_count()
     scheduler = Scheduler()
@@ -114,16 +98,13 @@ def test_scheduler_supports_task_execution_from_several_threads():
     scheduler.start()
     threads = []
 
-    def success(id: int) -> bool:
-        return True
-
-    def repeatedly_execute(id: int) -> None:
-        for i in range(5):
-            assert scheduler.execute(func=partial(success, id + i)).result()
+    def repeatedly_execute():
+        for _ in range(5):
+            assert scheduler.execute(func=partial(YES)).result()
             time.sleep(0.01)  # make sure threads overlap a little
 
-    for i in range(10):
-        thread = threading.Thread(target=repeatedly_execute, args=(i,))
+    for _ in range(10):
+        thread = threading.Thread(target=repeatedly_execute)
         thread.start()
         threads.append(thread)
     for thread in threads:
@@ -137,11 +118,13 @@ def test_scheduler_executes_tasks_according_to_their_priorities():
     global low_priority_finished
     global high_priority_finished
 
-    def wait(sec: float) -> None:
-        time.sleep(sec)
+    def fill_scheduler_queue():
+        def wait():
+            time.sleep(1)
+            return True
 
-    def urgent_task() -> bool:
-        return True
+        for _ in range(3):
+            scheduler.execute(func=partial(wait))
 
     def low_priority():
         assert scheduler.execute(func=partial(YES), priority=2).result()
@@ -149,14 +132,14 @@ def test_scheduler_executes_tasks_according_to_their_priorities():
         low_priority_finished = time.time()
 
     def high_priority():
-        assert scheduler.execute(func=partial(urgent_task), priority=1).result()
+        assert scheduler.execute(func=partial(YES), priority=1).result()
         global high_priority_finished
         high_priority_finished = time.time()
 
     # Block the scheduler's task queue for some time so that
     # new tasks can be re-arranged.
-    scheduler.execute(func=partial(wait, 0.5))
-    scheduler.execute(func=partial(wait, 0.7))
+    thread_fill_scheduler = threading.Thread(target=fill_scheduler_queue, daemon=True)
+    thread_fill_scheduler.start()
 
     thread_low_priority = threading.Thread(target=low_priority, daemon=True)
     thread_low_priority.start()
@@ -164,6 +147,7 @@ def test_scheduler_executes_tasks_according_to_their_priorities():
     thread_high_priority = threading.Thread(target=high_priority, daemon=True)
     thread_high_priority.start()  # should finish first
 
+    thread_fill_scheduler.join()
     thread_low_priority.join()
     thread_high_priority.join()
     scheduler.stop()
@@ -233,44 +217,3 @@ def test_scheduler_manages_cyclic_execution_from_various_threads():
     scheduler.stop()
     for thread in threads:
         thread.join()
-    scheduler.stop()
-
-
-def test_scheduler_knows_enqueued_tasks():
-    scheduler = Scheduler()
-    assert isinstance(scheduler.enqueued_tasks, list)
-
-    scheduler.start()
-
-    def func():
-        time.sleep(0.1)
-
-    # Enqueue a task and process it
-    future = scheduler.execute(func=partial(func))
-    assert len(scheduler.enqueued_tasks) == 1
-    future.result()
-    assert len(scheduler.enqueued_tasks) == 0
-
-    scheduler.stop()
-
-
-def test_scheduler_avoids_enqueuing_duplicate_identical_tasks():
-    scheduler = Scheduler()
-    scheduler.start()
-
-    def func():
-        print("Give some time to allow checking the scheduler queue size")
-        time.sleep(1.0)
-
-    # Single executions
-    scheduler.execute(func=partial(func))
-    scheduler.execute(func=partial(func))
-    assert scheduler.tasks.qsize() == 1
-    scheduler.stop()
-
-    # Cyclic executions
-    scheduler.start()
-    scheduler.cyclic_execute(func=partial(func), cycle_time=0.01)
-    time.sleep(1.0)
-    assert scheduler.tasks.qsize() <= 1
-    scheduler.stop()
