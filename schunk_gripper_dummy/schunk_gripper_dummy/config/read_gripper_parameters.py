@@ -10,7 +10,7 @@ parser.add_argument(
 )
 args = parser.parse_args()
 
-parameter_codes = "./gripper_parameter_codes"
+parameter_codes = "./gripper_parameter_codes.json"
 
 driver = Driver()
 driver.connect(host=args.ip)
@@ -19,27 +19,17 @@ driver.disconnect()
 
 
 def read_parameter_codes(filepath: str) -> list[str]:
-    def contains_hex(line: str) -> bool:
-        return True if "0x" in line and line[0] != "#" else False
-
-    def remove_comments(line: str) -> str:
-        if line.find("#") != -1:
-            line = line[0 : line.find("#")]
-        line = line.strip()
-        return line
-
     with open(filepath, "r") as f:
-        lines = f.read().split("\n")
-    lines = list(filter(contains_hex, lines))
-    lines = list(map(remove_comments, lines))
-    return lines
+        data = json.load(f)
+    return data.keys()
 
 
 def main():
-    codes = read_parameter_codes(parameter_codes)
+
+    data = read_parameter_codes(parameter_codes)
 
     values = {}
-    for code in codes:
+    for code in data:
         print(f"reading code {code}")
         try:
             response = requests.get(
