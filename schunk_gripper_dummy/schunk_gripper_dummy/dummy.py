@@ -52,6 +52,18 @@ class Dummy(object):
             )
             raise ValueError("Unknown gripper")
 
+        self.valid_fieldbus_types = {
+            "1": "PN",
+            "2": "EI",
+            "3": "EC",
+        }
+        fieldbus_data = bytes.fromhex(self.data["0x1130"][0])
+        self.fieldbus = self.valid_fieldbus_types.get(
+            str(struct.unpack("B", fieldbus_data)[0]), ""
+        )
+        if not self.fieldbus:
+            raise ValueError("Unknown fieldbus")
+
         self.starttime = time.time()
         self.thread = Thread(target=self._run)
         self.running = False

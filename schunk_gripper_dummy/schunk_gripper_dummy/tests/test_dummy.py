@@ -47,6 +47,16 @@ def test_dummy_reads_configuration_on_startup():
             Dummy(gripper)
 
 
+def test_dummy_knows_fieldbus_type():
+    dummy = Dummy()
+    assert dummy.fieldbus
+    assert dummy.fieldbus in dummy.valid_fieldbus_types.values()
+
+    pn_dummy = Dummy(gripper="EGU_60_PN_M_B")
+    ei_dummy = Dummy(gripper="EGU_60_EI_M_B")
+    assert pn_dummy.fieldbus != ei_dummy.fieldbus
+
+
 def test_dummy_has_min_max_parameters():
     dummy = Dummy()
 
