@@ -39,6 +39,7 @@ class LinearMotion(object):
 class Dummy(object):
     def __init__(self, gripper: str = "EGU_60_EI_M_B"):
 
+        # Gripper variants
         self.available_grippers: dict = {}
         gripper_folder = str(files(__package__).joinpath("config/grippers"))
         for json_file in Path(gripper_folder).glob("*.json"):
@@ -52,6 +53,7 @@ class Dummy(object):
             )
             raise ValueError("Unknown gripper")
 
+        # Fieldbus
         self.valid_fieldbus_types = {
             "1": "PN",
             "2": "EI",
@@ -63,6 +65,14 @@ class Dummy(object):
         )
         if not self.fieldbus:
             raise ValueError("Unknown fieldbus")
+
+        # Parameters
+        self.valid_parameters: dict = {}
+        params = str(files(__package__).joinpath("config/gripper_parameter_codes.json"))
+        with open(params, "r", encoding="utf-8") as f:
+            self.valid_parameters = json.load(f)
+        if not self.valid_parameters:
+            raise ValueError("Unknown parameter set")
 
         self.starttime = time.time()
         self.thread = Thread(target=self._run)

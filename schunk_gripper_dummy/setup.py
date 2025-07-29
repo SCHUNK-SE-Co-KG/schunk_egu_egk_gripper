@@ -17,6 +17,10 @@ setup(
             os.path.join("share", package_name, "config/grippers"),
             glob(package_name + "/config/grippers/*.json"),
         ),
+        (
+            os.path.join("share", package_name, "config"),
+            glob(package_name + "/config/*.json"),
+        ),
     ],
     install_requires=[
         "setuptools",

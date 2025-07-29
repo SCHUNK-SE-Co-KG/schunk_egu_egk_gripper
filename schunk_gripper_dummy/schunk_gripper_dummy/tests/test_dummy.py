@@ -5,6 +5,8 @@ import time
 
 # [1]: https://stb.cloud.schunk.com/media/IM0046706.PDF
 
+GRIPPERS = ["EGU_60_PN_M_B", "EGU_60_EI_M_B"]
+
 
 def test_dummy_starts_a_background_thread():
     dummy = Dummy()
@@ -34,8 +36,7 @@ def test_dummy_loads_available_grippers_on_startup():
 def test_dummy_reads_configuration_on_startup():
 
     # Existing grippers
-    valid_grippers = ["EGU_60_EI_M_B"]
-    for gripper in valid_grippers:
+    for gripper in GRIPPERS:
         dummy = Dummy(gripper=gripper)
         assert gripper in dummy.available_grippers.keys()
         assert dummy.data == dummy.available_grippers[gripper]
@@ -55,6 +56,16 @@ def test_dummy_knows_fieldbus_type():
     pn_dummy = Dummy(gripper="EGU_60_PN_M_B")
     ei_dummy = Dummy(gripper="EGU_60_EI_M_B")
     assert pn_dummy.fieldbus != ei_dummy.fieldbus
+
+
+def test_dummy_knows_valid_parameters():
+    for gripper in GRIPPERS:
+        dummy = Dummy(gripper)
+        assert dummy.valid_parameters
+        for key, value in dummy.valid_parameters.items():
+            assert isinstance(key, str)
+            assert key.startswith("0x")
+            assert isinstance(value, str)
 
 
 def test_dummy_has_min_max_parameters():
