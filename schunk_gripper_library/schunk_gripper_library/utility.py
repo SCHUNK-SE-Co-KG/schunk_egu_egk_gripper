@@ -45,11 +45,23 @@ class Task(object):
     def __gt__(self, other: "Task") -> bool:
         return self.stamp > other.stamp
 
+    def __eq__(self, other: object) -> bool:
+        if not isinstance(other, Task):
+            return False
+        if self.func is None or other.func is None:
+            return False
+        return (
+            self.func.func == other.func.func
+            and self.func.args == other.func.args
+            and self.func.keywords == other.func.keywords
+        )
+
 
 class Scheduler(object):
     def __init__(self) -> None:
         self.tasks: PriorityQueue = PriorityQueue()
         self.worker_thread: Thread = Thread()
+        self.enqueued_tasks: list[Task] = []
 
     def start(self) -> None:
         if not self.worker_thread.is_alive():
@@ -71,7 +83,11 @@ class Scheduler(object):
             future.set_result(False)
             return future
         task = Task(func=func, future=future)
-        self.tasks.put((priority, task))
+        if task not in self.enqueued_tasks:
+            self.enqueued_tasks.append(task)
+            self.tasks.put((priority, task))
+        else:
+            future.set_result(False)
         return future
 
     def cyclic_execute(
@@ -97,7 +113,9 @@ class Scheduler(object):
 
     def _cyclic_add(self, task: Task, cycle_time: float, priority: int = 2) -> None:
         while self.worker_thread.is_alive():
-            self.tasks.put((priority, task))
+            if task not in self.enqueued_tasks:
+                self.enqueued_tasks.append(task)
+                self.tasks.put((priority, task))
             time.sleep(cycle_time)
 
     def _process(self) -> None:
@@ -105,6 +123,7 @@ class Scheduler(object):
             _, task = self.tasks.get()
             if not task:
                 break
+            self.enqueued_tasks.remove(task)
             result = task.func()
             if task.future:
                 task.future.set_result(result)
