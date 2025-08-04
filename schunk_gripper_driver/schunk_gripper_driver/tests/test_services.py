@@ -320,11 +320,7 @@ def test_driver_implements_show_specification(lifecycle_interface):
 
 
 @skip_without_gripper
-def test_driver_implements_saving_configuration(lifecycle_interface):
-    driver = lifecycle_interface
-    driver.change_state(Transition.TRANSITION_CONFIGURE)
-    driver.change_state(Transition.TRANSITION_ACTIVATE)
-
+def test_driver_implements_saving_configuration(driver):
     node = Node("check_save_configuration")
     client = node.create_client(Trigger, "/schunk/driver/save_configuration")
     assert client.wait_for_service(timeout_sec=2)
@@ -333,15 +329,9 @@ def test_driver_implements_saving_configuration(lifecycle_interface):
     rclpy.spin_until_future_complete(node, future)
     assert future.result().success
 
-    driver.change_state(Transition.TRANSITION_DEACTIVATE)
-    driver.change_state(Transition.TRANSITION_CLEANUP)
-
 
 @skip_without_gripper
-def test_driver_implements_loading_previous_configuration(lifecycle_interface):
-    driver = lifecycle_interface
-    driver.change_state(Transition.TRANSITION_CONFIGURE)
-    driver.change_state(Transition.TRANSITION_ACTIVATE)
+def test_driver_implements_loading_previous_configuration(driver):
 
     node = Node("check_load_previous_configuration")
     client = node.create_client(Trigger, "/schunk/driver/load_previous_configuration")
@@ -355,6 +345,3 @@ def test_driver_implements_loading_previous_configuration(lifecycle_interface):
     future = client.call_async(Trigger.Request())
     rclpy.spin_until_future_complete(node, future)
     assert future.result().success
-
-    driver.change_state(Transition.TRANSITION_DEACTIVATE)
-    driver.change_state(Transition.TRANSITION_CLEANUP)
