@@ -4,6 +4,7 @@ from importlib.resources import files
 import json
 import struct
 from typing import Tuple
+from pathlib import Path
 
 
 class LinearMotion(object):
@@ -36,14 +37,47 @@ class LinearMotion(object):
 
 
 class Dummy(object):
-    def __init__(self):
+    def __init__(self, gripper: str = "EGU_60_EI_M_B"):
+
+        # Gripper variants
+        self.available_grippers: dict = {}
+        gripper_folder = str(files(__package__).joinpath("config/grippers"))
+        for json_file in Path(gripper_folder).glob("*.json"):
+            with open(json_file, "r", encoding="utf-8") as f:
+                self.available_grippers[json_file.stem] = json.load(f)
+        self.data = self.available_grippers.get(gripper, [])
+        if not self.data:
+            print(
+                f"Unknown gripper: {gripper}. "
+                f"Available grippers: {list(self.available_grippers.keys())}"
+            )
+            raise ValueError("Unknown gripper")
+
+        # Fieldbus
+        self.valid_fieldbus_types = {
+            "1": "PN",
+            "2": "EI",
+            "3": "EC",
+        }
+        fieldbus_data = bytes.fromhex(self.data["0x1130"][0])
+        self.fieldbus = self.valid_fieldbus_types.get(
+            str(struct.unpack("B", fieldbus_data)[0]), ""
+        )
+        if not self.fieldbus:
+            raise ValueError("Unknown fieldbus")
+
+        # Parameters
+        self.valid_parameters: dict = {}
+        params = str(files(__package__).joinpath("config/gripper_parameter_codes.json"))
+        with open(params, "r", encoding="utf-8") as f:
+            self.valid_parameters = json.load(f)
+        if not self.valid_parameters:
+            raise ValueError("Unknown parameter set")
+
         self.starttime = time.time()
         self.thread = Thread(target=self._run)
         self.running = False
         self.done = False
-        self.enum = None
-        self.metadata = None
-        self.data = None
         self.plc_input = "0x0040"
         self.plc_output = "0x0048"
         self.actual_position = "0x0230"
@@ -55,32 +89,25 @@ class Dummy(object):
         self.valid_control_bits = list(range(0, 10)) + [11, 12, 13, 14, 16, 30, 31]
         self.reserved_status_bits = [10, 15] + list(range(18, 31))
         self.reserved_control_bits = [10, 15] + list(range(17, 30))
-
-        enum_config = files(__package__).joinpath("config/enum.json")
-        metadata_config = files(__package__).joinpath("config/metadata.json")
-        data_config = files(__package__).joinpath("config/data.json")
-
-        with open(enum_config, "r") as f:
-            self.enum = json.load(f)
-        with open(metadata_config, "r") as f:
-            self.metadata = json.load(f)
-        with open(data_config, "r") as f:
-            self.data = json.load(f)
-
         self.plc_input_buffer = bytearray(bytes.fromhex(self.data[self.plc_input][0]))
         self.plc_output_buffer = bytearray(bytes.fromhex(self.data[self.plc_output][0]))
         self.initial_state = [self.plc_input_buffer.hex().upper()]
         self.clear_plc_output()
 
-        self.max_grp_vel = struct.unpack(
-            "i", bytearray(bytes.fromhex(self.data["0x0650"][0])[::-1])
-        )[0]
-        min_pos_per_jaw = struct.unpack(
-            "i", bytearray(bytes.fromhex(self.data["0x0600"][0])[::-1])
-        )[0]
-        max_pos_per_jaw = struct.unpack(
-            "i", bytearray(bytes.fromhex(self.data["0x0608"][0])[::-1])
-        )[0]
+        data = bytes.fromhex(self.data["0x0650"][0])
+        if self.fieldbus != "PN":
+            data = data[::-1]
+        self.max_grp_vel = struct.unpack("i", bytearray(data))[0]
+
+        data = bytes.fromhex(self.data["0x0600"][0])
+        if self.fieldbus != "PN":
+            data = data[::-1]
+        min_pos_per_jaw = struct.unpack("i", bytearray(data))[0]
+
+        data = bytes.fromhex(self.data["0x0608"][0])
+        if self.fieldbus != "PN":
+            data = data[::-1]
+        max_pos_per_jaw = struct.unpack("i", bytearray(data))[0]
         self.min_position = 2 * min_pos_per_jaw
         self.max_position = 2 * max_pos_per_jaw
 
@@ -133,35 +160,8 @@ class Dummy(object):
         self.process_control_bits()
         return {"result": 0}
 
-    def get_info(self, query: dict[str, str]) -> dict:
-        return {"dataformat": 0}  # 0: Little endian, 1: Big endian
-
-    def get_enum(self, query: dict[str, str]) -> list:
-        if "inst" not in query or "value" not in query:
-            return []
-        inst = query["inst"]
-        value = int(query["value"])
-        if inst in self.enum:
-            string = self.enum[inst][value]["string"]
-            return [{"string": string, "value": value}]
-        else:
-            return []
-
     def get_data(self, query: dict[str, str]) -> list:
         result: list = []
-        if "offset" in query and "count" in query:
-            offset = int(query["offset"])
-            count = int(query["count"])
-            if offset < 0 or count < 0:
-                return result
-            if offset + count >= len(self.metadata):
-                return result
-            for i in range(count):
-                id = self.metadata[offset + i]["instance"]
-                inst = hex(id)[2:].upper().zfill(4)
-                inst = "0x" + inst
-                result.append(self.data[inst][0])
-            return result
 
         if "inst" in query and "count" in query:
             inst = query["inst"]
@@ -262,13 +262,22 @@ class Dummy(object):
         return True
 
     def get_target_position(self) -> int:
-        return struct.unpack("i", self.plc_output_buffer[4:8])[0]
+        data = self.plc_output_buffer[4:8]
+        if self.fieldbus == "PN":
+            data = data[::-1]
+        return struct.unpack("i", data)[0]
 
     def get_target_speed(self) -> int:
-        return struct.unpack("i", self.plc_output_buffer[8:12])[0]
+        data = self.plc_output_buffer[8:12]
+        if self.fieldbus == "PN":
+            data = data[::-1]
+        return struct.unpack("i", data)[0]
 
     def set_actual_position(self, position: int) -> None:
-        self.plc_input_buffer[4:8] = bytes(struct.pack("i", position))
+        data = bytes(struct.pack("i", position))
+        if self.fieldbus == "PN":
+            data = data[::-1]
+        self.plc_input_buffer[4:8] = data
 
     def set_actual_speed(self, speed: int) -> None:
         self.data[self.actual_speed] = [
@@ -276,8 +285,10 @@ class Dummy(object):
         ]
 
     def get_actual_position(self) -> int:
-        read_pos = self.plc_input_buffer[4:8].hex().upper()
-        return struct.unpack("i", bytes.fromhex(read_pos))[0]
+        read_pos = bytes.fromhex(self.plc_input_buffer[4:8].hex().upper())
+        if self.fieldbus == "PN":
+            read_pos = read_pos[::-1]
+        return struct.unpack("i", read_pos)[0]
 
     def get_actual_speed(self) -> int:
         read_speed = self.data[self.actual_speed][0]

@@ -5,6 +5,8 @@ import time
 
 # [1]: https://stb.cloud.schunk.com/media/IM0046706.PDF
 
+GRIPPERS = ["EGU_60_PN_M_B", "EGU_60_EI_M_B"]
+
 
 def test_dummy_starts_a_background_thread():
     dummy = Dummy()
@@ -26,11 +28,44 @@ def test_dummy_survives_repeated_starts_and_stops():
     assert not dummy.running
 
 
-def test_dummy_reads_configuration_on_startup():
+def test_dummy_loads_available_grippers_on_startup():
     dummy = Dummy()
-    assert dummy.enum is not None
-    assert dummy.data is not None
-    assert dummy.metadata is not None
+    assert isinstance(dummy.available_grippers, dict)
+
+
+def test_dummy_reads_configuration_on_startup():
+
+    # Existing grippers
+    for gripper in GRIPPERS:
+        dummy = Dummy(gripper=gripper)
+        assert gripper in dummy.available_grippers.keys()
+        assert dummy.data == dummy.available_grippers[gripper]
+
+    # Non-existent grippers
+    invalid_grippers = ["non-existent"]
+    for gripper in invalid_grippers:
+        with pytest.raises(ValueError, match="Unknown gripper"):
+            Dummy(gripper)
+
+
+def test_dummy_knows_fieldbus_type():
+    dummy = Dummy()
+    assert dummy.fieldbus
+    assert dummy.fieldbus in dummy.valid_fieldbus_types.values()
+
+    pn_dummy = Dummy(gripper="EGU_60_PN_M_B")
+    ei_dummy = Dummy(gripper="EGU_60_EI_M_B")
+    assert pn_dummy.fieldbus != ei_dummy.fieldbus
+
+
+def test_dummy_knows_valid_parameters():
+    for gripper in GRIPPERS:
+        dummy = Dummy(gripper)
+        assert dummy.valid_parameters
+        for key, value in dummy.valid_parameters.items():
+            assert isinstance(key, str)
+            assert key.startswith("0x")
+            assert isinstance(value, str)
 
 
 def test_dummy_has_min_max_parameters():
@@ -39,7 +74,7 @@ def test_dummy_has_min_max_parameters():
     # Position
     assert isinstance(dummy.max_position, int)
     assert isinstance(dummy.min_position, int)
-    assert dummy.max_position < 100000  # sane SCHUNK gripper max
+    assert dummy.max_position < 150000  # sane SCHUNK gripper max
 
     # Speed
     assert isinstance(dummy.max_grp_vel, int)
@@ -53,7 +88,7 @@ def test_dummy_starts_in_error_state():
     assert dummy.get_status_bit(0) == 0  # not ready for operation
     assert dummy.get_status_bit(7) == 1  # there's an error
     assert dummy.get_status_error() == "D9"  # ERR_FAST_STOP
-    assert dummy.get_status_diagnostics() == "EF"  # ERR_COMM_LOST
+    assert dummy.get_status_diagnostics() == "0"
 
 
 def test_dummy_starts_with_cleared_control_bits():

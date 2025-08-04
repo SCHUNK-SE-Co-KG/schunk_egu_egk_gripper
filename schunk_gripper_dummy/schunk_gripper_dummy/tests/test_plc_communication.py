@@ -4,6 +4,8 @@ import pytest
 
 # [1]: https://stb.cloud.schunk.com/media/IM0046706.PDF
 
+GRIPPERS = ["EGU_60_PN_M_B", "EGU_60_EI_M_B"]
+
 
 def test_dummy_initializes_plc_input_buffer():
     dummy = Dummy()
@@ -189,3 +191,45 @@ def test_dummy_supports_reading_and_writing_system_uptime():
     uptime = 1234  # secs
     dummy.set_system_uptime(uptime)
     assert dummy.get_system_uptime() == uptime
+
+
+def test_dummy_considers_endianness_for_plc_operations():
+    def all_zeros(s: str) -> bool:
+        return s == "0" * len(s)
+
+    for gripper in GRIPPERS:
+        dummy = Dummy(gripper)
+
+        # Getting actual position should differ between Ethernet/IP and PROFINET
+        dummy.fieldbus = "EI"
+        ei_data = dummy.get_actual_position()
+        dummy.fieldbus = "PN"
+        pn_data = dummy.get_actual_position()
+        assert ei_data != pn_data
+
+        # Getting and setting actual position should be consistent per bus
+        busses = ["EI", "PN"]
+        for bus in busses:
+            dummy.fieldbus = bus
+            dummy.set_actual_position(42)
+            assert dummy.get_actual_position() == 42, f"bus: {bus}"
+
+        # Same for target position ..
+        target_pos = 85001
+        data = bytes(struct.pack("i", target_pos))
+        dummy.plc_output_buffer[4:8] = data
+        dummy.fieldbus = "EI"
+        ei_data = dummy.get_target_position()
+        dummy.fieldbus = "PN"
+        pn_data = dummy.get_target_position()
+        assert ei_data != pn_data
+
+        # .. and target speed
+        target_speed = 85001
+        data = bytes(struct.pack("i", target_speed))
+        dummy.plc_output_buffer[8:12] = data
+        dummy.fieldbus = "EI"
+        ei_data = dummy.get_target_speed()
+        dummy.fieldbus = "PN"
+        pn_data = dummy.get_target_speed()
+        assert ei_data != pn_data
