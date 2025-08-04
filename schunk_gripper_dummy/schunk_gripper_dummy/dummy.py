@@ -94,15 +94,20 @@ class Dummy(object):
         self.initial_state = [self.plc_input_buffer.hex().upper()]
         self.clear_plc_output()
 
-        self.max_grp_vel = struct.unpack(
-            "i", bytearray(bytes.fromhex(self.data["0x0650"][0])[::-1])
-        )[0]
-        min_pos_per_jaw = struct.unpack(
-            "i", bytearray(bytes.fromhex(self.data["0x0600"][0])[::-1])
-        )[0]
-        max_pos_per_jaw = struct.unpack(
-            "i", bytearray(bytes.fromhex(self.data["0x0608"][0])[::-1])
-        )[0]
+        data = bytes.fromhex(self.data["0x0650"][0])
+        if self.fieldbus != "PN":
+            data = data[::-1]
+        self.max_grp_vel = struct.unpack("i", bytearray(data))[0]
+
+        data = bytes.fromhex(self.data["0x0600"][0])
+        if self.fieldbus != "PN":
+            data = data[::-1]
+        min_pos_per_jaw = struct.unpack("i", bytearray(data))[0]
+
+        data = bytes.fromhex(self.data["0x0608"][0])
+        if self.fieldbus != "PN":
+            data = data[::-1]
+        max_pos_per_jaw = struct.unpack("i", bytearray(data))[0]
         self.min_position = 2 * min_pos_per_jaw
         self.max_position = 2 * max_pos_per_jaw
 
@@ -257,13 +262,22 @@ class Dummy(object):
         return True
 
     def get_target_position(self) -> int:
-        return struct.unpack("i", self.plc_output_buffer[4:8])[0]
+        data = self.plc_output_buffer[4:8]
+        if self.fieldbus == "PN":
+            data = data[::-1]
+        return struct.unpack("i", data)[0]
 
     def get_target_speed(self) -> int:
-        return struct.unpack("i", self.plc_output_buffer[8:12])[0]
+        data = self.plc_output_buffer[8:12]
+        if self.fieldbus == "PN":
+            data = data[::-1]
+        return struct.unpack("i", data)[0]
 
     def set_actual_position(self, position: int) -> None:
-        self.plc_input_buffer[4:8] = bytes(struct.pack("i", position))
+        data = bytes(struct.pack("i", position))
+        if self.fieldbus == "PN":
+            data = data[::-1]
+        self.plc_input_buffer[4:8] = data
 
     def set_actual_speed(self, speed: int) -> None:
         self.data[self.actual_speed] = [
@@ -271,8 +285,10 @@ class Dummy(object):
         ]
 
     def get_actual_position(self) -> int:
-        read_pos = self.plc_input_buffer[4:8].hex().upper()
-        return struct.unpack("i", bytes.fromhex(read_pos))[0]
+        read_pos = bytes.fromhex(self.plc_input_buffer[4:8].hex().upper())
+        if self.fieldbus == "PN":
+            read_pos = read_pos[::-1]
+        return struct.unpack("i", read_pos)[0]
 
     def get_actual_speed(self) -> int:
         read_speed = self.data[self.actual_speed][0]
