@@ -29,25 +29,48 @@ We are currently doing a complete rework of this driver in Python.
 A feature-complete release is planned for end of October '25.
 
 ## Build and install
-In a new terminal, source your global ROS2 environment, e.g.
-```bash
-source /opt/ros/humble/setup.bash
-```
-navigate into your local ROS2 workspace, and build the driver with
-```bash
-git clone -b develop https://github.com/SCHUNK-SE-Co-KG/schunk_egu_egk_gripper.git src/schunk_gripper
-sudo apt update -qq
-rosdep update
-rosdep install --from-paths src --ignore-src -y
-colcon build
-```
+1. In a new terminal, source your global ROS2 environment, e.g.
+    ```bash
+    source /opt/ros/humble/setup.bash
+    ```
+2. Navigate into your local ROS2 workspace, and install ROS2 dependencies with
+    ```bash
+    git clone https://github.com/SCHUNK-SE-Co-KG/schunk_egu_egk_gripper.git src/schunk_gripper
+    sudo apt update -qq
+    rosdep update
+    rosdep install --from-paths src --ignore-src -y
+    ```
+
+2. You'll need some additional python dependencies that are best managed
+    inside a _virtual environment_.
+    After creating and sourcing such an environment, navigate into the `schunk_gripper_library` subfolder and
+    ```bash
+    pip install .
+    ```
+    This will install everything that the driver requires.
+
+3. (Optional): Only if the `colcon build` command from below fails:
+    ```bash
+    pip install empy catkin_pkg lark
+    ```
+
+4. Finally, inside your ROS2 workspace, build the driver with
+    ```bash
+    colcon build
+    ```
+
 
 ## Getting started
-Source your local ROS2 workspace with
+In every new terminal, source your local ROS2 workspace
 ```bash
 source install/setup.bash
 ```
-and start the driver with
+and your _virtual environment_ with
+```bash
+source .venv/bin/activate
+```
+
+You can then start the driver with
 ```bash
 ros2 launch schunk_gripper_driver driver.launch.py
 ```
