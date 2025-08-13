@@ -17,7 +17,7 @@ setup(
             glob(package_name + "/config/*.json"),
         ),
     ],
-    install_requires=["setuptools", "pymodbus", "pyserial", "httpx"],
+    install_requires=["setuptools", "pymodbus", "pyserial", "httpx", "pytest"],
     zip_safe=True,
     author="Stefan Scherzinger",
     author_email="stefan.scherzinger@de.schunk.com",
