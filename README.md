@@ -16,10 +16,6 @@
   </a>
 </p>
 
-**Update**: There's a new version upcoming 🚀! Please use the [develop](https://github.com/SCHUNK-SE-Co-KG/schunk_egu_egk_gripper/tree/develop) branch for latest features. We have been reworking this driver completely. More info in this [pull request](https://github.com/SCHUNK-SE-Co-KG/schunk_egu_egk_gripper/pull/13).
-
----
-
 
 This is the ROS2 driver for SCHUNK's
 [EGU](https://schunk.com/us/en/gripping-systems/parallel-gripper/egu/c/PGR_6556),
@@ -30,7 +26,7 @@ The driver supports both _Modbus RTU_ and _Ethernet_-based (_PROFINET_, _Etherne
 
 ## Under construction
 We are currently doing a complete rework of this driver in Python.
-A _beta_ release is planned for end of May '25.
+A feature-complete release is planned for end of October '25.
 
 ## Build and install
 In a new terminal, source your global ROS2 environment, e.g.
