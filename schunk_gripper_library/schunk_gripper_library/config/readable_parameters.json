@@ -1,0 +1,14 @@
+{
+    "0x0040": {"name": "plc_input", "registers": 8, "type": "uint32 int32 uint32 uint32"},
+    "0x0500": {"name": "module_type", "registers": 1, "type": "enum"},
+    "0x0540": {"name": "wp_release_delta", "registers": 2, "type": "float"},
+    "0x0600": {"name": "min_pos", "registers": 2, "type": "float"},
+    "0x0608": {"name": "max_pos", "registers": 2, "type": "float"},
+    "0x0630": {"name": "max_vel", "registers": 2, "type": "float"},
+    "0x0650": {"name": "max_grp_vel", "registers": 2, "type": "float"},
+    "0x1130": {"name": "fieldbus_type", "registers": 1, "type": "enum"},
+    "0x0588": {"name": "max_phys_stroke", "registers": 2, "type": "float"},
+    "0x0660": {"name": "max_grp_force", "registers": 2, "type": "float"},
+    "0x1000": {"name": "serial_no_txt", "registers": 8, "type": "char[16]"},
+    "0x1118": {"name": "sw_version_txt", "registers": 11, "type": "char[22]"}
+}

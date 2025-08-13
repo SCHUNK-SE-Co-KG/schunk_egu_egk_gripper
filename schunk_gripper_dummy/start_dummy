@@ -1,0 +1,2 @@
+#!/usr/bin/env bash
+python3 schunk_gripper_dummy/main.py --port 8000
