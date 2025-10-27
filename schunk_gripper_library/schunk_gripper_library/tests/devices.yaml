@@ -1,0 +1,31 @@
+# ---------------------------------------------------------------------------
+# Device Configuration File
+# ---------------------------------------------------------------------------
+# This file defines the list of devices to be used for testing.
+# Each device entry can represent either:
+#
+#   1. Ethernet-based device:
+#        - Specify "host": IP address or hostname
+#        - Specify "port": TCP/UDP port number
+#
+#   2. Modbus serial device:
+#        - Specify "serial_port": serial interface path (e.g., /dev/ttyUSB0)
+#        - Specify "device_id": Modbus slave ID (integer)
+#
+# Notes:
+#   - Each device must have a unique "name".
+#   - Do not mix Ethernet and Modbus fields in the same device.
+#   - This YAML file is a *list* (not a dictionary), so indentation levels matter.
+# ---------------------------------------------------------------------------
+
+# Example device entries:
+
+# - name: my_device_1
+#   host: 192.168.0.10
+#   port: 8080
+#
+# - name: my_device_2
+#   serial_port: /dev/ttyUSB1
+#   device_id: 12
+
+# Add your devices below:
