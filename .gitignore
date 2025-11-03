@@ -2,6 +2,7 @@ build/
 install/
 log/
 /.vscode
+**/devices.yaml
 
 # Ignore test coverage artifacts
 *.coverage
