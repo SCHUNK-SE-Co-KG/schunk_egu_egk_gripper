@@ -1,5 +1,5 @@
 # ---------------------------------------------------------------------------
-# Device Configuration File
+# Test Configuration File
 # ---------------------------------------------------------------------------
 # This file defines the list of devices to be used for testing.
 # Each device entry can represent either:
@@ -28,3 +28,11 @@
 #   device_id: 12
 
 # Add your devices below:
+
+modbus_12:
+  serial_port: /dev/ttyUSB0
+  device_id: 12
+
+# modbus_13:
+#   serial_port: /dev/ttyUSB1
+#   device_id: 13
