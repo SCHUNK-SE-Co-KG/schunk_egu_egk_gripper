@@ -26,7 +26,6 @@ class NonExclusiveSerialClient(ModbusSerialClient):
         several driver instances connect and speak over the same Modbus wire. A
         high-level entity will manage concurrency with a scheduler for
         multi-gripper scenarios.
-
         """
         if self.socket:  # type: ignore [has-type]
             return True
@@ -132,6 +131,7 @@ class Driver(object):
         self.update_count: int = 0  # since last connect() call
         self.stop_request: Event = Event()
         self.reconnect_interval: float = 1.0
+        self.addr_str: str = ""
 
     def connect(
         self,
@@ -142,13 +142,16 @@ class Driver(object):
         update_cycle: float | None = 0.05,
         scheduler: Scheduler | None = None,
     ) -> bool:
-        if isinstance(update_cycle, float) and update_cycle < 0.001:
-            return False
-        if isinstance(update_cycle, int) and update_cycle <= 0:
-            return False
+        if (isinstance(update_cycle, float) or isinstance(update_cycle, int)) and update_cycle < 0.001:
+            raise ValueError("update_cycle must be at least 0.001 seconds")
         if self.connected:
             return False
         self.update_count = 0
+
+        if host:
+            self.addr_str = f"{host}:{port}"
+        else:
+            self.addr_str = f"{serial_port} (ID {device_id})"
 
         # TCP/IP
         if host:
@@ -242,83 +245,67 @@ class Driver(object):
         if not self.connected:
             return False
 
-        def do() -> bool:
-            self.clear_plc_output()
-            self.send_plc_output()
-            self.receive_plc_input()
-            cmd_toggle_before = self.get_status_bit(bit=5)
-            self.set_control_bit(bit=2, value=True)
-            self.send_plc_output()
-            desired_bits = {"0": 1, "5": cmd_toggle_before ^ 1}
-            return self.wait_for_status(bits=desired_bits)
+        def do_send() -> dict:
+            return {"0": 1, "5": self._send_cmd({"2": True})}
 
+        expected_status = {}
         if scheduler:
-            return scheduler.execute(func=partial(do)).result()
+            expected_status = scheduler.execute(func=partial(do_send)).result()
         else:
-            return do()
+            expected_status = do_send()
+
+        return self.wait_for_status(bits=expected_status)
 
     def fast_stop(self, scheduler: Scheduler | None = None) -> bool:
         if not self.connected:
             return False
 
-        def do() -> bool:
-            self.clear_plc_output()
-            self.send_plc_output()
-            self.receive_plc_input()
-            cmd_toggle_before = self.get_status_bit(bit=5)
-            self.set_control_bit(
-                bit=0, value=False
-            )  # activate fast stop (inverted behavior)
-            self.send_plc_output()
-            desired_bits = {"5": cmd_toggle_before ^ 1, "7": 1}
-            return self.wait_for_status(bits=desired_bits)
+        def do_send() -> dict:
+            return {"7": 1, "5": self._send_cmd({"0": False})}  # fast stop triggers on low signal
 
+        expected_status = {}
         if scheduler:
-            return scheduler.execute(func=partial(do)).result()
+            expected_status = scheduler.execute(func=partial(do_send)).result()
         else:
-            return do()
+            expected_status = do_send()
+
+        return self.wait_for_status(bits=expected_status)
 
     def stop(self, use_gpe: bool = False, scheduler: Scheduler | None = None) -> bool:
         if not self.connected:
             return False
 
-        def do() -> bool:
-            self.clear_plc_output()
-            self.send_plc_output()
-            self.receive_plc_input()
-            cmd_toggle_before = self.get_status_bit(bit=5)
-            self.set_control_bit(bit=1, value=True)
-            if self.gpe_available():
-                self.set_control_bit(bit=31, value=use_gpe)
-            else:
-                self.set_control_bit(bit=31, value=False)
-            self.send_plc_output()
-            desired_bits = {"5": cmd_toggle_before ^ 1, "4": 1}
-            return self.wait_for_status(bits=desired_bits)
+        def do_send() -> dict:
+            return {"4": 1, "5": self._send_cmd({"1": True, "31": use_gpe and self.gpe_available()})}
 
+        expected_status = {}
         if scheduler:
-            return scheduler.execute(func=partial(do)).result()
+            expected_status = scheduler.execute(func=partial(do_send)).result()
         else:
-            return do()
+            expected_status = do_send()
+
+        return self.wait_for_status(bits=expected_status)
 
     def prepare_for_shutdown(self, scheduler: Scheduler | None = None) -> bool:
         if not self.connected:
             return False
 
-        def do() -> bool:
+        def do_send() -> dict:
             self.clear_plc_output()
             self.send_plc_output()
             self.receive_plc_input()
             cmd_toggle_before = self.get_status_bit(bit=5)
             self.set_control_bit(bit=3, value=True)
             self.send_plc_output()
-            desired_bits = {"5": cmd_toggle_before ^ 1, "2": 1}
-            return self.wait_for_status(bits=desired_bits)
+            return {"5": cmd_toggle_before ^ 1, "2": 1}
 
+        expected_status = {}
         if scheduler:
-            return scheduler.execute(func=partial(do)).result()
+            expected_status = scheduler.execute(func=partial(do_send)).result()
         else:
-            return do()
+            expected_status = do_send()
+
+        return self.wait_for_status(bits=expected_status)
 
     def move_to_position(
         self,
@@ -361,7 +348,7 @@ class Driver(object):
         else:
             trigger_bit = 14
 
-        def start():
+        def do_send() -> dict:
             self.clear_plc_output()
             self.send_plc_output()
             self.receive_plc_input()
@@ -374,16 +361,18 @@ class Driver(object):
             self.set_target_position(position)
             self.set_target_speed(velocity)
             self.send_plc_output()
-            desired_bits = {"5": cmd_toggle_before ^ 1, "3": 0}
-            return self.wait_for_status(bits=desired_bits, timeout_sec=0.1)
+            return {"5": cmd_toggle_before ^ 1, "3": 0}
 
+        expected_status = {}
         # send the move command
         if scheduler:
-            if not scheduler.execute(func=partial(start)).result():
-                return False
+            expected_status = scheduler.execute(func=partial(do_send)).result()
         else:
-            if not start():
-                return False
+            expected_status = do_send()
+        
+        # wait for the command to be acknowledged
+        if not self.wait_for_status(bits=expected_status):
+            return False
 
         # estimate how long the move will take
         epsilon_sec = 0.5  # additional time to account for delays
@@ -444,7 +433,7 @@ class Driver(object):
         else:
             trigger_bit = 12
 
-        def start() -> bool:
+        def do_send() -> dict:
             self.clear_plc_output()
             self.send_plc_output()
             self.receive_plc_input()
@@ -458,23 +447,24 @@ class Driver(object):
             self.set_gripping_force(force)
             if position is not None:
                 if not self.set_target_position(position):
-                    return False
+                    raise RuntimeError("Failed to set target position")
             if velocity is not None:
                 if not self.set_target_speed(velocity):
-                    return False
+                    raise RuntimeError("Failed to set target speed")
             else:
                 self.set_target_speed(0)
             self.send_plc_output()
-            desired_bits = {"5": cmd_toggle_before ^ 1, "3": 0}
-            return self.wait_for_status(bits=desired_bits, timeout_sec=0.1)
+            return {"5": cmd_toggle_before ^ 1, "3": 0}
 
         # send the grip command
         if scheduler:
-            if not scheduler.execute(func=partial(start)).result():
-                return Driver.GripResult.ERROR
+            expected_status = scheduler.execute(func=partial(do_send)).result()
         else:
-            if not start():
-                return Driver.GripResult.ERROR
+            expected_status = do_send()
+
+        # wait for the command to be acknowledged
+        if not self.wait_for_status(bits=expected_status):
+            return Driver.GripResult.ERROR
 
         # estimate how long the grip will take
         epsilon_sec = 0.5  # additional time to account for delays
@@ -495,11 +485,9 @@ class Driver(object):
         patterns[Driver.GripResult.WORKPIECE_GRIPPED] = {"4": 1, "12": 1}
         patterns[Driver.GripResult.NO_WORKPIECE_DETECTED] = {"4": 0, "11": 1}
         patterns[Driver.GripResult.WRONG_WORKPIECE_GRIPPED] = {"4": 0, "17": 1}
-        patterns[Driver.GripResult.WORKPIECE_LOST] = {
-            "4": 0,
-            "16": 1,
-        }  # relevant for pre-gripping
+        patterns[Driver.GripResult.WORKPIECE_LOST] = {"4": 0, "16": 1}  # relevant for pre-gripping
         patterns[Driver.GripResult.ERROR] = {"7": 1}
+        # TODO: if gpe is active, inject status bit 31 into all patterns except ERROR
 
         # wait for the command to complete or an error to occur
         bits: list[dict[str, int]] = []
@@ -518,7 +506,7 @@ class Driver(object):
         if not self.connected:
             return False
 
-        def start() -> bool:
+        def do_send() -> dict:
             self.clear_plc_output()
             self.send_plc_output()
             self.receive_plc_input()
@@ -529,19 +517,17 @@ class Driver(object):
             else:
                 self.set_control_bit(bit=31, value=False)
             self.send_plc_output()
-            desired_bits = {
-                "5": cmd_toggle_before ^ 1,
-                "3": 0,
-            }
-            return self.wait_for_status(bits=desired_bits)
+            return { "5": cmd_toggle_before ^ 1, "3": 0 } 
 
         # send the release command
         if scheduler:
-            if not scheduler.execute(func=partial(start)).result():
-                return False
+            expected_status = scheduler.execute(func=partial(do_send)).result()
         else:
-            if not start():
-                return False
+            expected_status = do_send()
+
+        # wait for the command to be acknowledged
+        if not self.wait_for_status(bits=expected_status):
+            return False
 
         # estimate how long the release will take
         epsilon_sec = 0.5  # additional time to account for delays
@@ -561,20 +547,22 @@ class Driver(object):
         if not self.connected:
             return False
 
-        def do() -> bool:
+        def do_send() -> dict:
             self.clear_plc_output()
             self.send_plc_output()
             self.receive_plc_input()
             cmd_toggle_before = self.get_status_bit(bit=5)
             self.set_control_bit(bit=5, value=True)
             self.send_plc_output()
-            desired_bits = {"5": cmd_toggle_before ^ 1, "8": 1}
-            return self.wait_for_status(bits=desired_bits)
+            return {"5": cmd_toggle_before ^ 1, "8": 1}
 
+        expected_status = {}
         if scheduler:
-            return scheduler.execute(func=partial(do)).result()
+            expected_status = scheduler.execute(func=partial(do_send)).result()
         else:
-            return do()
+            expected_status = do_send()
+
+        return self.wait_for_status(bits=expected_status)
 
     def show_specification(self) -> dict[str, float | str]:
         if not self.connected:
@@ -598,29 +586,23 @@ class Driver(object):
         if not self.connected:
             return False
 
-        def start() -> bool:
+        def do_send() -> dict:
             self.clear_plc_output()
             self.send_plc_output()
             self.receive_plc_input()
             cmd_toggle_before = self.get_status_bit(bit=5)
             self.set_control_bit(bit=30, value=True)
             self.send_plc_output()
-            desired_bits = {"5": cmd_toggle_before ^ 1}
-            return self.wait_for_status(bits=desired_bits)
+            return {"5": cmd_toggle_before ^ 1, "4": 1}
 
-        def check() -> bool:
-            desired_bits = {"4": 1}
-            return self.wait_for_status(bits=desired_bits, timeout_sec=4.0)
-
+        expected_status = {}
         if scheduler:
-            if not scheduler.execute(func=partial(start)).result():
-                return False
-            return scheduler.execute(func=partial(check)).result()
+            expected_status = scheduler.execute(func=partial(do_send)).result()
         else:
-            if not start():
-                return False
-            return check()
+            expected_status = do_send()
 
+        return self.wait_for_status(bits=expected_status, timeout_sec=5.0)
+    
     def estimate_duration(
         self,
         release: bool = False,
@@ -683,7 +665,7 @@ class Driver(object):
         if not self.connected:
             return False
 
-        def do() -> bool:
+        def do_send() -> dict:
             still_jogging = False
             if self.get_control_bit(bit=8) == 1 or self.get_control_bit(bit=9) == 1:
                 still_jogging = True
@@ -694,7 +676,7 @@ class Driver(object):
             cmd_toggle_before = self.get_status_bit(bit=5)
 
             if not self.set_target_speed(abs(velocity)):
-                return False
+                raise RuntimeError("Failed to set target speed")
             if velocity >= 0:
                 self.set_control_bit(bit=9, value=True)
             else:
@@ -703,24 +685,25 @@ class Driver(object):
                 self.set_control_bit(bit=31, value=self.gpe_available())
             self.send_plc_output()
 
-            if still_jogging:
-                self.receive_plc_input()
-                if self.get_status_bit(bit=6) == 0:
-                    return True
-
-            desired_bits = {"5": cmd_toggle_before ^ 1, "6": 0}
-            return self.wait_for_status(bits=desired_bits)
-
+            already_jogging = self.get_control_bit(bit=8) == 1 or self.get_control_bit(bit=9) == 1
+            if already_jogging:
+                return {"6": 1}
+                
+            return {"5": cmd_toggle_before ^ 1, "6": 0}
+            
+        expected_status = {}
         if scheduler:
-            return scheduler.execute(func=partial(do)).result()
+            expected_status = scheduler.execute(func=partial(do_send)).result()
         else:
-            return do()
+            expected_status = do_send()
+
+        return self.wait_for_status(bits=expected_status)
 
     def stop_jogging(self, scheduler: Scheduler | None = None) -> bool:
         if not self.connected:
             return False
 
-        def do() -> bool:
+        def do_send() -> dict:
             # The firmware behaves differently when stopping jogging:
             # - Status bit toggles if jogging was active before.
             # - GPE bit from when jogging was started must be preserved.
@@ -733,13 +716,15 @@ class Driver(object):
             self.set_control_bit(bit=8, value=False)  # stop negative jogging
             self.set_control_bit(bit=9, value=False)  # stop positive jogging
             self.send_plc_output()
-            desired_bits = {"5": cmd_toggle_before ^ 1, "6": 0}
-            return self.wait_for_status(bits=desired_bits)
+            return {"5": cmd_toggle_before ^ 1, "6": 0}
 
+        expected_status = {}
         if scheduler:
-            return scheduler.execute(func=partial(do)).result()
+            expected_status = scheduler.execute(func=partial(do_send)).result()
         else:
-            return do()
+            expected_status = do_send()
+
+        return self.wait_for_status(bits=expected_status)
 
     def twitch_jaws(self, scheduler: Scheduler | None = None) -> bool:
         if not self.connected:
@@ -752,7 +737,7 @@ class Driver(object):
                 is_absolute=False,
             )
 
-        def do() -> bool:
+        def do_send() -> bool:
             step = 2000  # um
             if not self.receive_plc_input():
                 return False
@@ -764,28 +749,30 @@ class Driver(object):
             return True
 
         if scheduler:
-            return scheduler.execute(func=partial(do)).result()
+            return scheduler.execute(func=partial(do_send)).result()
         else:
-            return do()
+            return do_send()
 
     def soft_reset(self, scheduler: Scheduler | None = None) -> bool:
         if not self.connected:
             return False
 
-        def do() -> bool:
+        def do_send() -> dict:
             self.clear_plc_output()
             self.send_plc_output()
             self.receive_plc_input()
             cmd_toggle_before = self.get_status_bit(bit=5)
             self.set_control_bit(bit=4, value=True)
             self.send_plc_output()
-            desired_bits = {"5": cmd_toggle_before ^ 1}
-            return self.wait_for_status(bits=desired_bits, timeout_sec=1.0)
+            return {"5": cmd_toggle_before ^ 1}
 
+        expected_status = {}
         if scheduler:
-            return scheduler.execute(func=partial(do)).result()
+            expected_status = scheduler.execute(func=partial(do_send)).result()
         else:
-            return do()
+            expected_status = do_send()
+
+        return self.wait_for_status(bits=expected_status)
 
     def receive_plc_input(self) -> bool:
         with self.input_buffer_lock:
@@ -810,6 +797,11 @@ class Driver(object):
         return False
 
     def get_variant(self) -> str:
+        """Returns the variant of the connected device.
+
+        If no device is connected or the module type is invalid, an empty string is returned.
+        Return: str: The variant of the device ("EGU", "EGK", "EZU") or an empty string.
+        """
         if not self.module_type:
             return ""
         if self.module_type not in self.valid_module_types.values():
@@ -821,6 +813,25 @@ class Driver(object):
         elif self.module_type.startswith("EZU"):
             return "EZU"
         return ""
+
+    def get_sub_variant(self) -> int:
+        """Returns the sub-variant of the connected device.
+
+        If no device is connected or the module type is invalid or unknown, an exception is raised.
+        Return: The subvariant of the module as an integer number, e. g. an EGU50 returns 50.
+        """
+        if not self.module_type:
+            raise RuntimeError("No module connected")        
+        if self.module_type not in self.valid_module_types.values():
+            raise RuntimeError("Invalid module type")
+        # extract the number from the module type string
+        parts = self.module_type.split("_")
+        if not parts:
+            raise RuntimeError("Invalid module type")
+        digits = "".join(c for part in parts for c in part if c.isdigit())
+        if digits:
+            return int(digits)
+        raise RuntimeError("Unknown sub-variant")
 
     def update_module_parameters(self) -> bool:
         if not (fieldbus_param := self.read_module_parameter("0x1130")):
@@ -880,61 +891,68 @@ class Driver(object):
         self.gripper_type = ""
         return True
 
-    def read_module_parameter(self, param: str) -> bytearray:
+    def read_module_parameter(self, param: str, scheduler: Scheduler | None = None) -> bytearray:
         """
         Reads the specified parameter from the module.
 
         Args:
             param (str): The parameter address in hex format, e.g. "0x0040".
+            scheduler (Scheduler | None): Optional scheduler for command execution.
 
         Returns:
             bytearray: The value of the specified parameter.
                        Use `decode_module_parameter()` to convert the
                        bytearray into the correct type.
         """
-        result = bytearray()
-        if param not in self.readable_parameters:
+        def do_read() -> bytearray:
+            result = bytearray()
+            if param not in self.readable_parameters:
+                return result
+
+            if self.mb_client and self.mb_client.connected:
+                with self.mb_client_lock:
+                    try:
+                        pdu = self.mb_client.read_holding_registers(
+                            address=int(param, 16) - 1,
+                            count=int(self.readable_parameters[param]["registers"]),
+                            slave=self.mb_device_id,
+                            no_response_expected=False,
+                        )
+                    except (ModbusIOException, IOError):
+                        return result
+
+                # Parse each 2-byte register,
+                # reverting pymodbus' internal big endian decoding.
+                if not pdu.isError():
+                    for reg in pdu.registers:
+                        result.extend(reg.to_bytes(2, byteorder="big"))
+
+            if self.web_client:
+                params = {"inst": param, "count": "1"}
+                with self.web_client_lock:
+                    try:
+                        response = self.web_client.get(
+                            f"http://{self.host}:{self.port}/adi/data.json", params=params
+                        )
+                    except (ReadTimeout, ConnectError, ConnectTimeout):
+                        return result
+                if response.is_success:
+                    if response.json() == []:
+                        return result
+                    result = bytearray(bytes.fromhex(response.json()[0]))
+
+            if result:
+                current_size = len(result)
+                desired_size = int(self.readable_parameters[param]["registers"]) * 2
+                if current_size < desired_size:
+                    result.extend([0] * (desired_size - current_size))  # zero-pad
+
             return result
 
-        if self.mb_client and self.mb_client.connected:
-            with self.mb_client_lock:
-                try:
-                    pdu = self.mb_client.read_holding_registers(
-                        address=int(param, 16) - 1,
-                        count=int(self.readable_parameters[param]["registers"]),
-                        slave=self.mb_device_id,
-                        no_response_expected=False,
-                    )
-                except (ModbusIOException, IOError):
-                    return result
-
-            # Parse each 2-byte register,
-            # reverting pymodbus' internal big endian decoding.
-            if not pdu.isError():
-                for reg in pdu.registers:
-                    result.extend(reg.to_bytes(2, byteorder="big"))
-
-        if self.web_client:
-            params = {"inst": param, "count": "1"}
-            with self.web_client_lock:
-                try:
-                    response = self.web_client.get(
-                        f"http://{self.host}:{self.port}/adi/data.json", params=params
-                    )
-                except (ReadTimeout, ConnectError, ConnectTimeout):
-                    return result
-            if response.is_success:
-                if response.json() == []:
-                    return result
-                result = bytearray(bytes.fromhex(response.json()[0]))
-
-        if result:
-            current_size = len(result)
-            desired_size = int(self.readable_parameters[param]["registers"]) * 2
-            if current_size < desired_size:
-                result.extend([0] * (desired_size - current_size))  # zero-pad
-
-        return result
+        if scheduler:
+            return scheduler.execute(func=partial(do_read)).result()
+        else:
+            return do_read()
 
     def write_module_parameter(self, param: str, data: bytearray) -> bool:
         if param not in self.writable_parameters:
@@ -1095,15 +1113,9 @@ class Driver(object):
         while time.time() < deadline_time:
             with self.input_buffer_lock:
                 for bit_pattern in bits:
-                    if all(
-                        [
-                            self.get_status_bit(int(bit)) == value
-                            for bit, value in bit_pattern.items()
-                        ]
-                    ):
+                    if all([self.get_status_bit(int(bit)) == value for bit, value in bit_pattern.items()]):
                         return bit_pattern
             time.sleep(self.update_cycle)
-
         return {}
 
     def error_in(self, duration_sec: float) -> bool:
@@ -1199,12 +1211,12 @@ class Driver(object):
             self.plc_output_buffer[byte_index] ^= 1 << bit_index
             return True
 
-    def get_status_bit(self, bit: int) -> int | bool:
+    def get_status_bit(self, bit: int) -> int:
         with self.input_buffer_lock:
             if bit < 0 or bit > 31:
-                return False
+                raise ValueError("Invalid bit number (must be between 0 and 31)")
             if bit in self.reserved_status_bits:
-                return False
+                raise ValueError("Cannot read reserved status bits")
             byte_index, bit_index = divmod(bit, 8)
             return 1 if self.plc_input_buffer[byte_index] & (1 << bit_index) != 0 else 0
 
@@ -1355,6 +1367,23 @@ class Driver(object):
                     time.sleep(self.update_cycle)
                 else:
                     time.sleep(self.reconnect_interval)
+
+    def _send_cmd(self, control_bits: dict[str, bool]) -> int:
+        """Sends the given control bits to the device.
+        
+        Args:
+            control_bits -- A dictionary mapping control bits (keys) to their desired values (values).
+        Returns:
+            The expected command toggle bit after sending the command
+        """
+        self.clear_plc_output()
+        self.send_plc_output()
+        self.receive_plc_input()
+        cmd_toggle_before = self.get_status_bit(bit=5)
+        for bit_str, value in control_bits.items():
+            self.set_control_bit(bit=int(bit_str), value=value)
+        self.send_plc_output()
+        return cmd_toggle_before ^ 1
 
     def _trace_packet(self, sending: bool, data: bytes) -> bytes:
         txt = "REQUEST stream" if sending else "RESPONSE stream"

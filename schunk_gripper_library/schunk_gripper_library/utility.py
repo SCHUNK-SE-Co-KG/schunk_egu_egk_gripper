@@ -1,4 +1,4 @@
-from threading import Thread
+from threading import Thread, Lock
 from queue import PriorityQueue
 from concurrent.futures import Future
 from functools import partial
@@ -11,7 +11,6 @@ import os
 import termios
 import socket
 import netifaces
-
 
 def supports_parity(serial_port: str) -> bool:
     fd = None
@@ -38,9 +37,7 @@ class Task(object):
         self.stamp: float = time.time()
 
     def __bool__(self) -> bool:
-        if self.func is None:
-            return False
-        return True
+        return self.func is not None
 
     def __lt__(self, other: "Task") -> bool:
         return self.stamp < other.stamp
@@ -65,6 +62,7 @@ class Scheduler(object):
         self.tasks: PriorityQueue = PriorityQueue()
         self.worker_thread: Thread = Thread()
         self.enqueued_tasks: list[Task] = []
+        self.enqueued_tasks_lock = Lock()
 
     def start(self) -> None:
         if not self.worker_thread.is_alive():
@@ -86,11 +84,12 @@ class Scheduler(object):
             future.set_result(False)
             return future
         task = Task(func=func, future=future)
-        if task not in self.enqueued_tasks:
-            self.enqueued_tasks.append(task)
-            self.tasks.put((priority, task))
-        else:
-            future.set_result(False)
+        with self.enqueued_tasks_lock:
+            if task not in self.enqueued_tasks:
+                self.enqueued_tasks.append(task)
+                self.tasks.put((priority, task))
+            else:
+                future.set_result(False)
         return future
 
     def cyclic_execute(
@@ -116,9 +115,10 @@ class Scheduler(object):
 
     def _cyclic_add(self, task: Task, cycle_time: float, priority: int = 2) -> None:
         while self.worker_thread.is_alive():
-            if task not in self.enqueued_tasks:
-                self.enqueued_tasks.append(task)
-                self.tasks.put((priority, task))
+            with self.enqueued_tasks_lock:
+                if task not in self.enqueued_tasks:
+                    self.enqueued_tasks.append(task)
+                    self.tasks.put((priority, task))
             time.sleep(cycle_time)
 
     def _process(self) -> None:
@@ -126,7 +126,8 @@ class Scheduler(object):
             _, task = self.tasks.get()
             if not task:
                 break
-            self.enqueued_tasks.remove(task)
+            with self.enqueued_tasks_lock:
+                self.enqueued_tasks.remove(task)
             result = task.func()
             if task.future:
                 task.future.set_result(result)

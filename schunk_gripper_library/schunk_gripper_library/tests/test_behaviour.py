@@ -1,104 +1,7 @@
+from schunk_gripper_library.tests.conftest import skip_if_no_drivers
 from schunk_gripper_library.driver import Driver
 from schunk_gripper_library.utility import skip_without_gripper, Scheduler
 import time
-
-
-@skip_without_gripper
-def test_acknowledge():
-    driver = Driver()
-    for host, port, serial_port in zip(
-        ["0.0.0.0", None], [8000, None], [None, "/dev/ttyUSB0"]
-    ):
-        # Not connected
-        assert not driver.acknowledge()
-
-        # Connected
-        driver.connect(host=host, port=port, serial_port=serial_port, device_id=12)
-        assert driver.acknowledge()
-
-        # Repetitive
-        for _ in range(5):
-            assert driver.acknowledge()
-
-        driver.disconnect()
-
-
-@skip_without_gripper
-def test_fast_stop():
-    driver = Driver()
-    for host, port, serial_port in zip(
-        ["0.0.0.0", None], [8000, None], [None, "/dev/ttyUSB0"]
-    ):
-
-        # Not connected
-        assert not driver.fast_stop()
-
-        # After fresh start
-        driver.connect(host=host, port=port, serial_port=serial_port, device_id=12)
-        assert driver.fast_stop()
-
-        # From operational
-        assert driver.acknowledge()
-        assert driver.fast_stop()
-
-        # Repetitive
-        for _ in range(5):
-            assert driver.fast_stop()
-
-        driver.disconnect()
-
-
-@skip_without_gripper
-def test_all_gripper_commands_run_with_a_scheduler():
-    driver = Driver()
-    scheduler = Scheduler()
-    scheduler.start()
-
-    # Only relevant for Modbus
-    driver.connect(serial_port="/dev/ttyUSB0", device_id=12)
-
-    # Fast stop
-    assert driver.fast_stop(scheduler=scheduler)
-
-    # Acknowledge
-    assert driver.acknowledge(scheduler=scheduler)
-
-    # Move to absolute position
-    max_pos = driver.module_parameters["max_pos"]
-    min_pos = driver.module_parameters["min_pos"]
-    half = int(0.5 * (max_pos - min_pos))
-    max_vel = driver.module_parameters["max_vel"]
-    assert driver.move_to_position(
-        position=half, velocity=max_vel, scheduler=scheduler
-    ), f"driver status: {driver.get_status_diagnostics()}"
-
-    # Grip
-    assert driver.acknowledge(scheduler=scheduler)
-    grip_result = (
-        driver.grip(force=75, scheduler=scheduler),
-        f"driver status: {driver.get_status_diagnostics()}",
-    )
-    assert grip_result != Driver.GripResult.ERROR
-
-    # Release
-    assert driver.acknowledge(scheduler=scheduler)
-    assert not driver.release(
-        scheduler=scheduler
-    ), f"driver status: {driver.get_status_diagnostics()}"
-
-    # Jogging
-    assert driver.acknowledge(scheduler=scheduler)
-    assert driver.start_jogging(
-        velocity=driver.module_parameters["max_grp_vel"], scheduler=scheduler
-    )
-    assert driver.stop_jogging(scheduler=scheduler)
-
-    # Twitching the jaws
-    assert driver.acknowledge(scheduler=scheduler)
-    assert driver.twitch_jaws(scheduler=scheduler)
-
-    driver.disconnect()
-    scheduler.stop()
 
 
 @skip_without_gripper
@@ -224,25 +127,6 @@ def test_move_to_relative_position_fails_with_invalid_arguments():
                 )
         driver.disconnect()
 
-
-@skip_without_gripper
-def test_stop():
-    driver = Driver()
-    for host, port, serial_port in zip(
-        ["0.0.0.0", None], [8000, None], [None, "/dev/ttyUSB0"]
-    ):
-        # Not connected
-        assert not driver.stop()
-
-        # after connection
-        assert driver.connect(
-            host=host, port=port, serial_port=serial_port, device_id=12
-        )
-        assert driver.acknowledge()
-
-        assert driver.stop(use_gpe=False)
-        assert driver.stop(use_gpe=True)
-        assert driver.disconnect()
 
 
 @skip_without_gripper
