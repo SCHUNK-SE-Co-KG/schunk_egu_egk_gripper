@@ -1,38 +1,46 @@
 # ---------------------------------------------------------------------------
-# Test Configuration File
+# Test Device Configuration File
 # ---------------------------------------------------------------------------
-# This file defines the list of devices to be used for testing.
-# Each device entry can represent either:
+# Purpose:
+#   Defines the configuration for all test devices used in the
+#   `schunk_gripper_library` test suite.
 #
-#   1. Ethernet-based device:
-#        - Specify "host": IP address or hostname
-#        - Specify "port": TCP/UDP port number
+# Description:
+#   Each entry under this file represents a physical or simulated device
+#   that can be accessed during testing. Devices may communicate via
+#   Ethernet or Modbus Serial.
 #
-#   2. Modbus serial device:
-#        - Specify "serial_port": serial interface path (e.g., /dev/ttyUSB0)
-#        - Specify "device_id": Modbus slave ID (integer)
+# Device Types:
+#   1. Ethernet Device
+#      - Required fields:
+#          host: <string>  # IP address or hostname (e.g. 192.168.0.10)
+#          port: <int>     # port number
 #
-# Notes:
-#   - Each device must have a unique "name".
-#   - Do not mix Ethernet and Modbus fields in the same device.
+#   2. Modbus Serial Device
+#      - Required fields:
+#          serial_port: <string>  # Path to the serial interface (e.g. /dev/ttyUSB0)
+#          device_id: <int>       # Modbus slave ID
+#
+# Optional Fields (for all devices):
+#   workpiece_at_position: <int>  # Position in mm used for workpiece handling (default: 0)
+#
+# Rules & Notes:
+#   - Each device must have a unique name.
+#   - Do not combine Ethernet and Modbus fields in the same device entry.
+#   - This file supports any number of devices.
+#   - All unspecified optional fields use their default values.
 # ---------------------------------------------------------------------------
 
-# Example device entries:
+# Example device definitions:
 
-# my_device_1:
+# my_ethernet_device:
 #   host: 192.168.0.10
 #   port: 80
+#   workpiece_at_position: 5
 
-# my_device_2:
-#   serial_port: /dev/ttyUSB1
+# my_modbus_device:
+#   serial_port: /dev/ttyUSB0
 #   device_id: 12
+#   workpiece_at_position: 0
 
 # Add your devices below:
-
-modbus_12:
-  serial_port: /dev/ttyUSB0
-  device_id: 12
-
-# modbus_13:
-#   serial_port: /dev/ttyUSB1
-#   device_id: 13
