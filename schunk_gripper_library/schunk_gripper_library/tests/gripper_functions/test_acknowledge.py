@@ -4,6 +4,6 @@ def test_acknowledge(drivers, scheduler):
     skip_if_no_drivers(drivers)
 
     for driver in drivers:
-        acknowledged = driver.acknowledge(scheduler)
-        assert(acknowledged), f"Failed to acknowledge driver. Status: {driver.get_status_diagnostics()}"
+        assert driver.acknowledge(scheduler), \
+        f"Failed to acknowledge driver. Driver: {driver.addr_str}, Status: {driver.get_status_diagnostics()}"
 

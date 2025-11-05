@@ -5,4 +5,5 @@ def test_fast_stop(drivers, scheduler):
     skip_if_no_drivers(drivers)
 
     for driver in drivers:
-        assert driver.fast_stop(scheduler=scheduler), f"Failed to fast stop driver. Status: {driver.get_status_diagnostics()}"
+        assert driver.fast_stop(scheduler=scheduler), \
+        f"Failed to fast stop driver. Driver: {driver.addr_str}, Status: {driver.get_status_diagnostics()}"

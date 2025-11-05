@@ -16,7 +16,7 @@ DEVICE_CONFIG_ETHERNET_FIELDS = ['host', 'port']  # fields required for ethernet
 DEVICE_CONFIG_MODBUS_FIELDS = ['serial_port', 'device_id'] # fields required for modbus device configs
 DEVICE_CONFIG_WORKPIECE_AT_POSITION = 'workpiece_at_position'  # optional field for workpiece position
 
-workpiece_at_position_map: dict[Driver, int] = {} # stores for each driver the workpiece at position
+workpiece_at_position_map: dict[Driver, int | None] = {} # stores for each driver the workpiece at position (None if not specified)
 
 def load_device_configs() -> dict:
     """Loads and asserts that the device configs from `DEVICES_CONFIG_PATH` are valid.
@@ -61,9 +61,9 @@ def load_device_configs() -> dict:
 @pytest.fixture(scope="session")
 def scheduler() -> Generator[Scheduler, None, None]:
     scheduler = Scheduler()
-    scheduler.start()
+    # scheduler.start()
     yield scheduler
-    scheduler.stop()
+    # scheduler.stop()
 
 
 @pytest.fixture(scope="session")
@@ -94,7 +94,7 @@ def drivers(scheduler) -> Generator[List[Driver], None, None]:
 
         assert connected, f"Failed to connect to device '{name}' at {driver.addr_str}."
         drivers.append(driver)
-        workpiece_at_position_map[driver] = config.get(DEVICE_CONFIG_WORKPIECE_AT_POSITION, 0)
+        workpiece_at_position_map[driver] = config.get(DEVICE_CONFIG_WORKPIECE_AT_POSITION, None)
     
     yield drivers  # provide drivers to tests
 
@@ -102,10 +102,10 @@ def drivers(scheduler) -> Generator[List[Driver], None, None]:
         driver.disconnect()
 
 
-def workpiece_at_position(driver: Driver) -> int:
-    """Returns the workpiece at position for the given driver.
+def workpiece_at_position(driver: Driver) -> int | None:
+    """Returns the workpiece at position for the given driver in [mm].
     """
-    assert not driver in workpiece_at_position_map, f"Driver at '{driver.addr_str}' not recognized."
+    assert driver in workpiece_at_position_map, f"Driver at '{driver.addr_str}' not recognized."
     return workpiece_at_position_map[driver]
 
 def skip_if_no_drivers(drivers):

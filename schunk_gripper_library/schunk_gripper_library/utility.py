@@ -134,6 +134,16 @@ class Scheduler(object):
             self.tasks.task_done()
 
 
+_global_scheduler_instance: Scheduler | None = None
+
+def get_global_scheduler() -> Scheduler:
+    global _global_scheduler_instance
+    if _global_scheduler_instance is None:
+        _global_scheduler_instance = Scheduler()
+        _global_scheduler_instance.start()
+    return _global_scheduler_instance
+
+
 class EthernetScanner(object):
     """
     A network scanner for detecting grippers on all available Ethernet interfaces.
