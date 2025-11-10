@@ -6,4 +6,3 @@ def test_acknowledge(drivers, scheduler):
     for driver in drivers:
         assert driver.acknowledge(scheduler), \
         f"Failed to acknowledge driver. Driver: {driver.addr_str}, Status: {driver.get_status_diagnostics()}"
-

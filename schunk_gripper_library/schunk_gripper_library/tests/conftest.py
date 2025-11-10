@@ -9,6 +9,8 @@ import pymodbus
 from schunk_gripper_library.driver import Driver
 from schunk_gripper_library.utility import Scheduler
 from typing import Generator, List
+import concurrent.futures
+from pymodbus.client import ModbusSerialClient
 
 
 DEVICES_CONFIG_PATH = os.path.join(os.path.dirname(__file__), 'config.yaml') # this file contains the device configs
@@ -16,7 +18,7 @@ DEVICE_CONFIG_ETHERNET_FIELDS = ['host', 'port']  # fields required for ethernet
 DEVICE_CONFIG_MODBUS_FIELDS = ['serial_port', 'device_id'] # fields required for modbus device configs
 DEVICE_CONFIG_WORKPIECE_AT_POSITION = 'workpiece_at_position'  # optional field for workpiece position
 
-workpiece_at_position_map: dict[Driver, int | None] = {} # stores for each driver the workpiece at position (None if not specified)
+workpiece_position_map: dict[Driver, int | None] = {} # stores for each driver the workpiece at position (None if not specified)
 
 def load_device_configs() -> dict:
     """Loads and asserts that the device configs from `DEVICES_CONFIG_PATH` are valid.
@@ -94,7 +96,7 @@ def drivers(scheduler) -> Generator[List[Driver], None, None]:
 
         assert connected, f"Failed to connect to device '{name}' at {driver.addr_str}."
         drivers.append(driver)
-        workpiece_at_position_map[driver] = config.get(DEVICE_CONFIG_WORKPIECE_AT_POSITION, None)
+        workpiece_position_map[driver] = config.get(DEVICE_CONFIG_WORKPIECE_AT_POSITION, None)
     
     yield drivers  # provide drivers to tests
 
@@ -102,11 +104,11 @@ def drivers(scheduler) -> Generator[List[Driver], None, None]:
         driver.disconnect()
 
 
-def workpiece_at_position(driver: Driver) -> int | None:
-    """Returns the workpiece at position for the given driver in [mm].
+def get_workpiece_position(driver: Driver) -> int | None:
+    """Returns the workpiece position for the given driver in [mm].
     """
-    assert driver in workpiece_at_position_map, f"Driver at '{driver.addr_str}' not recognized."
-    return workpiece_at_position_map[driver]
+    assert driver in workpiece_position_map, f"Driver at '{driver.addr_str}' not recognized."
+    return workpiece_position_map[driver]
 
 def skip_if_no_drivers(drivers):
     if not drivers:
@@ -121,35 +123,11 @@ def acknowledge_drivers(drivers, scheduler):
         assert driver.acknowledge(scheduler=scheduler), f"Failed to acknowledge driver at {driver.addr_str}."
 
 
-# --------------------------------------------------------------------------------------------
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-@pytest.fixture(scope="module")
-def pseudo_terminals():
-    connection = Connection()
-    pt1, pt2 = connection.open()
-    print(f"Opening two pseudo terminals:\n{pt1}\n{pt2}")
-
-    yield (pt1, pt2)
-
-    print("Closing both pseudo terminals")
-    connection.close()
+@pytest.fixture(scope="session")
+def executor(drivers):
+    num_workers = len(drivers)
+    with concurrent.futures.ThreadPoolExecutor(max_workers=num_workers) as pool:
+        yield pool
 
 
 @pytest.fixture
@@ -173,7 +151,7 @@ def simulate_httpx_failure():
 @pytest.fixture
 def simulate_pymodbus_failure():
     controller = {"exception": None}
-    pass_through = pymodbus.client.ModbusSerialClient.read_holding_registers
+    pass_through = ModbusSerialClient.read_holding_registers
 
     def side_effect(self, *args, **kwargs):
         if controller["exception"] is not None:

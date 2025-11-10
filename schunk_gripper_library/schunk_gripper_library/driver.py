@@ -9,7 +9,7 @@ from httpx import Client, ConnectError, ConnectTimeout, ReadTimeout, HTTPError
 from importlib.resources import files
 from typing import Union
 import json
-from .utility import Scheduler, supports_parity, get_global_scheduler
+from .utility import Scheduler, supports_parity, global_scheduler
 from functools import partial
 from pymodbus.logging import Log
 import serial  # type: ignore [import-untyped]
@@ -37,7 +37,8 @@ class NonExclusiveSerialClient(ModbusSerialClient):
                 stopbits=self.comm_params.stopbits,
                 baudrate=self.comm_params.baudrate,
                 parity=self.comm_params.parity,
-                exclusive=False,
+                # exclusive=False,
+                exclusive=True,
             )
             self.socket.inter_byte_timeout = self.inter_byte_timeout
             self.last_frame_end = None
@@ -45,6 +46,28 @@ class NonExclusiveSerialClient(ModbusSerialClient):
             Log.error("{}", msg)
             self.close()
         return self.socket is not None
+
+
+# Letting each driver instance have its own non-exclusive modbus client instance does not work, 
+# because in rare occations the modbus clients seem to interfere with each other when reading parameters. 
+# Therefore, we create a single global exclusive modbus client, shared by all driver instances.
+global_modbus_client_lock = Lock()
+_global_modbus_client = None  # don't access this directly, use get_global_modbus_client() instead
+
+def get_global_modbus_client(serial_port: str = "/dev/ttyUSB0"):
+    global _global_modbus_client
+    if _global_modbus_client is None:
+        _global_modbus_client = NonExclusiveSerialClient(
+            port=serial_port,
+            baudrate=115200,
+            parity="E" if supports_parity(serial_port) else "N",
+            stopbits=1,
+            timeout=0.1,
+            trace_connect=None,
+            trace_packet=None,
+            trace_pdu=None,
+        )
+    return _global_modbus_client
 
 
 class Driver(object):
@@ -118,12 +141,10 @@ class Driver(object):
         self.input_buffer_lock: RLock = RLock()
         self.output_buffer_lock: Lock = Lock()
 
-        self.mb_client: NonExclusiveSerialClient | None = None
         self.mb_device_id: int | None = None
         self.web_client: Client | None = None
         self.host: str = ""
         self.port: int = 80
-        self.mb_client_lock: Lock = Lock()
         self.web_client_lock: Lock = Lock()
         self.connected: bool = False
         self.polling_thread: Thread = Thread()
@@ -132,7 +153,6 @@ class Driver(object):
         self.stop_request: Event = Event()
         self.reconnect_interval: float = 1.0
         self.addr_str: str = ""
-        self.global_scheduler = get_global_scheduler()
 
     def connect(
         self,
@@ -143,7 +163,7 @@ class Driver(object):
         update_cycle: float | None = 0.05,
         scheduler: Scheduler | None = None,
     ) -> bool:
-        scheduler = self.global_scheduler
+        scheduler = global_scheduler
         if (isinstance(update_cycle, float) or isinstance(update_cycle, int)) and update_cycle < 0.001:
             raise ValueError("update_cycle must be at least 0.001 seconds")
         if self.connected:
@@ -184,17 +204,8 @@ class Driver(object):
             if isinstance(device_id, int) and device_id < 0:
                 return False
             self.mb_device_id = device_id
-            with self.mb_client_lock:
-                self.mb_client = NonExclusiveSerialClient(
-                    port=serial_port,
-                    baudrate=115200,
-                    parity="E" if supports_parity(serial_port) else "N",
-                    stopbits=1,
-                    timeout=0.1,
-                    trace_connect=None,
-                    trace_packet=None,
-                    trace_pdu=None,
-                )
+            with global_modbus_client_lock:
+                self.mb_client = get_global_modbus_client(serial_port=serial_port)
                 self.connected = self.mb_client.connect()
 
         if self.connected:
@@ -214,10 +225,6 @@ class Driver(object):
     def disconnect(self) -> bool:
         self.stop_module_updates()
 
-        if self.mb_client and self.mb_client.connected:
-            with self.mb_client_lock:
-                self.mb_client.close()
-
         if self.web_client:
             with self.web_client_lock:
                 self.web_client = None
@@ -227,7 +234,7 @@ class Driver(object):
         return True
 
     def start_module_updates(self, scheduler: Scheduler | None = None) -> bool:
-        scheduler = self.global_scheduler
+        scheduler = global_scheduler
         if self.polling_thread.is_alive():
             return True
         self.polling_thread = Thread(
@@ -245,7 +252,7 @@ class Driver(object):
         return True
 
     def acknowledge(self, scheduler: Scheduler | None = None) -> bool:
-        scheduler = self.global_scheduler
+        scheduler = global_scheduler
         if not self.connected:
             return False
 
@@ -261,7 +268,7 @@ class Driver(object):
         return self.wait_for_status(bits=expected_status)
 
     def fast_stop(self, scheduler: Scheduler | None = None) -> bool:
-        scheduler = self.global_scheduler
+        scheduler = global_scheduler
         if not self.connected:
             return False
 
@@ -277,7 +284,7 @@ class Driver(object):
         return self.wait_for_status(bits=expected_status)
 
     def stop(self, use_gpe: bool = False, scheduler: Scheduler | None = None) -> bool:
-        scheduler = self.global_scheduler
+        scheduler = global_scheduler
         if not self.connected:
             return False
 
@@ -293,7 +300,7 @@ class Driver(object):
         return self.wait_for_status(bits=expected_status)
 
     def prepare_for_shutdown(self, scheduler: Scheduler | None = None) -> bool:
-        scheduler = self.global_scheduler
+        scheduler = global_scheduler
         if not self.connected:
             return False
 
@@ -342,7 +349,7 @@ class Driver(object):
         Returns:
             bool: True if the move was successful, False otherwise.
         """
-        scheduler = self.global_scheduler
+        scheduler = global_scheduler
         if not self.connected:
             return False
         if not self.set_target_position(position):
@@ -382,7 +389,7 @@ class Driver(object):
             return False
 
         # estimate how long the move will take
-        epsilon_sec = 0.5  # additional time to account for delays
+        epsilon_sec = 2  # additional time to account for delays (e. g. releasing brakes)
         estimated_duration_sec = self.estimate_duration(
             position_abs=position, is_absolute=is_absolute, velocity=velocity
         )
@@ -430,7 +437,7 @@ class Driver(object):
         Returns:
             Driver.GripResult: Result of the grip operation.
         """
-        scheduler = self.global_scheduler
+        scheduler = global_scheduler
         if not self.connected:
             return Driver.GripResult.ERROR
         if not self.set_gripping_force(force):
@@ -475,7 +482,7 @@ class Driver(object):
             return Driver.GripResult.ERROR
 
         # estimate how long the grip will take
-        epsilon_sec = 0.5  # additional time to account for delays
+        epsilon_sec = 2  # additional time to account for delays (e. g. releasing brakes)
         estimated_duration_sec = self.estimate_duration(
             position_abs=position, velocity=velocity, force=force, outward=outward
         )
@@ -511,7 +518,7 @@ class Driver(object):
     def release(
         self, use_gpe: bool = False, scheduler: Scheduler | None = None
     ) -> bool:
-        scheduler = self.global_scheduler
+        scheduler = global_scheduler
         if not self.connected:
             return False
 
@@ -539,7 +546,7 @@ class Driver(object):
             return False
 
         # estimate how long the release will take
-        epsilon_sec = 0.5  # additional time to account for delays
+        epsilon_sec = 2  # additional time to account for delays (e. g. releasing brakes)
         estimated_duration_sec = self.estimate_duration(release=True)
         duration_sec = estimated_duration_sec + epsilon_sec
 
@@ -553,7 +560,7 @@ class Driver(object):
         return matched_pattern not in [{}, {"7": 1}]
 
     def release_for_manual_movement(self, scheduler: Scheduler | None = None) -> bool:
-        scheduler = self.global_scheduler
+        scheduler = global_scheduler
         if not self.connected:
             return False
 
@@ -593,7 +600,7 @@ class Driver(object):
         return spec
 
     def brake_test(self, scheduler: Scheduler | None = None) -> bool:
-        scheduler = self.global_scheduler
+        scheduler = global_scheduler
         if not self.connected:
             return False
 
@@ -673,7 +680,7 @@ class Driver(object):
         Returns:
             bool: True if the command was successful, False otherwise.
         """
-        scheduler = self.global_scheduler
+        scheduler = global_scheduler
         if not self.connected:
             return False
 
@@ -712,7 +719,7 @@ class Driver(object):
         return self.wait_for_status(bits=expected_status)
 
     def stop_jogging(self, scheduler: Scheduler | None = None) -> bool:
-        scheduler = self.global_scheduler
+        scheduler = global_scheduler
         if not self.connected:
             return False
 
@@ -740,7 +747,7 @@ class Driver(object):
         return self.wait_for_status(bits=expected_status)
 
     def twitch_jaws(self, scheduler: Scheduler | None = None) -> bool:
-        scheduler = self.global_scheduler
+        scheduler = global_scheduler
         if not self.connected:
             return False
 
@@ -768,7 +775,7 @@ class Driver(object):
             return do_send()
 
     def soft_reset(self, scheduler: Scheduler | None = None) -> bool:
-        scheduler = self.global_scheduler
+        scheduler = global_scheduler
         if not self.connected:
             return False
 
@@ -905,11 +912,17 @@ class Driver(object):
         self.module_type = ""
         self.gripper_type = ""
         return True
+    
+    def read_param(self, param: str) -> bytearray:
+        def do_read() -> bytearray:
+            return self.read_module_parameter(param)
+        
+        return global_scheduler.execute(func=partial(do_read)).result()
+        
 
     def read_module_parameter(self, param: str) -> bytearray:
         """
         Reads the specified parameter from the module. 
-        TODO: Currently this deadlocks if put into a scheduler.
 
         Args:
             param (str): The parameter address in hex format, e.g. "0x0040".
@@ -923,16 +936,20 @@ class Driver(object):
         if param not in self.readable_parameters:
             return result
 
-        if self.mb_client and self.mb_client.connected:
-            with self.mb_client_lock:
+        if not self.web_client:
+            # read from modbus
+            with global_modbus_client_lock:
                 try:
+                    if self.mb_device_id is None:
+                        raise RuntimeError("Failed to read module parameter: Modbus device ID is not set")
                     pdu = self.mb_client.read_holding_registers(
                         address=int(param, 16) - 1,
                         count=int(self.readable_parameters[param]["registers"]),
                         slave=self.mb_device_id,
                         no_response_expected=False,
                     )
-                except (ModbusIOException, IOError):
+                except (Exception) as e:
+                    print(f"{type(e)}: {e} (device id: {self.mb_device_id}, param: {param})")
                     return result
 
             # Parse each 2-byte register,
@@ -942,13 +959,15 @@ class Driver(object):
                     result.extend(reg.to_bytes(2, byteorder="big"))
 
         if self.web_client:
+            # read from http server
             params = {"inst": param, "count": "1"}
             with self.web_client_lock:
                 try:
                     response = self.web_client.get(
                         f"http://{self.host}:{self.port}/adi/data.json", params=params
                     )
-                except (ReadTimeout, ConnectError, ConnectTimeout):
+                except (Exception) as e:
+                    print(f"{type(e)}: {e}")
                     return result
             if response.is_success:
                 if response.json() == []:
@@ -970,7 +989,8 @@ class Driver(object):
         if len(data) != expected_size:
             return False
 
-        if self.mb_client and self.mb_client.connected:
+        if not self.web_client:
+            # Write to modbus.
             # Turn the bytearray into a list of 2-byte registers.
             # Pymodbus uses big endian internally for their encoding.
             param_size = int(self.writable_parameters[param]["registers"]) * 2
@@ -978,7 +998,9 @@ class Driver(object):
                 int.from_bytes(data[i : i + 2], byteorder="big")
                 for i in range(0, param_size, 2)
             ]
-            with self.mb_client_lock:
+            with global_modbus_client_lock:
+                if self.mb_device_id is None:
+                        raise RuntimeError("Failed to read module parameter: Modbus device ID is not set")
                 pdu = self.mb_client.write_registers(
                     address=int(param, 16) - 1,  # Modbus convention
                     values=values,
@@ -988,6 +1010,7 @@ class Driver(object):
             return not pdu.isError()
 
         if self.web_client and self.connected:
+            # write to http server
             payload = {"inst": param, "value": data.hex().upper()}
             with self.web_client_lock:
                 response = self.web_client.post(
@@ -1306,12 +1329,12 @@ class Driver(object):
     def set_gripping_force(self, gripping_force: int) -> bool:
         with self.output_buffer_lock:
             if not isinstance(gripping_force, int):
-                return False
+                raise ValueError("Gripping force must be an integer")
             data = bytes()
             try:
                 data = bytes(struct.pack("i", gripping_force))
             except struct.error:
-                return False
+                raise ValueError("Failed to pack gripping force")
             if self.fieldbus == "PN":
                 data = data[::-1]
             self.plc_output_buffer[12:16] = data
@@ -1345,7 +1368,7 @@ class Driver(object):
             return True
 
     def _module_update(self, scheduler: Scheduler | None = None) -> None:
-        scheduler = self.global_scheduler
+        scheduler = global_scheduler
         self.stop_request.clear()
         fails = 0
         next_time = time.perf_counter()
