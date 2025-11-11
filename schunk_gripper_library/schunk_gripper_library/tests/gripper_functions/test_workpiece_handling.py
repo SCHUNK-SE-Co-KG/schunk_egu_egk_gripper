@@ -18,7 +18,7 @@ import time
 from schunk_gripper_library.driver import Driver
 from schunk_gripper_library.utility import Scheduler
 from schunk_gripper_library.tests.conftest import skip_if_no_drivers, get_workpiece_position
-from concurrent.futures import wait
+
 
 class Param:
     """Relevant module parameter addresses.
@@ -46,7 +46,8 @@ def read_float_param(driver: Driver, param_addr: str) -> float:
 
 
 def test_grip_and_release(drivers, scheduler, executor):    
-    """ Tests basic grip and release functionality for all connected gripper drivers.
+    """ Tests basic grip and release for all connected gripper drivers.
+
     Depending on the gripper variant and available features, different grip modes are tested:
     - EGK: basic grip and soft grip
     - EGU/EZU: basic grip and, if GPE available, strong grip
@@ -63,7 +64,7 @@ def test_grip_and_release(drivers, scheduler, executor):
             gpe_available = driver.gpe_available()
 
             if variant == "EGK":
-                grip_and_release_egk(driver, scheduler)
+                grip_and_release_egk(driver, scheduler, False)
             elif variant in ["EGU", "EZU"]:
                 grip_and_release_egu_ezu(driver, scheduler)
             else:
@@ -71,35 +72,77 @@ def test_grip_and_release(drivers, scheduler, executor):
 
         futures.append(executor.submit(do_test))
 
-    wait(futures)
+    for future in futures:
+        future.result()
 
 
-def grip_and_release_egk(driver, scheduler):
+def test_grip_and_release_at_expected_position(drivers, scheduler, executor):
+    """Tests gripping at expected workpiece position for all connected gripper drivers.
+
+    If a workpiece position is defined for the driver, the driver grips at that position and the 
+    test expects WORKPIECE_GRIPPED as outcome.
+    If no workpiece position is defined, the driver is instructed to grip at some dynamically 
+    determined position and the test expects NO_WORKPIECE_DETECTED as outcome.
+
+    Depending on the gripper variant and available features, different grip modes are tested:
+    - EGK: basic grip and soft grip
+    - EGU/EZU: basic grip and, if GPE available, strong grip
+    All grips are tested with and without GPE (if available).
+    """
+    skip_if_no_drivers(drivers)
+
+    futures = []
+    for driver in drivers:
+        def do_test():
+            variant: str = driver.get_variant()  # str in ["EGU", "EZU", "EGK"]
+            assert variant in ["EGU", "EZU", "EGK"], f"Unknown gripper variant: {variant}"
+            sub_variant: int = driver.get_sub_variant()
+            gpe_available = driver.gpe_available()
+
+            if variant == "EGK":
+                grip_and_release_egk(driver, scheduler, with_position=True)
+            elif variant in ["EGU", "EZU"]:
+                grip_and_release_egu_ezu(driver, scheduler, with_position=True)
+            else:
+                assert False, f"Unhandled gripper variant: {variant}"
+
+        futures.append(executor.submit(do_test))
+
+    for future in futures:
+        future.result()
+
+
+def grip_and_release_egk(driver, scheduler, with_position: bool = False):
     """Issues basic and soft grip and release commands to an EGK driver.
 
-    If there is workpiece position defined for the driver, grips are performed in the correct direction with
-    WORKPIECE_GRIPPED as expected outcome, 
+    If there is workpiece position defined for the driver, 
+    grips are performed in the correct direction with WORKPIECE_GRIPPED as expected outcome, 
     otherwise grips are performed in both directions and NO_WORKPIECE_DETECTED is expected as outcome.
+
+    @param with_position: If True, issued grip commands include the expected workpiece position.
     """
     assert driver.get_variant() == "EGK", f"Driver is not an EGK variant: {driver.get_variant()}"
     gpe_available = driver.gpe_available()
 
-    gripping_directions = get_gripping_directions(driver)
+    gripping_direction = get_gripping_direction(driver)  # True: from inside, False: from outside
     if get_workpiece_position(driver) is not None:
         expected_grip_result = Driver.GripResult.WORKPIECE_GRIPPED
     else:
         expected_grip_result = Driver.GripResult.NO_WORKPIECE_DETECTED
+    
+    at_position_um = None
+    if with_position:
+        at_position_um = get_grip_expected_position(driver)
 
     # basic grip force is defined to be in [50%..100%] 
     basic_forces_percent = [50, 75, 100]
 
     gpe_options = {gpe_available, False}
-
     # test basic grips
     for gpe_option in gpe_options:
         for force_percent in basic_forces_percent:
-            for gripping_direction in gripping_directions:
-                do_grip_cycle(driver, scheduler, force_percent, gripping_direction, gpe_option, expected_grip_result)
+            do_grip_cycle(driver=driver, scheduler=scheduler, force=force_percent, outward=gripping_direction,
+                            use_gpe=gpe_option, expected_grip_result=expected_grip_result, at_position_um=at_position_um)
 
     # test soft grips
     for gpe_option in gpe_options:
@@ -109,26 +152,31 @@ def grip_and_release_egk(driver, scheduler):
         velocities_mms = [min_vel, (min_vel + max_grp_vel) / 2.0, max_grp_vel]  # in mm/s
         velocities_ums = [int(v * 1000) for v in velocities_mms]  # [mm/s] -> [um/s] (driver expects velocities in um/s)
         for velocity_ums in velocities_ums:
-            for gripping_direction in gripping_directions:
-                force = 100  # use max force for soft grip, otherwise the range of velocities has to be rescaled
-                do_grip_cycle(driver, scheduler, force, gripping_direction, gpe_option, expected_grip_result, velocity_ums)
-            
+            force = 100  # use max force for soft grip, otherwise the range of velocities has to be rescaled
+            do_grip_cycle(driver=driver, scheduler=scheduler, force=force, outward=gripping_direction,
+                            use_gpe=gpe_option, expected_grip_result=expected_grip_result, velocity_ums=velocity_ums,
+                            at_position_um=at_position_um)
 
-def grip_and_release_egu_ezu(driver, scheduler):
+
+def grip_and_release_egu_ezu(driver, scheduler, with_position: bool = False):
     """Issues basic and strong grip (if gpe available) and release commands to an EGU/EZU driver.
 
-    If there is workpiece position defined for the driver, grips are performed in the correct direction with
-    WORKPIECE_GRIPPED as expected outcome, 
+    If there is workpiece position defined for the driver, 
+    grips are performed in the correct direction with WORKPIECE_GRIPPED as expected outcome, 
     otherwise grips are performed in both directions and NO_WORKPIECE_DETECTED is expected as outcome.
     """
     assert driver.get_variant() in ["EGU", "EZU"], f"Driver is not an EGU/EZU variant: {driver.get_variant()}"
     gpe_available = driver.gpe_available()
 
-    gripping_directions = get_gripping_directions(driver)
+    gripping_direction = get_gripping_direction(driver)  # True: from inside, False: from outside
     if get_workpiece_position(driver) is not None:
         expected_grip_result = Driver.GripResult.WORKPIECE_GRIPPED
     else:
         expected_grip_result = Driver.GripResult.NO_WORKPIECE_DETECTED
+
+    at_position_um = None
+    if with_position:
+        at_position_um = get_grip_expected_position(driver)
 
     # basic grip force is defined to be in [50%..100%] 
     basic_forces_percent = [50, 75, 100]
@@ -137,8 +185,8 @@ def grip_and_release_egu_ezu(driver, scheduler):
     # test basic grips
     for gpe_option in gpe_options:
         for force_percent in basic_forces_percent:
-            for gripping_direction in gripping_directions:
-                do_grip_cycle(driver, scheduler, force_percent, gripping_direction, gpe_option, expected_grip_result)
+            do_grip_cycle(driver=driver, scheduler=scheduler, force=force_percent, outward=gripping_direction,
+                            use_gpe=gpe_option, expected_grip_result=expected_grip_result, at_position_um=at_position_um)
             
     if gpe_available:
         # test strong grips
@@ -149,19 +197,19 @@ def grip_and_release_egu_ezu(driver, scheduler):
         strong_forces_percent = [101, (100 + max_force_percent) / 2.0, max_force_percent]
         strong_forces_percent = [int(x) for x in strong_forces_percent] # convert to int, as driver.grip expects int force percent
         for force_percent in strong_forces_percent:
-            for gripping_direction in gripping_directions:
-                do_grip_cycle(driver, scheduler, force_percent, gripping_direction, True, expected_grip_result)
+            do_grip_cycle(driver=driver, scheduler=scheduler, force=force_percent, outward=gripping_direction,
+                            use_gpe=gpe_option, expected_grip_result=expected_grip_result, at_position_um=at_position_um)
 
 
-def do_grip_cycle(driver: Driver, scheduler: Scheduler, force: int, outward: bool,
-                               use_gpe: bool, expected_grip_result: Driver.GripResult, velocity_ums: int = 0):
+def do_grip_cycle(driver: Driver, scheduler: Scheduler, force: int, outward: bool, use_gpe: bool, 
+                  expected_grip_result: Driver.GripResult, velocity_ums: int | None = None, at_position_um: int | None = None):
     """Helper function that runs a grip-release-move cycle with the given parameters.
     Releasing is only performed if something was gripped.
     After grip and release, the gripper is moved back to the initial position.
     """
     actual_position_mm = driver.get_actual_position() / 1000.0  # [um] -> [mm]
-    min_vel_mm = read_float_param(driver, Param.min_vel)
-    max_vel_mm = read_float_param(driver, Param.max_vel)
+    min_vel_mms = read_float_param(driver, Param.min_vel)
+    max_vel_mms = read_float_param(driver, Param.max_vel)
     min_pos_mm = read_float_param(driver, Param.min_pos)  # min position in mm
     max_pos_mm = read_float_param(driver, Param.max_pos)  # max position in mm
     # in practice, if the gripper is fully opened or closed, 
@@ -169,10 +217,11 @@ def do_grip_cycle(driver: Driver, scheduler: Scheduler, force: int, outward: boo
     home_position_mm = max(min_pos_mm, min(max_pos_mm, actual_position_mm))
     home_position_um = int(home_position_mm * 1000)
     # velocity for moving back to initial position between grips
-    home_velocity_mm = (min_vel_mm + max_vel_mm) / 2.0
-    home_velocity_um = int(home_velocity_mm * 1000)
+    home_velocity_mms = (min_vel_mms + max_vel_mms) / 2.0
+    home_velocity_ums = int(home_velocity_mms * 1000)
 
-    grip_result = driver.grip(force=force, velocity=velocity_ums, outward=outward, use_gpe=use_gpe, scheduler=scheduler)
+    grip_result = driver.grip(force=force, velocity=velocity_ums, position=at_position_um, 
+                              outward=outward, use_gpe=use_gpe, scheduler=scheduler)
     assert grip_result == expected_grip_result, f"Grip failed for force {force}% and velocity {velocity_ums} um/s. \
         Driver: {driver.addr_str}, Status: {driver.get_status_diagnostics()}"
     if use_gpe:
@@ -183,24 +232,24 @@ def do_grip_cycle(driver: Driver, scheduler: Scheduler, force: int, outward: boo
         assert driver.release(scheduler=scheduler), f"Release after grip failed. Driver: {driver.addr_str}, \
             Status: {driver.get_status_diagnostics()}"
     # move back to initial position between grips
-    move_success = driver.move_to_position(home_position_um, velocity=home_velocity_um, is_absolute=True, scheduler=scheduler)
+    move_success = driver.move_to_position(home_position_um, velocity=home_velocity_ums, is_absolute=True, scheduler=scheduler)
     assert move_success,  f"Move to position failed. Driver: {driver.addr_str}, Status: {driver.get_status_diagnostics()}"
 
 
-def get_gripping_directions(driver: Driver) -> list[bool]:
-    """Determines the gripping directions for gripping tests based on the workpiece definition (if any).
+def get_gripping_direction(driver: Driver) -> bool:
+    """Determines the gripping direction for gripping tests based on the workpiece definition (if any).
 
-    If there is a workpiece defined for the driver, returns a single-element list with the correct gripping direction.
+    If there is a workpiece defined for the driver, returns the correct gripping direction.
     The direction is determined from the defined workpiece position and the current finger position.
 
-    If there is no workpiece defined, returns a two-element list with both gripping directions, 
-    starting with the longer path.
+    If there is no workpiece defined, returns the gripping direction with the longer path.
 
     Returns:
-        list[bool]: List of gripping directions to be used in tests.
-                    True: grip from inside, False: grip from outside
+        bool: Gripping direction with
+            True: grip from inside
+            False: grip from outside
     """
-    directions = []  # True: grip from inside, False: grip from outside
+    direction: bool = False
 
     actual_position_mm = driver.get_actual_position() / 1000.0  # [um] -> [mm]
     min_pos_mm = read_float_param(driver, Param.min_pos)  # min position in mm
@@ -208,17 +257,43 @@ def get_gripping_directions(driver: Driver) -> list[bool]:
 
     if workpiece_position_mm := get_workpiece_position(driver):
         # workpiece is defined, proceed with determining gripping direction
-        directions = [False]
+        direction = False  # from outside
         if actual_position_mm < workpiece_position_mm:
             # here the workpiece surrounds the fingers, so we need to grip from inside
-            directions = [True]
+            direction = True  # from inside
     else:
         # no workpiece defined, grip in both directions and start with the longer path direction
-        grip_from_inside_first = (actual_position_mm - min_pos_mm) < (max_pos_mm - actual_position_mm)
-        if grip_from_inside_first:
-            directions = [True, False]
+        grip_from_inside = (actual_position_mm - min_pos_mm) < (max_pos_mm - actual_position_mm)
+        if grip_from_inside:
+            direction = True  # from inside
         else:
-            directions = [False, True]
+            direction = False  # from outside
 
-    return directions
+    return direction
     
+
+def get_grip_expected_position(driver: Driver) -> int | None:
+    """Determines the gripping position in [um] for gripping tests.
+
+    If there is a workpiece defined, returns its position.
+    Otherwise determines a dynamic gripping position between min/max position and current position.
+    """
+    grip_pos_um = 0
+    wp_pos_mm = get_workpiece_position(driver)
+    # if workpiece position is defined, use it, otherwise compute a dynamic position
+    if wp_pos_mm is not None:
+        grip_pos_um = int(wp_pos_mm * 1000)
+    else:
+        # compute a dynamic position between min/max pos and current pos
+        actual_pos_mm = driver.get_actual_position() / 1000.0  # [um] -> [mm]
+        min_pos_mm = read_float_param(driver, Param.min_pos)  # min position in mm
+        max_pos_mm = read_float_param(driver, Param.max_pos)  # max position in mm
+        grip_pos_mm = 0
+        grip_from_inside = (actual_pos_mm - min_pos_mm) < (max_pos_mm - actual_pos_mm)
+        if grip_from_inside:
+            grip_pos_mm = (actual_pos_mm + max_pos_mm) / 2.0
+        else:
+            grip_pos_mm = (actual_pos_mm + min_pos_mm) / 2.0
+        grip_pos_um = int(grip_pos_mm * 1000)
+
+    return grip_pos_um
