@@ -17,57 +17,28 @@ from pymodbus.exceptions import ModbusIOException
 from typing import Any, Type, cast
 from enum import Enum, auto
 
-
-class NonExclusiveSerialClient(ModbusSerialClient):
-    def connect(self) -> bool:
-        """
-        Exact copy of the original connect() method with the sole exception of
-        using `exclusive=False` for the serial connection. We need this to have
-        several driver instances connect and speak over the same Modbus wire. A
-        high-level entity will manage concurrency with a scheduler for
-        multi-gripper scenarios.
-        """
-        if self.socket:  # type: ignore [has-type]
-            return True
-        try:
-            self.socket = serial.serial_for_url(
-                self.comm_params.host,
-                timeout=self.comm_params.timeout_connect,
-                bytesize=self.comm_params.bytesize,
-                stopbits=self.comm_params.stopbits,
-                baudrate=self.comm_params.baudrate,
-                parity=self.comm_params.parity,
-                # exclusive=False,
-                exclusive=True,
-            )
-            self.socket.inter_byte_timeout = self.inter_byte_timeout
-            self.last_frame_end = None
-        except Exception as msg:
-            Log.error("{}", msg)
-            self.close()
-        return self.socket is not None
-
-
 # Letting each driver instance have its own non-exclusive modbus client instance does not work, 
 # because in rare occations the modbus clients seem to interfere with each other when reading parameters. 
 # Therefore, we create a single global exclusive modbus client, shared by all driver instances.
 global_modbus_client_lock = Lock()
-_global_modbus_client = None  # don't access this directly, use get_global_modbus_client() instead
+# key: serial_port, value: ModbusSerialClient instance
+_global_modbus_client_map = {}  # do not use this directly, use get_global_modbus_client() instead
 
 def get_global_modbus_client(serial_port: str = "/dev/ttyUSB0"):
-    global _global_modbus_client
-    if _global_modbus_client is None:
-        _global_modbus_client = NonExclusiveSerialClient(
-            port=serial_port,
-            baudrate=115200,
-            parity="E" if supports_parity(serial_port) else "N",
-            stopbits=1,
-            timeout=0.1,
-            trace_connect=None,
-            trace_packet=None,
-            trace_pdu=None,
-        )
-    return _global_modbus_client
+    with global_modbus_client_lock:
+        global _global_modbus_client_map
+        if _global_modbus_client_map.get(serial_port) is None:
+            _global_modbus_client_map[serial_port] = ModbusSerialClient(
+                port=serial_port,
+                baudrate=115200,
+                parity="E" if supports_parity(serial_port) else "N",
+                stopbits=1,
+                timeout=0.1,
+                trace_connect=None,
+                trace_packet=None,
+                trace_pdu=None,
+            )
+        return _global_modbus_client_map[serial_port]
 
 
 class Driver(object):
@@ -110,6 +81,9 @@ class Driver(object):
         # fmt:on
         self.reserved_status_bits: list[int] = [10, 15] + list(range(18, 31))
         self.reserved_control_bits: list[int] = [10, 15] + list(range(17, 30))
+
+        if __package__ is None:
+            raise Exception("This module must be imported as part of a package, not run as a script.")
 
         valid_module_types = str(
             files(__package__).joinpath("config/module_types.json")
@@ -204,8 +178,8 @@ class Driver(object):
             if isinstance(device_id, int) and device_id < 0:
                 return False
             self.mb_device_id = device_id
+            self.mb_client = get_global_modbus_client(serial_port=serial_port)
             with global_modbus_client_lock:
-                self.mb_client = get_global_modbus_client(serial_port=serial_port)
                 self.connected = self.mb_client.connect()
 
         if self.connected:
