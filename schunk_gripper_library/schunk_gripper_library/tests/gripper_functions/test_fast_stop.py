@@ -1,4 +1,4 @@
-from schunk_gripper_library.tests.conftest import skip_if_no_drivers
+from schunk_gripper_library.tests.utils import skip_if_no_drivers
 
 
 def test_fast_stop(drivers, scheduler, executor):

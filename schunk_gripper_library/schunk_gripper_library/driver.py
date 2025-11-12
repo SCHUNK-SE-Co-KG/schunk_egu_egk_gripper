@@ -659,37 +659,21 @@ class Driver(object):
             return False
 
         def do_send() -> dict:
-            still_jogging = False
-            if self.get_control_bit(bit=8) == 1 or self.get_control_bit(bit=9) == 1:
-                still_jogging = True
-
-            self.clear_plc_output()
-            self.send_plc_output()
-            self.receive_plc_input()
-            cmd_toggle_before = self.get_status_bit(bit=5)
-
             if not self.set_target_speed(abs(velocity)):
                 raise RuntimeError("Failed to set target speed")
-            if velocity >= 0:
-                self.set_control_bit(bit=9, value=True)
-            else:
-                self.set_control_bit(bit=8, value=True)
-            if use_gpe:
-                self.set_control_bit(bit=31, value=self.gpe_available())
-            self.send_plc_output()
-
-            already_jogging = self.get_control_bit(bit=8) == 1 or self.get_control_bit(bit=9) == 1
-            if already_jogging:
-                return {"6": 1}
-                
-            return {"5": cmd_toggle_before ^ 1, "6": 0}
+            
+            cmd = {}
+            cmd[8 if velocity < 0 else 9] = True
+            cmd[31] = use_gpe and self.gpe_available()
+  
+            return {"5": self._send_cmd(cmd)}
             
         expected_status = {}
         if scheduler:
             expected_status = scheduler.execute(func=partial(do_send)).result()
         else:
             expected_status = do_send()
-
+    
         return self.wait_for_status(bits=expected_status)
 
     def stop_jogging(self, scheduler: Scheduler | None = None) -> bool:

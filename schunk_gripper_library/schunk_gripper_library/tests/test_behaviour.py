@@ -1,4 +1,3 @@
-from schunk_gripper_library.tests.conftest import skip_if_no_drivers
 from schunk_gripper_library.driver import Driver
 from schunk_gripper_library.utility import skip_without_gripper, Scheduler
 import time

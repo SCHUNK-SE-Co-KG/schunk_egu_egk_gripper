@@ -1,3 +1,4 @@
+import time
 import pytest
 import yaml
 import os
@@ -20,7 +21,7 @@ DEVICE_CONFIG_WORKPIECE_AT_POSITION = 'workpiece_at_position'  # optional field 
 
 workpiece_position_map: dict[Driver, int | None] = {} # stores for each driver the workpiece at position (None if not specified)
 
-def load_device_configs() -> dict:
+def _load_device_configs() -> dict:
     """Loads and asserts that the device configs from `DEVICES_CONFIG_PATH` are valid.
 
     Returns:
@@ -75,7 +76,7 @@ def drivers(scheduler) -> Generator[List[Driver], None, None]:
     The drivers are connected based on their configuration (ethernet or modbus).
     If the device config file is empty or missing, no drivers are created and an empty list is returned.
     """
-    device_configs = load_device_configs()
+    device_configs = _load_device_configs()
     if not device_configs:
         yield []  # no device configs available
         return
@@ -104,17 +105,6 @@ def drivers(scheduler) -> Generator[List[Driver], None, None]:
         driver.disconnect()
 
 
-def get_workpiece_position(driver: Driver) -> int | None:
-    """Returns the workpiece position for the given driver in [mm].
-    """
-    assert driver in workpiece_position_map, f"Driver at '{driver.addr_str}' not recognized."
-    return workpiece_position_map[driver]
-
-def skip_if_no_drivers(drivers):
-    if not drivers:
-        pytest.skip("No devices configured")
-
-
 @pytest.fixture(scope="function", autouse=True)
 def acknowledge_drivers(drivers, scheduler):
     """Acknowledges all drivers before each test function.
@@ -125,6 +115,8 @@ def acknowledge_drivers(drivers, scheduler):
 
 @pytest.fixture(scope="session")
 def executor(drivers):
+    """Provides a ThreadPoolExecutor with as many workers as there are drivers.
+    """
     num_workers = len(drivers)
     with concurrent.futures.ThreadPoolExecutor(max_workers=num_workers) as pool:
         yield pool
