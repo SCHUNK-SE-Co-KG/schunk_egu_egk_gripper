@@ -302,6 +302,7 @@ class Driver(object):
         is_absolute: bool = True,
         use_gpe: bool = False,
         scheduler: Scheduler | None = None,
+        no_scheduler: bool = False,
     ) -> bool:
         """Sends a move to position command to the gripper.
 
@@ -323,7 +324,8 @@ class Driver(object):
         Returns:
             bool: True if the move was successful, False otherwise.
         """
-        scheduler = global_scheduler
+        scheduler = global_scheduler if not no_scheduler else None
+
         if not self.connected:
             return False
         if not self.set_target_position(position):
@@ -592,8 +594,9 @@ class Driver(object):
             expected_status = scheduler.execute(func=partial(do_send)).result()
         else:
             expected_status = do_send()
-
-        return self.wait_for_status(bits=expected_status, timeout_sec=5.0)
+        
+        # the timeout value is empirically determined with real hardware
+        return self.wait_for_status(bits=expected_status, timeout_sec=6.0)
     
     def estimate_duration(
         self,
@@ -714,6 +717,7 @@ class Driver(object):
                 position=step,
                 velocity=self.module_parameters["max_vel"],
                 is_absolute=False,
+                no_scheduler=True,
             )
 
         def do_send() -> bool:

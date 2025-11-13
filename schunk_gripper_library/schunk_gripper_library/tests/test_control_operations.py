@@ -50,7 +50,7 @@ def test_driver_only_touches_specified_control_bits():
     for bit in driver.valid_control_bits:
         initial_value = driver.get_control_bit(bit=bit)
         driver.set_control_bit(bit=bit, value=True)
-        driver.set_control_bit(bit=bit, value=initial_value)
+        driver.set_control_bit(bit=bit, value=bool(initial_value))
 
     assert driver.get_plc_output() == before
 
