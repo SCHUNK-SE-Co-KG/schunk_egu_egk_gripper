@@ -58,7 +58,7 @@ class Driver(object):
         self.gripper_type: str = ""
         self.module_type: str = ""
         self.fieldbus: str = ""
-        self.module_parameters: dict = {
+        self.module_parameters: dict = {  # positions in um, velocities in um/s, forces in %
             "module_type": None,
             "fieldbus_type": None,
             "serial_no_txt": None,
@@ -320,6 +320,7 @@ class Driver(object):
                                 or relative (False).
             use_gpe (bool): Whether to use GPE functionality.
             scheduler (Scheduler | None): Optional scheduler for command execution.
+            no_scheduler (bool): If True, the scheduler is ignored even if provided.
 
         Returns:
             bool: True if the move was successful, False otherwise.
@@ -724,11 +725,17 @@ class Driver(object):
             step = 2000  # um
             if not self.receive_plc_input():
                 return False
-            if self.get_actual_position() > self.module_parameters["max_pos"] - step:
-                move(-step)
+            min_pos = self.module_parameters["min_pos"]
+            max_pos = self.module_parameters["max_pos"]
+            actual_pos = self.get_actual_position()
+            start_inwards = actual_pos - min_pos > max_pos - actual_pos
+            if start_inwards:
+                step *= -1
+
+            for _ in range(2):
                 move(step)
-            move(step)
-            move(-step)
+                move(-step)
+                
             return True
 
         if scheduler:

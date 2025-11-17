@@ -10,7 +10,6 @@ import pymodbus
 from schunk_gripper_library.driver import Driver
 from schunk_gripper_library.utility import Scheduler
 from typing import Generator, List
-import concurrent.futures
 from pymodbus.client import ModbusSerialClient
 
 
@@ -111,15 +110,6 @@ def acknowledge_drivers(drivers, scheduler):
     """
     for driver in drivers:
         assert driver.acknowledge(scheduler=scheduler), f"Failed to acknowledge driver at {driver.addr_str}."
-
-
-@pytest.fixture(scope="session")
-def executor(drivers):
-    """Provides a ThreadPoolExecutor with as many workers as there are drivers.
-    """
-    num_workers = len(drivers)
-    with concurrent.futures.ThreadPoolExecutor(max_workers=num_workers) as pool:
-        yield pool
 
 
 @pytest.fixture

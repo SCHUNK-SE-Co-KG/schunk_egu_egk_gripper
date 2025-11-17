@@ -20,7 +20,7 @@ from schunk_gripper_library.utility import Scheduler
 from schunk_gripper_library.tests.utils import skip_if_no_drivers, get_workpiece_position, read_float_param, FloatParam
 
 
-def test_grip_and_release(drivers, scheduler, executor):    
+def test_grip_and_release(drivers, scheduler):    
     """ Tests basic grip and release for all connected gripper drivers.
 
     Depending on the gripper variant and available features, different grip modes are tested:
@@ -30,28 +30,21 @@ def test_grip_and_release(drivers, scheduler, executor):
     """
     skip_if_no_drivers(drivers)
 
-    futures = []
     for driver in drivers:
-        def do_test():
-            variant: str = driver.get_variant()  # str in ["EGU", "EZU", "EGK"]
-            assert variant in ["EGU", "EZU", "EGK"], f"Unknown gripper variant: {variant}"
-            sub_variant: int = driver.get_sub_variant()
-            gpe_available = driver.gpe_available()
+        variant: str = driver.get_variant()  # str in ["EGU", "EZU", "EGK"]
+        assert variant in ["EGU", "EZU", "EGK"], f"Unknown gripper variant: {variant}"
+        sub_variant: int = driver.get_sub_variant()
+        gpe_available = driver.gpe_available()
 
-            if variant == "EGK":
-                grip_and_release_egk(driver, scheduler, False)
-            elif variant in ["EGU", "EZU"]:
-                grip_and_release_egu_ezu(driver, scheduler)
-            else:
-                assert False, f"Unhandled gripper variant: {variant}"
-
-        futures.append(executor.submit(do_test))
-
-    for future in futures:
-        future.result()
+        if variant == "EGK":
+            grip_and_release_egk(driver, scheduler, False)
+        elif variant in ["EGU", "EZU"]:
+            grip_and_release_egu_ezu(driver, scheduler)
+        else:
+            assert False, f"Unhandled gripper variant: {variant}"
 
 
-def test_grip_and_release_at_expected_position(drivers, scheduler, executor):
+def test_grip_and_release_at_expected_position(drivers, scheduler):
     """Tests gripping at expected workpiece position for all connected gripper drivers.
 
     If a workpiece position is defined for the driver, the driver grips at that position and the 
@@ -66,41 +59,32 @@ def test_grip_and_release_at_expected_position(drivers, scheduler, executor):
     """
     skip_if_no_drivers(drivers)
 
-    futures = []
     for driver in drivers:
-        def do_test():
-            variant: str = driver.get_variant()  # str in ["EGU", "EZU", "EGK"]
-            assert variant in ["EGU", "EZU", "EGK"], f"Unknown gripper variant: {variant}"
-            sub_variant: int = driver.get_sub_variant()
-            gpe_available = driver.gpe_available()
+        variant: str = driver.get_variant()  # str in ["EGU", "EZU", "EGK"]
+        assert variant in ["EGU", "EZU", "EGK"], f"Unknown gripper variant: {variant}"
+        sub_variant: int = driver.get_sub_variant()
+        gpe_available = driver.gpe_available()
 
-            if variant == "EGK":
-                grip_and_release_egk(driver, scheduler, with_position=True)
-            elif variant in ["EGU", "EZU"]:
-                grip_and_release_egu_ezu(driver, scheduler, with_position=True)
-            else:
-                assert False, f"Unhandled gripper variant: {variant}"
-
-        futures.append(executor.submit(do_test))
-
-    for future in futures:
-        future.result()
+        if variant == "EGK":
+            grip_and_release_egk(driver, scheduler, with_position=True)
+        elif variant in ["EGU", "EZU"]:
+            grip_and_release_egu_ezu(driver, scheduler, with_position=True)
+        else:
+            assert False, f"Unhandled gripper variant: {variant}"
 
 
-def test_manual_release(drivers, scheduler, executor):
+def test_manual_release(drivers, scheduler):
     """Tests manual release after movement for all connected gripper drivers.
     """
     skip_if_no_drivers(drivers)
 
-    futures = []
     for driver in drivers:
-        def do_test():
-            # release for manual movement is only allowed by the firmware 
-            # if the gripper is in an error state => trigger an error first
-            driver.fast_stop()
-            # now the command shall succeed
-            assert driver.release_for_manual_movement(), \
-                f"Manual release failed. Driver: {driver.addr_str}, Status: {driver.get_status_diagnostics()}"
+        # release for manual movement is only allowed by the firmware 
+        # if the gripper is in an error state => trigger an error first
+        driver.fast_stop()
+        # now the command shall succeed
+        assert driver.release_for_manual_movement(), \
+            f"Manual release failed. Driver: {driver.addr_str}, Status: {driver.get_status_diagnostics()}"
 
 
 def grip_and_release_egk(driver, scheduler, with_position: bool = False):
