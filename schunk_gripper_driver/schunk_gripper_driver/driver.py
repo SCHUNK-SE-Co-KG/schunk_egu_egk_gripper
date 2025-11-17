@@ -797,6 +797,9 @@ class Driver(Node):
 
             if now >= next_time:
                 for gripper in self.grippers:
+                    if not gripper["driver"].connected:
+                        continue
+
                     msg = JointState()
                     gripper_id = gripper["gripper_id"]
                     msg.header.frame_id = gripper_id
@@ -825,6 +828,9 @@ class Driver(Node):
 
             if now >= next_time:
                 for gripper in self.grippers:
+                    if not gripper["driver"].connected:
+                        continue
+
                     msg = GripperState()
                     gripper_id = gripper["gripper_id"]
                     msg.header.frame_id = gripper_id
