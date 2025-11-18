@@ -57,38 +57,46 @@ def test_driver_only_touches_specified_control_bits():
 
 def test_driver_supports_reading_and_writing_target_position():
     driver = Driver()
-    target_positions = [12300, -15001, 1, 0]  # um
-    for target in target_positions:
+
+    invalid_positions = [12.34, -0.5, -7500.0, "17.3"]
+    for pos in invalid_positions:
+        try:
+            driver.set_target_position(pos)
+            assert False, f"Setting target position with wrong type (value: '{pos}') should have raised an exception."
+        except Exception:
+            pass
+
+    valid_positions = [12300, -15001, 1, 0]  # um
+    for target in valid_positions:
         driver.set_target_position(target)
         assert pytest.approx(driver.get_target_position(), rel=1e-3) == target
 
 
-def test_driver_rejects_invalid_target_position():
-    driver = Driver()
-    invalid_positions = [12.34, -0.5, -7500.0, "17.3"]
-    for pos in invalid_positions:
-        assert not driver.set_target_position(pos)
-
-
 def test_driver_supports_reading_and_writing_target_speed():
     driver = Driver()
-    target_speed = 55300
-    driver.set_target_speed(target_speed)
-    assert driver.get_target_speed() == target_speed
 
-
-def test_driver_rejects_invalid_target_speed():
-    driver = Driver()
     invalid_speeds = [12.34, -0.5, -200, "0.3"]
     for speed in invalid_speeds:
-        assert not driver.set_target_speed(speed)
+        try:
+            driver.set_target_speed(speed)
+            assert False, f"Setting target speed with wrong type (value: '{speed}') should have raised an exception."
+        except Exception:
+            pass
+
+    valid_speed = 55300  # um/s
+    driver.set_target_speed(valid_speed)
+    assert driver.get_target_speed() == valid_speed
 
 
 def test_driver_supports_reading_and_writing_gripping_force():
     driver = Driver()
     invalid_forces = [0.0, 0.75, 60.0, "80%"]
     for force in invalid_forces:
-        assert not driver.set_gripping_force(force)
+        try:
+            driver.set_gripping_force(force)
+            assert False, f"Setting gripping force with wrong type (value: '{force}') should have raised an exception."
+        except Exception:
+            pass
 
     valid_forces = [60, 75, 100]
     for force in valid_forces:

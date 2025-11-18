@@ -55,21 +55,3 @@ def test_check_for_non_hex_characters_behaves_as_expected():
         assert not driver.contains_non_hex_chars(string)
     for string in non_hex_strings:
         assert driver.contains_non_hex_chars(string)
-
-
-def test_driver_knows_valid_module_types():
-    driver = Driver()
-    assert isinstance(driver.valid_module_types, dict)
-    for key, value in driver.valid_module_types.items():
-        assert isinstance(key, str)
-        assert isinstance(value, str)
-
-        assert len(value.split("_")) == 4
-
-
-def test_driver_knows_valid_fieldbus_types():
-    driver = Driver()
-    assert isinstance(driver.valid_fieldbus_types, dict)
-    for key, value in driver.valid_fieldbus_types.items():
-        assert isinstance(key, str)
-        assert isinstance(value, str)

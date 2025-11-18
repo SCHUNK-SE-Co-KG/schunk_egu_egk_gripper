@@ -1,6 +1,6 @@
 from schunk_gripper_library.driver import Driver
 from threading import Thread
-from schunk_gripper_library.utility import skip_without_gripper
+from schunk_gripper_library.tests.utils.functions import skip_if_no_drivers
 
 
 def test_writing_entire_buffers_keeps_data_consistent():
@@ -100,13 +100,10 @@ def test_concurrent_output_buffer_reads_and_writes_dont_deadlock():
         assert not thread.is_alive()
 
 
-@skip_without_gripper
-def test_concurrent_receive_calls_dont_deadlock():
-    driver = Driver()
-    for host, port, serial_port in zip(
-        ["0.0.0.0", None], [8000, None], [None, "/dev/ttyUSB0"]
-    ):
-        driver.connect(host=host, port=port, serial_port=serial_port, device_id=12)
+def test_concurrent_receive_calls_dont_deadlock(drivers):
+    skip_if_no_drivers(drivers)
+
+    for driver in drivers:
         nr_iterations = 10
 
         def receive():
@@ -123,26 +120,21 @@ def test_concurrent_receive_calls_dont_deadlock():
             thread.join()
             assert not thread.is_alive()
 
-        driver.disconnect()
 
+def test_concurrent_parameter_reads_and_writes_dont_deadlock(drivers):
+    skip_if_no_drivers(drivers)
 
-@skip_without_gripper
-def test_concurrent_parameter_reads_and_writes_dont_deadlock():
-    driver = Driver()
-    for host, port, serial_port in zip(
-        ["0.0.0.0", None], [8000, None], [None, "/dev/ttyUSB0"]
-    ):
-        driver.connect(host=host, port=port, serial_port=serial_port, device_id=12)
+    for driver in drivers:
         nr_iterations = 10
 
         def read():
             for n in range(nr_iterations):
-                assert driver.read_module_parameter(param="0x0500")
+                assert driver.read_module_parameter(param="0x0500")  # read module type
 
         def write():
             for n in range(nr_iterations):
                 assert driver.write_module_parameter(
-                    param="0x0048", data=bytearray(bytes.fromhex("00" * 16))
+                    param="0x0048", data=bytearray(bytes.fromhex("00" * 16))  # write plc_output (control word)
                 )
 
         threads = []

@@ -16,11 +16,11 @@ If no workpiece is provided, the tests perform empty grips and expect correspond
 """
 import time
 from schunk_gripper_library.driver import Driver
-from schunk_gripper_library.utility import Scheduler
-from schunk_gripper_library.tests.utils import skip_if_no_drivers, get_workpiece_position, read_float_param, FloatParam
+from schunk_gripper_library.tests.utils.functions import skip_if_no_drivers, get_workpiece_position
+from schunk_gripper_library.tests.utils.params import FloatParam, read_float_param
 
 
-def test_grip_and_release(drivers, scheduler):    
+def test_grip_and_release(drivers):    
     """ Tests basic grip and release for all connected gripper drivers.
 
     Depending on the gripper variant and available features, different grip modes are tested:
@@ -37,14 +37,14 @@ def test_grip_and_release(drivers, scheduler):
         gpe_available = driver.gpe_available()
 
         if variant == "EGK":
-            grip_and_release_egk(driver, scheduler, False)
+            grip_and_release_egk(driver, False)
         elif variant in ["EGU", "EZU"]:
-            grip_and_release_egu_ezu(driver, scheduler)
+            grip_and_release_egu_ezu(driver)
         else:
             assert False, f"Unhandled gripper variant: {variant}"
 
 
-def test_grip_and_release_at_expected_position(drivers, scheduler):
+def test_grip_and_release_at_expected_position(drivers):
     """Tests gripping at expected workpiece position for all connected gripper drivers.
 
     If a workpiece position is defined for the driver, the driver grips at that position and the 
@@ -66,14 +66,14 @@ def test_grip_and_release_at_expected_position(drivers, scheduler):
         gpe_available = driver.gpe_available()
 
         if variant == "EGK":
-            grip_and_release_egk(driver, scheduler, with_position=True)
+            grip_and_release_egk(driver, with_position=True)
         elif variant in ["EGU", "EZU"]:
-            grip_and_release_egu_ezu(driver, scheduler, with_position=True)
+            grip_and_release_egu_ezu(driver, with_position=True)
         else:
             assert False, f"Unhandled gripper variant: {variant}"
 
 
-def test_manual_release(drivers, scheduler):
+def test_manual_release(drivers):
     """Tests manual release after movement for all connected gripper drivers.
     """
     skip_if_no_drivers(drivers)
@@ -85,9 +85,14 @@ def test_manual_release(drivers, scheduler):
         # now the command shall succeed
         assert driver.release_for_manual_movement(), \
             f"Manual release failed. Driver: {driver.addr_str}, Status: {driver.get_status_diagnostics()}"
+        time.sleep(0.5)
+        # do a fast-stop to bring the gripper out of the manual release state (important for e. g. gripping afterwards)
+        assert driver.fast_stop(), \
+            f"Fast stop after manual release failed. Driver: {driver.addr_str}, Status: {driver.get_status_diagnostics()}"
+        time.sleep(0.5)
 
 
-def grip_and_release_egk(driver, scheduler, with_position: bool = False):
+def grip_and_release_egk(driver, with_position: bool = False):
     """Issues basic and soft grip and release commands to an EGK driver.
 
     If there is workpiece position defined for the driver, 
@@ -116,7 +121,7 @@ def grip_and_release_egk(driver, scheduler, with_position: bool = False):
     # test basic grips
     for gpe_option in gpe_options:
         for force_percent in basic_forces_percent:
-            do_grip_cycle(driver=driver, scheduler=scheduler, force=force_percent, outward=gripping_direction,
+            do_grip_cycle(driver=driver, force=force_percent, outward=gripping_direction,
                             use_gpe=gpe_option, expected_grip_result=expected_grip_result, at_position_um=at_position_um)
 
     # test soft grips
@@ -128,12 +133,12 @@ def grip_and_release_egk(driver, scheduler, with_position: bool = False):
         velocities_ums = [int(v * 1000) for v in velocities_mms]  # [mm/s] -> [um/s] (driver expects velocities in um/s)
         for velocity_ums in velocities_ums:
             force = 100  # use max force for soft grip, otherwise the range of velocities has to be rescaled
-            do_grip_cycle(driver=driver, scheduler=scheduler, force=force, outward=gripping_direction,
+            do_grip_cycle(driver=driver, force=force, outward=gripping_direction,
                             use_gpe=gpe_option, expected_grip_result=expected_grip_result, velocity_ums=velocity_ums,
                             at_position_um=at_position_um)
 
 
-def grip_and_release_egu_ezu(driver, scheduler, with_position: bool = False):
+def grip_and_release_egu_ezu(driver, with_position: bool = False):
     """Issues basic and strong grip (if gpe available) and release commands to an EGU/EZU driver.
 
     If there is workpiece position defined for the driver, 
@@ -160,7 +165,7 @@ def grip_and_release_egu_ezu(driver, scheduler, with_position: bool = False):
     # test basic grips
     for gpe_option in gpe_options:
         for force_percent in basic_forces_percent:
-            do_grip_cycle(driver=driver, scheduler=scheduler, force=force_percent, outward=gripping_direction,
+            do_grip_cycle(driver=driver, force=force_percent, outward=gripping_direction,
                             use_gpe=gpe_option, expected_grip_result=expected_grip_result, at_position_um=at_position_um)
             
     if gpe_available:
@@ -172,12 +177,12 @@ def grip_and_release_egu_ezu(driver, scheduler, with_position: bool = False):
         strong_forces_percent = [101, (100 + max_force_percent) / 2.0, max_force_percent]
         strong_forces_percent = [int(x) for x in strong_forces_percent] # convert to int, as driver.grip expects int force percent
         for force_percent in strong_forces_percent:
-            do_grip_cycle(driver=driver, scheduler=scheduler, force=force_percent, outward=gripping_direction,
+            do_grip_cycle(driver=driver, force=force_percent, outward=gripping_direction,
                             use_gpe=gpe_option, expected_grip_result=expected_grip_result, at_position_um=at_position_um)
 
 
-def do_grip_cycle(driver: Driver, scheduler: Scheduler, force: int, outward: bool, use_gpe: bool, 
-                  expected_grip_result: Driver.GripResult, velocity_ums: int | None = None, at_position_um: int | None = None):
+def do_grip_cycle(driver: Driver, force: int, outward: bool, use_gpe: bool, expected_grip_result: Driver.GripResult, 
+                  velocity_ums: int | None = None, at_position_um: int | None = None):
     """Helper function that runs a grip-release-move cycle with the given parameters.
     Releasing is only performed if something was gripped.
     After grip and release, the gripper is moved back to the initial position.
@@ -197,7 +202,7 @@ def do_grip_cycle(driver: Driver, scheduler: Scheduler, force: int, outward: boo
 
     time.sleep(0.5)
     grip_result = driver.grip(force=force, velocity=velocity_ums, position=at_position_um, 
-                              outward=outward, use_gpe=use_gpe, scheduler=scheduler)
+                              outward=outward, use_gpe=use_gpe)
     assert grip_result == expected_grip_result, f"Grip failed for force {force}% and velocity {velocity_ums} um/s. \
         Driver: {driver.addr_str}, Status: {driver.get_status_diagnostics()}"
     
@@ -205,11 +210,11 @@ def do_grip_cycle(driver: Driver, scheduler: Scheduler, force: int, outward: boo
 
     # releasing is only allowed if something was gripped
     if grip_result == Driver.GripResult.WORKPIECE_GRIPPED or grip_result == Driver.GripResult.WRONG_WORKPIECE_GRIPPED:
-        assert driver.release(scheduler=scheduler), f"Release after grip failed. Driver: {driver.addr_str}, \
+        assert driver.release(), f"Release after grip failed. Driver: {driver.addr_str}, \
             Status: {driver.get_status_diagnostics()}"
         time.sleep(0.5)
     # move back to initial position between grips
-    move_success = driver.move_to_position(home_position_um, velocity=home_velocity_ums, is_absolute=True, scheduler=scheduler)
+    move_success = driver.move_to_position(home_position_um, velocity=home_velocity_ums, is_absolute=True)
     assert move_success,  f"Move to position failed. Driver: {driver.addr_str}, Status: {driver.get_status_diagnostics()}"
     time.sleep(0.5)
 

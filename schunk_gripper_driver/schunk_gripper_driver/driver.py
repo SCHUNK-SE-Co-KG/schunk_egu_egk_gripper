@@ -1264,6 +1264,7 @@ class Driver(Node):
         if self.needs_synchronize(gripper):
             data = self.scheduler.execute(
                 func=partial(
+                    # TODO: use read_param instead of read_module_parameter (same for write)
                     gripper["driver"].read_module_parameter, param=request.parameter
                 )
             ).result()

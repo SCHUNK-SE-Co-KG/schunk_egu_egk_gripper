@@ -10,31 +10,30 @@ The tests cover:
 """
 
 import time
-from schunk_gripper_library.driver import Driver
-from schunk_gripper_library.utility import Scheduler
-from schunk_gripper_library.tests.utils import skip_if_no_drivers, read_float_param, FloatParam
+from schunk_gripper_library.tests.utils.functions import skip_if_no_drivers
+from schunk_gripper_library.tests.utils.params import FloatParam, read_float_param
 
 
-def test_controlled_stop(drivers, scheduler):
+def test_controlled_stop(drivers):
     skip_if_no_drivers(drivers)
 
     for driver in drivers:
-        assert driver.stop(scheduler=scheduler, use_gpe=False), \
+        assert driver.stop(use_gpe=False), \
         f"Failed to stop driver without GPE. Driver: {driver.addr_str}, Status: {driver.get_status_diagnostics()}"
         if driver.gpe_available():
-            assert driver.stop(scheduler=scheduler, use_gpe=True), \
+            assert driver.stop(use_gpe=True), \
             f"Failed to stop driver with GPE. Driver: {driver.addr_str}, Status: {driver.get_status_diagnostics()}"
         
 
-def test_fast_stop(drivers, scheduler):
+def test_fast_stop(drivers):
     skip_if_no_drivers(drivers)
 
     for driver in drivers:
-        assert driver.fast_stop(scheduler=scheduler), \
+        assert driver.fast_stop(), \
         f"Failed to fast stop driver. Driver: {driver.addr_str}, Status: {driver.get_status_diagnostics()}"
 
 
-def test_jogging(drivers, scheduler):
+def test_jogging(drivers):
     """Tests jogging for all connected drivers.
 
     Tests cover:
@@ -74,33 +73,33 @@ def test_jogging(drivers, scheduler):
         for use_gpe in gpe_options:
             for jog_velocity_ums in jog_velocities_ums:
                 # move to center position before jogging to avoid hitting limits
-                move_to_center(driver, scheduler)
+                move_to_center(driver)
                 time.sleep(0.5)  # wait a bit after moving to center
                 for _ in range(3):
                     # repeated calls to start jogging shall be idempotent
-                    assert driver.start_jogging(velocity=jog_velocity_ums, scheduler=scheduler, use_gpe=use_gpe), \
+                    assert driver.start_jogging(velocity=jog_velocity_ums, use_gpe=use_gpe), \
                         f"Start jogging failed. Driver: {driver.addr_str}, Status: {driver.get_status_diagnostics()}"
                 time.sleep(jog_duration_s)
-                assert driver.stop_jogging(scheduler=scheduler), \
+                assert driver.stop_jogging(), \
                     f"Stop jogging failed. Driver: {driver.addr_str}, Status: {driver.get_status_diagnostics()}"
                 time.sleep(0.5)
                 # jog back
                 jog_velocity_ums *= -1
                 for _ in range(3):
                     # repeated calls to start jogging shall be idempotent
-                    assert driver.start_jogging(velocity=jog_velocity_ums, scheduler=scheduler, use_gpe=use_gpe), \
+                    assert driver.start_jogging(velocity=jog_velocity_ums, use_gpe=use_gpe), \
                         f"Start jogging failed. Driver: {driver.addr_str}, Status: {driver.get_status_diagnostics()}"
                 time.sleep(jog_duration_s)
-                assert driver.stop_jogging(scheduler=scheduler), \
+                assert driver.stop_jogging(), \
                     f"Stop jogging back failed. Driver: {driver.addr_str}, Status: {driver.get_status_diagnostics()}"
                 time.sleep(0.5)
         # move to original position to reset any position drift
-        move_success = driver.move_to_position(home_position_um, velocity=home_velocity_ums, is_absolute=True, scheduler=scheduler)
+        move_success = driver.move_to_position(home_position_um, velocity=home_velocity_ums, is_absolute=True)
         assert move_success,  f"Move to position failed. Driver: {driver.addr_str}, Status: {driver.get_status_diagnostics()}"
         time.sleep(0.5)
 
 
-def test_move_absolute(drivers, scheduler):
+def test_move_absolute(drivers):
     """Tests absolute positioning movement for all connected drivers.
 
     Tests cover:
@@ -146,7 +145,6 @@ def test_move_absolute(drivers, scheduler):
                         position=position_um,
                         velocity=velocity_ums,
                         is_absolute=True,
-                        scheduler=scheduler,
                         use_gpe=use_gpe
                     )
                     assert move_success, f"Move to position {position_um} failed. Driver: {driver.addr_str}, Status: {driver.get_status_diagnostics()}"
@@ -157,13 +155,12 @@ def test_move_absolute(drivers, scheduler):
             position=home_position_um,
             velocity=home_velocity_ums,
             is_absolute=True,
-            scheduler=scheduler
         )
         assert move_success, f"Move to home position failed. Driver: {driver.addr_str}, Status: {driver.get_status_diagnostics()}"
         time.sleep(0.5)  # wait a bit after moving to home position
 
 
-def test_move_relative(drivers, scheduler):
+def test_move_relative(drivers):
     """Tests relative positioning movement for all connected drivers.
 
     Tests cover:
@@ -200,14 +197,13 @@ def test_move_relative(drivers, scheduler):
             for velocity_ums in velocities_ums:
                 for direction in move_directions:
                     # bring fingers to center position before starting relative movement
-                    move_to_center(driver, scheduler)
+                    move_to_center(driver)
                     time.sleep(0.5)
                     relative_distance_um = move_distance_um * direction
                     move_success = driver.move_to_position(
                         position=relative_distance_um,
                         velocity=velocity_ums,
                         is_absolute=False,
-                        scheduler=scheduler,
                         use_gpe=use_gpe
                     )
                     assert move_success, f"Relative move by {relative_distance_um} um failed. \
@@ -219,19 +215,18 @@ def test_move_relative(drivers, scheduler):
             position=home_position_um,
             velocity=home_velocity_ums,
             is_absolute=True,
-            scheduler=scheduler
         )
         assert move_success, f"Move to home position failed. Driver: {driver.addr_str}, Status: {driver.get_status_diagnostics()}"
         time.sleep(0.5)
             
 
-def test_twitch_jaws(drivers, scheduler):
+def test_twitch_jaws(drivers):
     """Tests jaw twitching for all connected drivers.
 
     Tests cover:
         - Twitching from different starting positions (min, mid, max)
     """
-    skip_if_no_drivers(drivers) # TODO: Test if gripper lands at the original position after twitching
+    skip_if_no_drivers(drivers)
 
     for driver in drivers:
         actual_position_um = driver.get_actual_position()
@@ -255,7 +250,6 @@ def test_twitch_jaws(drivers, scheduler):
                 position=position_um,
                 velocity=home_velocity_ums,
                 is_absolute=True,
-                scheduler=scheduler
             )
             assert move_success, f"Move to twitch start position failed. \
                 Driver: {driver.addr_str}, Status: {driver.get_status_diagnostics()}"
@@ -263,28 +257,27 @@ def test_twitch_jaws(drivers, scheduler):
 
             # perform twitching
             before_pos_um = driver.get_actual_position()
-            assert driver.twitch_jaws(scheduler=scheduler), \
+            assert driver.twitch_jaws(), \
                 f"Jaw twitching failed. Driver: {driver.addr_str}, Status: {driver.get_status_diagnostics()}"
             time.sleep(0.5)
+            # check if there is a significant position deviation after twitching
             after_pos_um = driver.get_actual_position()
             deviation_um = abs(after_pos_um - before_pos_um)
             tolerance_um = 250 
-            print("deviation_um:", deviation_um)
             assert deviation_um < tolerance_um, f"Jaw twitching caused too large position deviation: {deviation_um} um. \
                 Driver: {driver.addr_str}, Status: {driver.get_status_diagnostics()}"
 
-        # move to original position
+        # move to original position after twitching tests are done
         move_success = driver.move_to_position(
             position=home_position_um,
             velocity=home_velocity_ums,
             is_absolute=True,
-            scheduler=scheduler
         )
         assert move_success, f"Move to home position failed. Driver: {driver.addr_str}, Status: {driver.get_status_diagnostics()}"
         time.sleep(0.5)
 
 
-def move_to_center(driver, scheduler):
+def move_to_center(driver):
     """Helper function to move gripper to center position."""
     min_pos_um = int(read_float_param(driver, FloatParam.min_pos) * 1000)
     max_pos_um = int(read_float_param(driver, FloatParam.max_pos) * 1000)
@@ -296,6 +289,5 @@ def move_to_center(driver, scheduler):
         position=center_pos_um,
         velocity=velocity_ums,
         is_absolute=True,
-        scheduler=scheduler
     )
     assert move_success, f"Move to center position failed. Driver: {driver.addr_str}, Status: {driver.get_status_diagnostics()}"

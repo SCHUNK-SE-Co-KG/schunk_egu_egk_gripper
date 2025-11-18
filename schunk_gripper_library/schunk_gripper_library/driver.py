@@ -125,7 +125,7 @@ class Driver(object):
         self.update_cycle: float = 0.05  # sec
         self.update_count: int = 0  # since last connect() call
         self.stop_request: Event = Event()
-        self.reconnect_interval: float = 1.0
+        self.reconnect_interval: float = 1.0  # sec
         self.addr_str: str = ""
 
     def connect(
@@ -135,9 +135,7 @@ class Driver(object):
         serial_port: str = "/dev/ttyUSB0",
         device_id: int | None = None,
         update_cycle: float | None = 0.05,
-        scheduler: Scheduler | None = None,
     ) -> bool:
-        scheduler = global_scheduler
         if (isinstance(update_cycle, float) or isinstance(update_cycle, int)) and update_cycle < 0.001:
             raise ValueError("update_cycle must be at least 0.001 seconds")
         if self.connected:
@@ -183,16 +181,12 @@ class Driver(object):
                 self.connected = self.mb_client.connect()
 
         if self.connected:
-            updated = (
-                scheduler.execute(func=partial(self.update_module_parameters)).result()
-                if scheduler
-                else self.update_module_parameters()
-            )
+            updated = global_scheduler.execute(func=partial(self.update_module_parameters)).result()
             if not updated:
                 return False
             if update_cycle:
                 self.update_cycle = update_cycle
-                self.start_module_updates(scheduler=scheduler)
+                self.start_module_updates()
 
         return self.connected
 
@@ -207,15 +201,10 @@ class Driver(object):
         self.clear_module_parameters()
         return True
 
-    def start_module_updates(self, scheduler: Scheduler | None = None) -> bool:
-        scheduler = global_scheduler
+    def start_module_updates(self) -> bool:
         if self.polling_thread.is_alive():
             return True
-        self.polling_thread = Thread(
-            target=self._module_update,
-            args=(scheduler,),
-            daemon=True,
-        )
+        self.polling_thread = Thread(target=self._module_update, daemon=True)
         self.polling_thread.start()
         return True
 
@@ -225,58 +214,39 @@ class Driver(object):
             self.polling_thread.join()
         return True
 
-    def acknowledge(self, scheduler: Scheduler | None = None) -> bool:
-        scheduler = global_scheduler
+    def acknowledge(self) -> bool:
         if not self.connected:
-            return False
+            raise RuntimeError("Failed to acknowledge: Not connected.")
 
         def do_send() -> dict:
             return {"0": 1, "5": self._send_cmd({"2": True})}
 
-        expected_status = {}
-        if scheduler:
-            expected_status = scheduler.execute(func=partial(do_send)).result()
-        else:
-            expected_status = do_send()
-
+        expected_status = global_scheduler.execute(func=partial(do_send)).result()
         return self.wait_for_status(bits=expected_status)
 
-    def fast_stop(self, scheduler: Scheduler | None = None) -> bool:
-        scheduler = global_scheduler
+    def fast_stop(self) -> bool:
         if not self.connected:
-            return False
+            raise RuntimeError("Failed to fast stop: Not connected.")
 
         def do_send() -> dict:
             return {"7": 1, "5": self._send_cmd({"0": False})}  # fast stop triggers on low signal
 
-        expected_status = {}
-        if scheduler:
-            expected_status = scheduler.execute(func=partial(do_send)).result()
-        else:
-            expected_status = do_send()
-
+        expected_status = global_scheduler.execute(func=partial(do_send)).result()
         return self.wait_for_status(bits=expected_status)
 
-    def stop(self, use_gpe: bool = False, scheduler: Scheduler | None = None) -> bool:
-        scheduler = global_scheduler
+    def stop(self, use_gpe: bool = False) -> bool:
         if not self.connected:
-            return False
+            raise RuntimeError("Failed to stop: Not connected.")
 
         def do_send() -> dict:
             return {"4": 1, "5": self._send_cmd({"1": True, "31": use_gpe and self.gpe_available()})}
 
-        expected_status = {}
-        if scheduler:
-            expected_status = scheduler.execute(func=partial(do_send)).result()
-        else:
-            expected_status = do_send()
-
+        expected_status = global_scheduler.execute(func=partial(do_send)).result()
         return self.wait_for_status(bits=expected_status)
 
-    def prepare_for_shutdown(self, scheduler: Scheduler | None = None) -> bool:
-        scheduler = global_scheduler
+    def prepare_for_shutdown(self) -> bool:
         if not self.connected:
-            return False
+            raise RuntimeError("Failed to prepare for shutdown: Not connected.")
 
         def do_send() -> dict:
             self.clear_plc_output()
@@ -287,12 +257,7 @@ class Driver(object):
             self.send_plc_output()
             return {"5": cmd_toggle_before ^ 1, "2": 1}
 
-        expected_status = {}
-        if scheduler:
-            expected_status = scheduler.execute(func=partial(do_send)).result()
-        else:
-            expected_status = do_send()
-
+        expected_status = global_scheduler.execute(func=partial(do_send)).result()
         return self.wait_for_status(bits=expected_status)
 
     def move_to_position(
@@ -301,7 +266,6 @@ class Driver(object):
         velocity: int,
         is_absolute: bool = True,
         use_gpe: bool = False,
-        scheduler: Scheduler | None = None,
         no_scheduler: bool = False,
     ) -> bool:
         """Sends a move to position command to the gripper.
@@ -319,48 +283,22 @@ class Driver(object):
             is_absolute (bool): Whether the position is absolute (True)
                                 or relative (False).
             use_gpe (bool): Whether to use GPE functionality.
-            scheduler (Scheduler | None): Optional scheduler for command execution.
-            no_scheduler (bool): If True, the scheduler is ignored even if provided.
+            no_scheduler (bool): If True, the request is sent directly without any scheduler.
 
         Returns:
             bool: True if the move was successful, False otherwise.
         """
-        scheduler = global_scheduler if not no_scheduler else None
-
         if not self.connected:
-            return False
-        if not self.set_target_position(position):
-            return False
-        if not self.set_target_speed(velocity):
-            return False
-
-        if is_absolute:
-            trigger_bit = 13
-        else:
-            trigger_bit = 14
+            raise RuntimeError("Failed to move to position: Not connected.")
 
         def do_send() -> dict:
-            self.clear_plc_output()
-            self.send_plc_output()
-            self.receive_plc_input()
-            cmd_toggle_before = self.get_status_bit(bit=5)
-            self.set_control_bit(bit=trigger_bit, value=True)
-            if self.gpe_available():
-                self.set_control_bit(bit=31, value=use_gpe)
-            else:
-                self.set_control_bit(bit=31, value=False)
-            self.set_target_position(position)
-            self.set_target_speed(velocity)
-            self.send_plc_output()
-            return {"5": cmd_toggle_before ^ 1, "3": 0}
+            control_bits = {}
+            control_bits["13" if is_absolute else "14"] = True
+            control_bits["31"] = use_gpe if self.gpe_available() else False
+            return {"3": 0, "5": self._send_cmd(control_bits, vel=velocity, pos=position)}
 
-        expected_status = {}
-        # send the move command
-        if scheduler:
-            expected_status = scheduler.execute(func=partial(do_send)).result()
-        else:
-            expected_status = do_send()
-        
+        expected_status = do_send() if no_scheduler else global_scheduler.execute(func=partial(do_send)).result()
+
         # wait for the command to be acknowledged
         if not self.wait_for_status(bits=expected_status):
             return False
@@ -388,7 +326,6 @@ class Driver(object):
         velocity: int | None = None,
         use_gpe: bool = False,
         outward: bool = False,
-        scheduler: Scheduler | None = None,
     ) -> "Driver.GripResult":
         """Sends a grip command to the gripper.
 
@@ -409,50 +346,22 @@ class Driver(object):
                                   based on the specified force.
             use_gpe (bool): Whether to use GPE functionality if available.
             outward (bool): Whether to grip from inside (True) or from outside (False).
-            scheduler (Scheduler | None): Optional scheduler for command execution.
 
         Returns:
             Driver.GripResult: Result of the grip operation.
         """
-        scheduler = global_scheduler
         if not self.connected:
-            return Driver.GripResult.ERROR
-        if not self.set_gripping_force(force):
-            return Driver.GripResult.ERROR
-
-        if position is not None:
-            trigger_bit = 16
-        else:
-            trigger_bit = 12
+            raise RuntimeError("Failed to grip: Not connected.")
 
         def do_send() -> dict:
-            self.clear_plc_output()
-            self.send_plc_output()
-            self.receive_plc_input()
-            cmd_toggle_before = self.get_status_bit(bit=5)
-            self.set_control_bit(bit=trigger_bit, value=True)
-            self.set_control_bit(bit=7, value=outward)
-            if self.gpe_available():
-                self.set_control_bit(bit=31, value=use_gpe)
-            else:
-                self.set_control_bit(bit=31, value=False)
-            self.set_gripping_force(force)
-            if position is not None:
-                if not self.set_target_position(position):
-                    raise RuntimeError("Failed to set target position")
-            if velocity is not None:
-                if not self.set_target_speed(velocity):
-                    raise RuntimeError("Failed to set target speed")
-            else:
-                self.set_target_speed(0)
-            self.send_plc_output()
-            return {"5": cmd_toggle_before ^ 1, "3": 0}
+            control_bits = {}
+            control_bits["16" if position is not None else "12"] = True
+            control_bits["7"] = outward
+            control_bits["31"] = use_gpe if self.gpe_available() else False
+            return {"3": 0, "5": self._send_cmd(control_bits, vel=velocity, pos=position, force=force)}
 
         # send the grip command
-        if scheduler:
-            expected_status = scheduler.execute(func=partial(do_send)).result()
-        else:
-            expected_status = do_send()
+        expected_status = global_scheduler.execute(func=partial(do_send)).result()
 
         # wait for the command to be acknowledged
         if not self.wait_for_status(bits=expected_status):
@@ -474,12 +383,11 @@ class Driver(object):
 
         # define the possible status bit patterns to wait for
         patterns = {}
-        patterns[Driver.GripResult.WORKPIECE_GRIPPED] = {"4": 1, "12": 1}
-        patterns[Driver.GripResult.NO_WORKPIECE_DETECTED] = {"4": 0, "11": 1}
-        patterns[Driver.GripResult.WRONG_WORKPIECE_GRIPPED] = {"4": 0, "17": 1}
-        patterns[Driver.GripResult.WORKPIECE_LOST] = {"4": 0, "16": 1}  # relevant for pre-gripping
+        patterns[Driver.GripResult.WORKPIECE_GRIPPED] = {"4": 1, "12": 1, "31": use_gpe}
+        patterns[Driver.GripResult.NO_WORKPIECE_DETECTED] = {"4": 0, "11": 1, "31": use_gpe}
+        patterns[Driver.GripResult.WRONG_WORKPIECE_GRIPPED] = {"4": 0, "17": 1, "31": use_gpe}
+        patterns[Driver.GripResult.WORKPIECE_LOST] = {"4": 0, "16": 1, "31": use_gpe}  # relevant for pre-gripping
         patterns[Driver.GripResult.ERROR] = {"7": 1}
-        # TODO: if gpe is active, inject status bit 31 into all patterns except ERROR
 
         # wait for the command to complete or an error to occur
         bits: list[dict[str, int]] = []
@@ -493,30 +401,19 @@ class Driver(object):
         )
 
     def release(
-        self, use_gpe: bool = False, scheduler: Scheduler | None = None
+        self, use_gpe: bool = False
     ) -> bool:
-        scheduler = global_scheduler
         if not self.connected:
-            return False
+            raise RuntimeError("Failed to release: Not connected.")
 
         def do_send() -> dict:
-            self.clear_plc_output()
-            self.send_plc_output()
-            self.receive_plc_input()
-            cmd_toggle_before = self.get_status_bit(bit=5)
-            self.set_control_bit(bit=11, value=True)
-            if self.gpe_available():
-                self.set_control_bit(bit=31, value=use_gpe)
-            else:
-                self.set_control_bit(bit=31, value=False)
-            self.send_plc_output()
-            return { "5": cmd_toggle_before ^ 1, "3": 0 } 
+            control_bits = {}
+            control_bits["11"] = True
+            control_bits["31"] = use_gpe if self.gpe_available() else False
+            return {"3": 0, "5": self._send_cmd(control_bits)} 
 
         # send the release command
-        if scheduler:
-            expected_status = scheduler.execute(func=partial(do_send)).result()
-        else:
-            expected_status = do_send()
+        expected_status = global_scheduler.execute(func=partial(do_send)).result()
 
         # wait for the command to be acknowledged
         if not self.wait_for_status(bits=expected_status):
@@ -536,10 +433,9 @@ class Driver(object):
         # a release has failed if either an error occured or the wait timed out
         return matched_pattern not in [{}, {"7": 1}]
 
-    def release_for_manual_movement(self, scheduler: Scheduler | None = None) -> bool:
-        scheduler = global_scheduler
+    def release_for_manual_movement(self) -> bool:
         if not self.connected:
-            return False
+            raise RuntimeError("Failed to release for manual movement: Not connected.")
 
         def do_send() -> dict:
             self.clear_plc_output()
@@ -550,17 +446,12 @@ class Driver(object):
             self.send_plc_output()
             return {"5": cmd_toggle_before ^ 1, "8": 1}
 
-        expected_status = {}
-        if scheduler:
-            expected_status = scheduler.execute(func=partial(do_send)).result()
-        else:
-            expected_status = do_send()
-
+        expected_status = global_scheduler.execute(func=partial(do_send)).result()
         return self.wait_for_status(bits=expected_status)
 
     def show_specification(self) -> dict[str, float | str]:
         if not self.connected:
-            return {}
+            raise RuntimeError("Failed to show specification: Not connected.")
 
         connection_info = {
             "ip_address": self.host,
@@ -576,26 +467,16 @@ class Driver(object):
         }
         return spec
 
-    def brake_test(self, scheduler: Scheduler | None = None) -> bool:
-        scheduler = global_scheduler
+    def brake_test(self) -> bool:
         if not self.connected:
-            return False
+            raise RuntimeError("Failed to perform brake test: Not connected.")
 
         def do_send() -> dict:
-            self.clear_plc_output()
-            self.send_plc_output()
-            self.receive_plc_input()
-            cmd_toggle_before = self.get_status_bit(bit=5)
-            self.set_control_bit(bit=30, value=True)
-            self.send_plc_output()
-            return {"5": cmd_toggle_before ^ 1, "4": 1}
+            control_bits = {}
+            control_bits["30"] = True
+            return {"4": 1, "5": self._send_cmd(control_bits)}
 
-        expected_status = {}
-        if scheduler:
-            expected_status = scheduler.execute(func=partial(do_send)).result()
-        else:
-            expected_status = do_send()
-        
+        expected_status = global_scheduler.execute(func=partial(do_send)).result()
         # the timeout value is empirically determined with real hardware
         return self.wait_for_status(bits=expected_status, timeout_sec=6.0)
     
@@ -643,7 +524,7 @@ class Driver(object):
         return 0.0
 
     def start_jogging(
-        self, velocity: int, use_gpe: bool = False, scheduler: Scheduler | None = None
+        self, velocity: int, use_gpe: bool = False
     ) -> bool:
         """Sends the start jogging command to the gripper.
 
@@ -658,9 +539,8 @@ class Driver(object):
         Returns:
             bool: True if the command was successful, False otherwise.
         """
-        scheduler = global_scheduler
         if not self.connected:
-            return False
+            raise RuntimeError("Failed to start jogging: Not connected.")
 
         def do_send() -> dict:
             cmd = {}
@@ -669,18 +549,12 @@ class Driver(object):
   
             return {"5": self._send_cmd(cmd, vel=abs(velocity)), "6": 0, "7": 0}
             
-        expected_status = {}
-        if scheduler:
-            expected_status = scheduler.execute(func=partial(do_send)).result()
-        else:
-            expected_status = do_send()
-    
+        expected_status = global_scheduler.execute(func=partial(do_send)).result()
         return self.wait_for_status(bits=expected_status)
 
-    def stop_jogging(self, scheduler: Scheduler | None = None) -> bool:
-        scheduler = global_scheduler
+    def stop_jogging(self) -> bool:
         if not self.connected:
-            return False
+            raise RuntimeError("Failed to stop jogging: Not connected.")
 
         def do_send() -> dict:
             # The firmware behaves differently when stopping jogging:
@@ -697,18 +571,12 @@ class Driver(object):
             self.send_plc_output()
             return {"5": cmd_toggle_before ^ 1, "6": 0, "7": 0}
 
-        expected_status = {}
-        if scheduler:
-            expected_status = scheduler.execute(func=partial(do_send)).result()
-        else:
-            expected_status = do_send()
-
+        expected_status = global_scheduler.execute(func=partial(do_send)).result()
         return self.wait_for_status(bits=expected_status)
 
-    def twitch_jaws(self, scheduler: Scheduler | None = None) -> bool:
-        scheduler = global_scheduler
+    def twitch_jaws(self) -> bool:
         if not self.connected:
-            return False
+            raise RuntimeError("Failed to twitch jaws: Not connected.")
 
         def move(step: int) -> bool:
             return self.move_to_position(
@@ -728,22 +596,16 @@ class Driver(object):
             start_inwards = actual_pos - min_pos > max_pos - actual_pos
             if start_inwards:
                 step *= -1
-
             for _ in range(2):
                 move(step)
                 move(-step)
-                
             return True
 
-        if scheduler:
-            return scheduler.execute(func=partial(do_send)).result()
-        else:
-            return do_send()
+        return global_scheduler.execute(func=partial(do_send)).result()
 
-    def soft_reset(self, scheduler: Scheduler | None = None) -> bool:
-        scheduler = global_scheduler
+    def soft_reset(self) -> bool:
         if not self.connected:
-            return False
+            raise RuntimeError("Failed to soft reset: Not connected.")
 
         def do_send() -> dict:
             self.clear_plc_output()
@@ -754,12 +616,7 @@ class Driver(object):
             self.send_plc_output()
             return {"5": cmd_toggle_before ^ 1}
 
-        expected_status = {}
-        if scheduler:
-            expected_status = scheduler.execute(func=partial(do_send)).result()
-        else:
-            expected_status = do_send()
-
+        expected_status = global_scheduler.execute(func=partial(do_send)).result()
         return self.wait_for_status(bits=expected_status)
 
     def receive_plc_input(self) -> bool:
@@ -967,7 +824,7 @@ class Driver(object):
             RuntimeError: If not connected to the module or if the parameter is not writable.
         """
         if not self.connected:
-            raise RuntimeError("Failed to write module parameter '{param}': Not connected to module.")
+            raise RuntimeError("Failed to write module parameter '{param}': Not connected.")
 
         if param not in self.writable_parameters:
             raise RuntimeError(f"Failed to write module parameter '{param}': Parameter is not writable.")
@@ -1010,9 +867,9 @@ class Driver(object):
     def encode_module_parameter(self, data: list[Any], param: str) -> bytearray:
         result = bytearray()
         if not self.connected:
-            return result
+            raise RuntimeError("Failed to encode module parameter: Not connected.")
         if not data or param not in self.writable_parameters:
-            return result
+            raise RuntimeError(f"Failed to encode module parameter: Invalid data or parameter '{param}'.")
 
         type_str = str(self.writable_parameters[param]["type"])
         expected_size = int(self.writable_parameters[param]["registers"]) * 2
@@ -1056,11 +913,11 @@ class Driver(object):
         """
         error: tuple[tuple[Any, ...], str] = (tuple(), "")
         if not self.connected:
-            return error
+            raise RuntimeError("Failed to decode module parameter: Not connected.")
         if not data:
-            return error
+            raise RuntimeError("Failed to decode module parameter: No data provided.")
         if param not in self.readable_parameters:
-            return error
+            raise RuntimeError(f"Failed to decode module parameter: Unknown parameter '{param}'.")
 
         value_type = str(self.readable_parameters[param]["type"])
 
@@ -1354,29 +1211,18 @@ class Driver(object):
                 self.plc_input_buffer[byte_index] &= ~(1 << bit_index)
             return True
 
-    def _module_update(self, scheduler: Scheduler | None = None) -> None:
-        scheduler = global_scheduler
+    def _module_update(self) -> None:
         self.stop_request.clear()
         fails = 0
         next_time = time.perf_counter()
         while not self.stop_request.is_set():
-            runs_fine = (
-                scheduler.execute(func=partial(self.receive_plc_input)).result()
-                if scheduler
-                else self.receive_plc_input()
-            )
+            runs_fine = global_scheduler.execute(func=partial(self.receive_plc_input)).result()
             if runs_fine:
                 if self.connected:
                     self.update_count += 1
                     fails = 0
                 else:
-                    self.connected = (
-                        scheduler.execute(
-                            func=partial(self.update_module_parameters)
-                        ).result()
-                        if scheduler
-                        else self.update_module_parameters()
-                    )
+                    self.connected = global_scheduler.execute(func=partial(self.update_module_parameters)).result()
 
                 time.sleep(max(0, next_time - time.perf_counter()))
                 next_time += self.update_cycle

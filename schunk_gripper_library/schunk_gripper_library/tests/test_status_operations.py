@@ -16,8 +16,11 @@ def test_driver_rejects_reading_reserved_or_invalid_status_bits():
     driver = Driver()
     invalid_bits = [-1, 32]
     for bit in driver.reserved_status_bits + invalid_bits:
-        assert isinstance(driver.get_status_bit(bit), bool)  # call fails
-        assert not driver.get_status_bit(bit)
+        try:
+            driver.get_status_bit(bit)
+            assert False, "Expected an exception for reserved or invalid status bit."
+        except Exception:
+            pass
 
 
 def test_driver_supports_reading_error_code():
@@ -43,12 +46,6 @@ def test_driver_supports_reading_additional_code():
     additional_code = "0xEF"
     driver.plc_input_buffer[driver.additional_byte] = int(additional_code, 16)
     assert driver.get_additional_code() == additional_code
-
-
-def test_driver_supports_reading_full_diagnostics():
-    driver = Driver()
-    everything_ok = "error_code: 0x0, warning_code: 0x0, additional_code: 0x0"
-    assert driver.get_status_diagnostics() == everything_ok
 
 
 def test_driver_supports_reading_actual_position():

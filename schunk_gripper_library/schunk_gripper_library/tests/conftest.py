@@ -1,16 +1,8 @@
-import time
 import pytest
 import yaml
 import os
-from .etc.pseudo_terminals import Connection
-from .etc.hms_chip import HMSChip
-from unittest.mock import patch
-import httpx
-import pymodbus
 from schunk_gripper_library.driver import Driver
-from schunk_gripper_library.utility import Scheduler
 from typing import Generator, List
-from pymodbus.client import ModbusSerialClient
 
 
 DEVICES_CONFIG_PATH = os.path.join(os.path.dirname(__file__), 'config.yaml') # this file contains the device configs
@@ -58,18 +50,10 @@ def _load_device_configs() -> dict:
             assert config[DEVICE_CONFIG_WORKPIECE_AT_POSITION] >= 0, "workpiece_at_position must be non-negative."
 
     return device_configs
-        
-
-@pytest.fixture(scope="session")
-def scheduler() -> Generator[Scheduler, None, None]:
-    scheduler = Scheduler()
-    # scheduler.start()
-    yield scheduler
-    # scheduler.stop()
 
 
 @pytest.fixture(scope="session")
-def drivers(scheduler) -> Generator[List[Driver], None, None]:
+def drivers() -> Generator[List[Driver], None, None]:
     """
     This fixture creates a driver instance for each device defined in the device config file.
     The drivers are connected based on their configuration (ethernet or modbus).
@@ -87,12 +71,10 @@ def drivers(scheduler) -> Generator[List[Driver], None, None]:
         is_modbus = all(field in config for field in DEVICE_CONFIG_MODBUS_FIELDS)
     
         if is_ethernet:
-            connected = driver.connect(host=config['host'], port=config['port'], scheduler=scheduler)
+            connected = driver.connect(host=config['host'], port=config['port'])
 
         if is_modbus:
-            connected = driver.connect(serial_port=config['serial_port'], 
-                                       device_id=config['device_id'],
-                                       scheduler=scheduler)
+            connected = driver.connect(serial_port=config['serial_port'], device_id=config['device_id'])
 
         assert connected, f"Failed to connect to device '{name}' at {driver.addr_str}."
         drivers.append(driver)
@@ -105,53 +87,16 @@ def drivers(scheduler) -> Generator[List[Driver], None, None]:
 
 
 @pytest.fixture(scope="function", autouse=True)
-def acknowledge_drivers(drivers, scheduler):
+def acknowledge_drivers(drivers):
     """Acknowledges all drivers before each test function.
     """
     for driver in drivers:
-        assert driver.acknowledge(scheduler=scheduler), f"Failed to acknowledge driver at {driver.addr_str}."
-
-
-@pytest.fixture
-def simulate_httpx_failure():
-    controller = {"exception": None}
-    pass_through = httpx.Client.get
-
-    def side_effect(self, *args, **kwargs):
-        if controller["exception"] is not None:
-            raise controller["exception"]
-        return pass_through(self, *args, **kwargs)
-
-    patcher = patch("httpx.Client.get", new=side_effect)
-    patcher.start()
-
-    yield controller
-
-    patcher.stop()
-
-
-@pytest.fixture
-def simulate_pymodbus_failure():
-    controller = {"exception": None}
-    pass_through = ModbusSerialClient.read_holding_registers
-
-    def side_effect(self, *args, **kwargs):
-        if controller["exception"] is not None:
-            raise controller["exception"]
-        return pass_through(self, *args, **kwargs)
-
-    patcher = patch(
-        "pymodbus.client.ModbusSerialClient.read_holding_registers", new=side_effect
-    )
-    patcher.start()
-
-    yield controller
-
-    patcher.stop()
+        assert driver.acknowledge(), f"Failed to acknowledge driver at {driver.addr_str}."
 
 
 @pytest.fixture(scope="function")
-def ethernet_gripper():
+def hms_chip():
+    from .utils.hms_chip import HMSChip
     gripper = HMSChip()
     gripper.power_on()
     yield None

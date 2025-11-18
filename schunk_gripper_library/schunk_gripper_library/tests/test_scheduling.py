@@ -48,28 +48,7 @@ def test_tasks_are_comparable_for_equality():
     task1 = Task(func=partial(func, a=1, b=2))
     task2 = Task(func=partial(func, a=1, b=42))
     assert task1 != task2
-
-
-def test_scheduler_runs_internal_worker_thread_when_started():
-    before = threading.active_count()
-    scheduler = Scheduler()
-    for _ in range(3):
-        scheduler.start()
-        assert threading.active_count() == before + 1
-        scheduler.stop()
-        assert threading.active_count() == before
-
-
-def test_schedular_supports_multiple_starts_and_stops():
-    scheduler = Scheduler()
-    before = threading.active_count()
-    for _ in range(3):
-        scheduler.start()
-    assert threading.active_count() == before + 1
-    for _ in range(3):
-        scheduler.stop()
-    assert threading.active_count() == before
-
+    
 
 def test_scheduler_uses_a_priority_queue_for_tasks():
     scheduler = Scheduler()

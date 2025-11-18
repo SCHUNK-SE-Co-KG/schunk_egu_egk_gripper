@@ -159,7 +159,7 @@ class EthernetScanner(object):
     def __init__(self) -> None:
         self.is_ready: bool = False
         self.discovery_port: int = 3250  # HMS standard
-        self.webserver_port: int = 80
+        self.webserver_port: int = 80  # default webserver port of grippers
         self.sender_sockets: dict[str, socket.socket] = {}  # one socket per interface
         self.receiver_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self.receiver_socket_timeout: float = 1.0
@@ -299,7 +299,7 @@ class EthernetScanner(object):
     def _build_discovery_message(self, iface: str) -> bytes:
         """Builds the discovery message for the given interface.
 
-        The message includes the interface's MAC address.
+        The message consists of a magic sequence and the interface's MAC address.
         Grippers that receive this message will respond via broadcast.
         """
         addresses = netifaces.ifaddresses(iface)
