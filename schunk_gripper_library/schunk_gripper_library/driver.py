@@ -56,8 +56,8 @@ class Driver(object):
         self.warning_byte: int = 14
         self.additional_byte: int = 15
         self.gripper_type: str = ""
-        self.module_type: str = ""
-        self.fieldbus: str = ""
+        self.module_type: str = ""  # e. g. "EGU_50_M_B", see module_types.json
+        self.fieldbus: str = ""  # e. g. "EI", see fieldbus_types.json
         self.module_parameters: dict = {  # positions in um, velocities in um/s, forces in %
             "module_type": None,
             "fieldbus_type": None,
@@ -663,14 +663,11 @@ class Driver(object):
             return False
 
         def do_send() -> dict:
-            if not self.set_target_speed(abs(velocity)):
-                raise RuntimeError("Failed to set target speed")
-            
             cmd = {}
             cmd[8 if velocity < 0 else 9] = True
             cmd[31] = use_gpe and self.gpe_available()
   
-            return {"5": self._send_cmd(cmd)}
+            return {"5": self._send_cmd(cmd, vel=abs(velocity)), "6": 0, "7": 0}
             
         expected_status = {}
         if scheduler:
@@ -698,7 +695,7 @@ class Driver(object):
             self.set_control_bit(bit=8, value=False)  # stop negative jogging
             self.set_control_bit(bit=9, value=False)  # stop positive jogging
             self.send_plc_output()
-            return {"5": cmd_toggle_before ^ 1, "6": 0}
+            return {"5": cmd_toggle_before ^ 1, "6": 0, "7": 0}
 
         expected_status = {}
         if scheduler:
@@ -778,6 +775,9 @@ class Driver(object):
             return self.write_module_parameter(self.plc_output, self.plc_output_buffer)
 
     def gpe_available(self) -> bool:
+        if not self.connected:
+            raise RuntimeError("Failed to check GPE availability: Not connected.")
+
         if not self.module_type:
             return False
         keys = self.module_type.split("_")
@@ -900,10 +900,13 @@ class Driver(object):
             bytearray: The value of the specified parameter.
                        Use `decode_module_parameter()` to convert the
                        bytearray into the correct type.
+                
+        Raises:
+            RuntimeError: If the parameter is not readable.
         """
         result = bytearray()
         if param not in self.readable_parameters:
-            return result
+            raise RuntimeError(f"Failed to read module parameter '{param}': Parameter is not readable.")
 
         if not self.web_client:
             # read from modbus
@@ -952,8 +955,23 @@ class Driver(object):
         return result
 
     def write_module_parameter(self, param: str, data: bytearray) -> bool:
+        """Writes the given module parameter to the module.
+        
+        Args:
+            param (str): The parameter address in hex format, e.g. "0x0040".
+            data (bytearray): The data to write to the parameter.
+        Returns:
+            bool: True if the write was successful, False otherwise.
+
+        Raises:
+            RuntimeError: If not connected to the module or if the parameter is not writable.
+        """
+        if not self.connected:
+            raise RuntimeError("Failed to write module parameter '{param}': Not connected to module.")
+
         if param not in self.writable_parameters:
-            return False
+            raise RuntimeError(f"Failed to write module parameter '{param}': Parameter is not writable.")
+
         expected_size = self.writable_parameters[param]["registers"] * 2
         if len(data) != expected_size:
             return False
@@ -978,7 +996,7 @@ class Driver(object):
                 )
             return not pdu.isError()
 
-        if self.web_client and self.connected:
+        if self.web_client:
             # write to http server
             payload = {"inst": param, "value": data.hex().upper()}
             with self.web_client_lock:
@@ -1370,20 +1388,33 @@ class Driver(object):
                 else:
                     time.sleep(self.reconnect_interval)
 
-    def _send_cmd(self, control_bits: dict[str, bool]) -> int:
+    def _send_cmd(self, control_bits: dict[str, bool], pos: int | None = None, vel: int | None = None, force: int | None = None) -> int:
         """Sends the given control bits to the device.
         
         Args:
             control_bits -- A dictionary mapping control bits (keys) to their desired values (values).
+            pos -- Optional target position in micrometers.
+            vel -- Optional target speed in micrometers per second.
+            force -- Optional gripping force in percentage (can exceed 100% for strong grips).
         Returns:
             The expected command toggle bit after sending the command
         """
         self.clear_plc_output()
         self.send_plc_output()
         self.receive_plc_input()
+        
         cmd_toggle_before = self.get_status_bit(bit=5)
+
         for bit_str, value in control_bits.items():
             self.set_control_bit(bit=int(bit_str), value=value)
+
+        if pos is not None:
+            self.set_target_position(pos)
+        if vel is not None:
+            self.set_target_speed(vel)
+        if force is not None:
+            self.set_gripping_force(force)
+
         self.send_plc_output()
         return cmd_toggle_before ^ 1
 
