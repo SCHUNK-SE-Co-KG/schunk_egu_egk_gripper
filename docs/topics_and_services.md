@@ -4,13 +4,14 @@ The table below lists all driver-level and per-gripper endpoints and their lifec
 
 Notes:
 - Per-gripper endpoints are namespaced under the driver using the gripper identifier: `/schunk/driver/<gripper_id>/...`
-- Service names are consistent across gripper types; however, service types for gripping differ because certain gripper types support different gripping modes.
+- Service names are consistent across gripper types; however, the underlying service types for gripping differ because certain gripper types support different gripping modes.
 - In the `unconfigured` state, only driver-level endpoints are available; per-gripper topics/services are exposed in `active`.
 - Lifecycle transitions follow standard ROS 2 conventions; driver-level lifecycle services are available in multiple states.
 
 
+### Provided Topics and Services:
 
-| Scope        | Name                                                           | Kind     | Type                                                     | Lifecycle             |
+| Scope        | Name                                                           | Kind     | Type                                                     | Lifecycle            |
 |--------------|----------------------------------------------------------------|----------|----------------------------------------------------------|-----------------------|
 | Driver       | /schunk/driver/connection_state                                | Topic    | schunk_gripper_interfaces/msg/ConnectionState            | unconfigured, active  |
 | Driver       | /schunk/driver/transition_event                                | Topic    | lifecycle_msgs/msg/TransitionEvent                       | unconfigured, active  |
