@@ -374,7 +374,7 @@ class Driver(object):
         )
         # retrieve the prehold time in case the gripper is configured for pre-gripping
         prehold_time_sec = 0.0
-        prehold_time_data = self.read_module_parameter("0x0380")
+        prehold_time_data = self._read_param_now("0x0380")
         values, value_type = self.decode_module_parameter(prehold_time_data, "0x0380")
         if value_type == "uint16" and len(values) == 1:
             prehold_time_sec = values[0] / 1000.0  # ms -> s
@@ -621,7 +621,7 @@ class Driver(object):
 
     def receive_plc_input(self) -> bool:
         with self.input_buffer_lock:
-            data = self.read_module_parameter(self.plc_input)
+            data = self._read_param_now(self.plc_input)
             if data:
                 self.plc_input_buffer = data
                 return True
@@ -629,7 +629,7 @@ class Driver(object):
 
     def send_plc_output(self) -> bool:
         with self.output_buffer_lock:
-            return self.write_module_parameter(self.plc_output, self.plc_output_buffer)
+            return self._write_param_now(self.plc_output, self.plc_output_buffer)
 
     def gpe_available(self) -> bool:
         if not self.connected:
@@ -682,7 +682,7 @@ class Driver(object):
         raise RuntimeError("Unknown sub-variant")
 
     def update_module_parameters(self) -> bool:
-        if not (fieldbus_param := self.read_module_parameter("0x1130")):
+        if not (fieldbus_param := self._read_param_now("0x1130")):
             return False
 
         self.fieldbus = self.valid_fieldbus_types.get(
@@ -693,7 +693,7 @@ class Driver(object):
         for param, fields in self.readable_parameters.items():
             if fields["name"] in self.module_parameters:
                 field_type = str(fields["type"])
-                if not (data := self.read_module_parameter(param)):
+                if not (data := self._read_param_now(param)):
                     return False
 
                 if field_type == "float":
@@ -740,16 +740,34 @@ class Driver(object):
         return True
     
     def read_param(self, param: str) -> bytearray:
+        """Reads the specified parameter from the module. 
+
+        Note: This is the client-side interface for reading module parameters.
+        For internal use, see `_read_param_now()` to avoid deadlocks within the scheduler.
+
+        Args:
+            param (str): The parameter address in hex format, e.g. "0x0040".
+
+        Returns:
+            bytearray: The value of the specified parameter.
+                       Use `decode_module_parameter()` to convert the
+                       bytearray into the correct type.
+                
+        Raises:
+            RuntimeError: If the parameter is not readable.
+        """
         def do_read() -> bytearray:
-            return self.read_module_parameter(param)
+            return self._read_param_now(param)
         
         return global_scheduler.execute(func=partial(do_read)).result()
         
 
-    def read_module_parameter(self, param: str) -> bytearray:
-        """
-        Reads the specified parameter from the module. 
+    def _read_param_now(self, param: str) -> bytearray:
+        """Reads the specified parameter from the module immediately, bypassing the scheduler.
 
+        Note: This is an internal method and should not be called client-side.
+        Use `read_param()` instead for client-side access.
+        
         Args:
             param (str): The parameter address in hex format, e.g. "0x0040".
 
@@ -811,9 +829,33 @@ class Driver(object):
 
         return result
 
-    def write_module_parameter(self, param: str, data: bytearray) -> bool:
+    def write_param(self, param: str, data: bytearray) -> bool:
         """Writes the given module parameter to the module.
+
+        Note: This is the client-side interface for writing module parameters.
+        For internal use, see `_write_param_now()` to avoid deadlocks within the scheduler.
+
+        Args:
+            param (str): The parameter address in hex format, e.g. "0x0040".
+            data (bytearray): The data to write to the parameter.
+
+        Returns:
+            bool: True if the write was successful, False otherwise.
+
+        Raises:
+            RuntimeError: If not connected to the module or if the parameter is not writable.
+        """
+        def do_write() -> bool:
+            return self._write_param_now(param, data)
         
+        return global_scheduler.execute(func=partial(do_write)).result()
+
+    def _write_param_now(self, param: str, data: bytearray) -> bool:
+        """Writes the given module parameter to the module immediately, bypassing the scheduler.
+        
+        Note: This is an internal method and should not be called client-side.
+        Use `write_param()` instead for client-side access.
+
         Args:
             param (str): The parameter address in hex format, e.g. "0x0040".
             data (bytearray): The data to write to the parameter.
