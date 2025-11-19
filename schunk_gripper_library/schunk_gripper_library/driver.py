@@ -633,7 +633,7 @@ class Driver(object):
 
     def gpe_available(self) -> bool:
         if not self.connected:
-            raise RuntimeError("Failed to check GPE availability: Not connected.")
+            return False
 
         if not self.module_type:
             return False
@@ -1003,7 +1003,7 @@ class Driver(object):
                 values = struct.unpack(f"{count}I", data)
 
         else:
-            return error
+            raise RuntimeError(f"Failed to decode module parameter: Unsupported type '{value_type}'.")
 
         return (values, value_type)
 
