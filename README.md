@@ -9,7 +9,7 @@
 <h1 align="center">SCHUNK Gripper</h1>
 
 <p align="center">
-  <a href="https://opensource.org/licenses/gpl-license">
+  <a href="https://www.gnu.org/licenses/gpl-3.0.html">
     <img src="https://img.shields.io/badge/License-GPLv3-orange.svg" alt="License">
   </a>
   <a href="https://github.com/SCHUNK-SE-Co-KG/schunk_egu_egk_gripper/actions">
@@ -27,7 +27,7 @@ The **SCHUNK Gripper ROS2 Driver** provides full functionality for controlling S
 - [EGK](https://schunk.com/us/en/gripping-systems/parallel-gripper/egk/c/PGR_6557) – gripper for small components
 - [EZU](https://schunk.com/us/en/gripping-systems/centric-grippers/ezu/c/PGR_7387) – centric gripper
 
-Currently, the driver supports grippers with following interfaces:
+The driver supports grippers with the following interfaces:
 - Ethernet/IP
 - Modbus RTU
 - Profinet
@@ -35,28 +35,35 @@ Currently, the driver supports grippers with following interfaces:
 
 ## Overview
 
-The SCHUNK Gripper ROS2 driver provides an interface to control SCHUNK mechatronic grippers over either **Modbus RTU** or **Ethernet/IP**.
+The SCHUNK Gripper ROS2 driver provides an interface to control SCHUNK mechatronic grippers.
 The driver architecture consists of:
 
 - **Gripper Library** – handles low-level communication and abstracts the protocol details for each gripper variant.
 - **ROS2 Node** – exposes topics and services to read the gripper state and send commands.
-- **Interfaces** - a collection of message and service defintions to interact with the grippers.
+- **Interfaces** - a collection of message and service definitions to interact with the grippers.
 
 The driver can **automatically detect connected grippers** and supports **handling multiple grippers simultaneously** within a single ROS2 node, with each gripper running in a separate ROS2 namespace.
 
 ### Lifecycle Management
 
-The driver node follows the standard [ROS2 lifecycle](https://design.ros2.org/articles/node_lifecycle.html) conventions. All grippers managed by a single driver node share the **same lifecycle state** — `unconfigured`, `inactive`, `active`, and `finalized`.
+The driver node follows the standard [ROS2 lifecycle](https://design.ros2.org/articles/node_lifecycle.html) conventions. **All grippers managed by a single driver node share the same lifecycle state**. The states are `unconfigured`, `inactive`, `active`, and `finalized`.
 
-When running in **normal mode**, the driver does **not** perform state transitions automatically; all transitions must be triggered via service calls from an external client. In **headless mode**, the driver does transition automatically to the `active` state after startup.
+The driver supports two launch modes:
+- **Normal mode:** The driver starts in the `unconfigured` state. Transitions are **manual** and must be triggered via service calls from an external client.
+- **Headless mode:** The driver automatically connects to previously saved grippers and transitions to the `active` state after startup.
 
-Services and published topics are **bound to the lifecycle state** and are only available when the driver (and all connected grippers) is in the appropriate state. For example, grip commands can only be issued when the node is in the `active` state.
+All services and topics are bound to the lifecycle state and are only available when the driver (and all connected grippers) is in the appropriate state. For example:
+- Grippers can only be added or scanned in the `unconfigured` state.
+- Grip commands can only be issued when the node is `active`.
 
 
 ## Topics and Services
 
 The driver exposes topics and services to retrieve the gripper state and parameters, and to issue commands such as gripping, moving, jogging, releasing etc.
 All topics and services are namespaced per gripper and are advertised only when the driver is in the appropriate lifecycle state (e.g., `active`).
+All service names are consistent across all supported gripper types; however, service types for gripping differ because certain gripper types support different gripping modes.
+
+See the full list of endpoints and lifecycle availability: [docs/topics_and_services.md](./docs/topics_and_services.md)
 
 
 ## Connecting to Grippers
