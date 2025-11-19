@@ -33,24 +33,24 @@ The **SCHUNK Gripper ROS2 Driver** provides full functionality for controlling S
 ## Quickstart
 
 >### 📦 Installation
->Start by setting up the driver and dependencies.
->Supports both native installation and Docker setup.
+>Start by setting up the driver and dependencies.  
+>Supports both native installation and Docker setup.  
 >[Open documentation →](./docs/installation.md)
 
 >### 🚀 Launching
->Learn how to launch the driver in different modes.
+>Learn how to launch the driver in different modes.  
 >[Open documentation →](./docs/launching.md)
 
 >### 📡 Topics & Services
->Full API reference for all driver interactions.
+>Full API reference for all driver interactions.  
 >[Open documentation →](./docs/topics_and_services.md)
 
 >### 💡 Examples
->Practical usage examples for different launch modes.
+>Practical usage examples for different launch modes.  
 >[Open documentation →](./docs/examples.md)
 
 >### 🧪 Testing
->Run automated checks and verify driver functionality using the included test suite.
+>Run automated checks and verify driver functionality using the included test suite.  
 >[Open documentation →](./docs/testing.md)
 
 
