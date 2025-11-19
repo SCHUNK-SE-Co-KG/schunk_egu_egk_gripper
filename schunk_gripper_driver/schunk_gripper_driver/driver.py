@@ -133,7 +133,6 @@ class Driver(Node):
         # Node parameters
         self.declare_parameter("log_level", "INFO")
 
-        self.scheduler.start()
         self.gripper_services: list[Service] = []
         self.joint_state_publishers: dict[str, Publisher] = {}
         self.gripper_state_publishers: dict[str, Publisher] = {}
