@@ -128,9 +128,13 @@ class Scheduler(object):
                 break
             with self.enqueued_tasks_lock:
                 self.enqueued_tasks.remove(task)
-            result = task.func()
-            if task.future:
-                task.future.set_result(result)
+            try:
+                result = task.func()
+                if task.future:
+                    task.future.set_result(result)
+            except Exception as e:
+                if task.future:
+                    task.future.set_exception(e)
             self.tasks.task_done()
 
 
