@@ -45,7 +45,7 @@ The **SCHUNK Gripper ROS2 Driver** provides full functionality for controlling S
 >Full API reference for all driver interactions.
 >[Open documentation →](./docs/topics_and_services.md)
 
->### 🧪 Examples
+>### 💡 Examples
 >Practical usage examples for different launch modes.
 >[Open documentation →](./docs/examples.md)
 
