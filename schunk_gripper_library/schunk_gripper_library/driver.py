@@ -466,6 +466,13 @@ class Driver(object):
             "firmware_version": self.module_parameters["sw_version_txt"],
             **connection_info,
         }
+
+        # firmware version formatting is <major>.<minor>.<patch>.<build> => remove build
+        if isinstance(spec["firmware_version"], str):
+            tokens = spec["firmware_version"].split(".")
+            if len(tokens) == 4:
+                spec["firmware_version"] = ".".join(tokens[:3])  
+
         return spec
 
     def brake_test(self) -> bool:
