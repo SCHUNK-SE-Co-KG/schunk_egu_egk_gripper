@@ -699,9 +699,9 @@ class Driver(object):
 
                 if field_type == "float":
                     if self.fieldbus == "PN":
-                        value = int(struct.unpack("f", data[::-1])[0] * 1e3)
+                        value = int(struct.unpack("f", data[::-1])[0] * 1e3)  # [mm] -> [um]
                     else:
-                        value = int(struct.unpack("f", data)[0] * 1e3)
+                        value = int(struct.unpack("f", data)[0] * 1e3)  # [mm] -> [um]
 
                 elif field_type == "enum":
                     value = int(struct.unpack("h", data)[0])
