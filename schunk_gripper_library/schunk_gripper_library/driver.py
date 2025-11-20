@@ -63,10 +63,11 @@ class Driver(object):
             "fieldbus_type": None,
             "serial_no_txt": None,
             "sw_version_txt": None,
-            "min_pos": None,
-            "max_pos": None,
-            "max_vel": None,
-            "max_grp_vel": None,
+            "min_pos": None,  # [um]
+            "max_pos": None,  # [um]
+            "min_vel": None,  # [um/s]
+            "max_vel": None,    # [um/s]
+            "max_grp_vel": None,  # [um/s]
             "wp_release_delta": None,
             "max_phys_stroke": None,
             "max_grp_force": None,
@@ -1169,9 +1170,20 @@ class Driver(object):
         return diagnostics
 
     def set_target_position(self, target_pos: int) -> bool:
+        if not isinstance(target_pos, int):
+            raise ValueError("Target position must be an integer")
+        
         with self.output_buffer_lock:
-            if not isinstance(target_pos, int):
-                raise ValueError("Target position must be an integer")
+            # snap to limits if within epsilon to account for rounding errors
+            eps = 10  # um
+            min_pos_um = self.module_parameters.get("min_pos")  # um
+            max_pos_um = self.module_parameters.get("max_pos")  # um
+            if min_pos_um is not None and max_pos_um is not None:
+                if target_pos < min_pos_um and target_pos + eps >= min_pos_um:
+                    target_pos = min_pos_um
+                elif target_pos > max_pos_um and target_pos - eps <= max_pos_um:
+                    target_pos = max_pos_um
+
             data = bytes()
             try:
                 data = bytes(struct.pack("i", target_pos))
@@ -1190,11 +1202,26 @@ class Driver(object):
             return struct.unpack("i", data)[0]
 
     def set_target_speed(self, target_speed: int) -> bool:
+        """Sets the target speed for the gripper in um/s."""
+        if not isinstance(target_speed, int):
+            raise ValueError("Target speed must be an integer")
+        if target_speed < 0:
+            raise ValueError("Target speed must be non-negative")
         with self.output_buffer_lock:
-            if not isinstance(target_speed, int):
-                raise ValueError("Target speed must be an integer")
-            if target_speed < 0:
-                raise ValueError("Target speed must be non-negative")
+            # snap to limits if within epsilon to account for rounding errors
+            eps = 10  # um/s
+            min_speed_um_s = self.module_parameters.get("min_vel")  # um/s
+            max_speed_um_s = self.module_parameters.get("max_vel")  # um/s
+            max_grp_speed_um_s = self.module_parameters.get("max_grp_vel")  # um/s
+            if min_speed_um_s is not None and max_speed_um_s is not None:
+                if target_speed < min_speed_um_s and target_speed + eps >= min_speed_um_s:
+                    target_speed = min_speed_um_s
+                elif target_speed > max_speed_um_s and target_speed - eps <= max_speed_um_s:
+                    target_speed = max_speed_um_s
+                elif max_grp_speed_um_s is not None:
+                    if target_speed > max_grp_speed_um_s and target_speed - eps <= max_grp_speed_um_s:
+                        target_speed = max_grp_speed_um_s
+
             data = bytes()
             try:
                 data = bytes(struct.pack("i", target_speed))
