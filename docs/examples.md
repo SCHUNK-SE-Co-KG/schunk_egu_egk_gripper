@@ -1,4 +1,4 @@
-## Examples
+# Examples
 
 These examples demonstrate how to use the SCHUNK Gripper ROS2 driver primarily via CLI commands.
 All actions shown here, such as adding grippers, issuing commands, and managing the driver lifecycle, can also be performed programmatically using ROS2 service calls from your own code.
@@ -11,7 +11,7 @@ All actions shown here, such as adding grippers, issuing commands, and managing 
 Launch an empty driver in normal mode (`headless:=false`):
 
 ```bash
-ros2 launch schunk_gripper_driver driver.launch.py headless:=false
+ros2 launch schunk_gripper_driver driver.launch.py
 ```
 
 The driver starts in the `unconfigured` state and no grippers are connected yet.
@@ -121,7 +121,7 @@ This example connects a Modbus gripper with ID 13 at serial port `/dev/ttyUSB0` 
 Launch the driver:
 
 ```bash
-ros2 launch schunk_gripper_driver driver.launch.py headless:=false serial_port:=/dev/ttyUSB0 device_id:=13
+ros2 launch schunk_gripper_driver driver.launch.py serial_port:=/dev/ttyUSB0 device_id:=13
 ```
 
 The driver starts in the `unconfigured` state. You can now proceed as in _Example 1_.

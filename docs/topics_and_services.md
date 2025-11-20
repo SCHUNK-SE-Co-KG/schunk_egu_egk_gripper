@@ -1,4 +1,4 @@
-## Topics and Services
+# Topics and Services
 
 The table below lists all driver-level and per-gripper endpoints and their lifecycle availability.
 
@@ -9,7 +9,7 @@ The table below lists all driver-level and per-gripper endpoints and their lifec
 - Lifecycle transitions follow standard ROS 2 conventions; driver-level lifecycle services are available in multiple states.
 
 
-### Provided Topics and Services:
+## Provided Topics and Services:
 
 | Scope        | Name                                                           | Kind     | Type                                                     | Lifecycle            |
 |--------------|----------------------------------------------------------------|----------|----------------------------------------------------------|-----------------------|
