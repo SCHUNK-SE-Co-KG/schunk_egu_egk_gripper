@@ -4,7 +4,7 @@ The table below lists all driver-level and per-gripper endpoints and their lifec
 
 #### Notes:
 - Per-gripper endpoints are namespaced under the driver using the gripper identifier: `/schunk/driver/<gripper_id>/...`
-- Service names are consistent across gripper types; however, the underlying service types for gripping differ because certain gripper types support different gripping modes.
+- Service names are consistent across gripper types; however, some underlying service types differ because certain gripper types support different execution modes.
 - In the `unconfigured` state, only driver-level endpoints are available; per-gripper topics/services are exposed in `active`.
 - Lifecycle transitions follow standard ROS 2 conventions; driver-level lifecycle services are available in multiple states.
 
@@ -41,10 +41,10 @@ The table below lists all driver-level and per-gripper endpoints and their lifec
 | Per-gripper  | /schunk/driver/<gripper_id>/acknowledge                        | Service  | std_srvs/srv/Trigger                                     | active                |
 | Per-gripper  | /schunk/driver/<gripper_id>/brake_test                         | Service  | std_srvs/srv/Trigger                                     | active                |
 | Per-gripper  | /schunk/driver/<gripper_id>/fast_stop                          | Service  | std_srvs/srv/Trigger                                     | active                |
-| Per-gripper  | /schunk/driver/<gripper_id>/grip                               | Service  | schunk_gripper_interfaces/srv/Grip _(EGU)_<br>schunk_gripper_interfaces/srv/GripWithGPE _(EGU+GPE)_<br>schunk_gripper_interfaces/srv/GripWithVelocity _(EGK)_<br>schunk_gripper_interfaces/srv/GripWithVelocityAndGPE _(EGK+GPE)_| active                |
+| Per-gripper  | /schunk/driver/<gripper_id>/grip                               | Service  | schunk_gripper_interfaces/srv/Grip _(EGU/EZU)_<br>schunk_gripper_interfaces/srv/GripWithGPE _(EGU/EZU+GPE)_<br>schunk_gripper_interfaces/srv/GripWithVelocity _(EGK)_<br>schunk_gripper_interfaces/srv/GripWithVelocityAndGPE _(EGK+GPE)_| active                |
 | Per-gripper  | /schunk/driver/<gripper_id>/grip_at_position                   | Service  | schunk_gripper_interfaces/srv/GripAtPosition _(EGU)_<br>schunk_gripper_interfaces/srv/GripAtPositionWithGPE _(EGU+GPE)_<br>schunk_gripper_interfaces/srv/GripAtPositionWithVelocity _(EGK)_<br>schunk_gripper_interfaces/srv/GripAtPositionWithVelocityAndGPE _(EGK+GPE)_      | active                |
-| Per-gripper  | /schunk/driver/<gripper_id>/move_to_absolute_position          | Service  | schunk_gripper_interfaces/srv/MoveToAbsolutePositionGPE  | active                |
-| Per-gripper  | /schunk/driver/<gripper_id>/move_to_relative_position          | Service  | schunk_gripper_interfaces/srv/MoveToRelativePositionGPE  | active                |
+| Per-gripper  | /schunk/driver/<gripper_id>/move_to_absolute_position          | Service  | schunk_gripper_interfaces/srv/MoveToAbsolutePosition _(no GPE)_<br>schunk_gripper_interfaces/srv/MoveToAbsolutePositionGPE _(GPE)_  | active                |
+| Per-gripper  | /schunk/driver/<gripper_id>/move_to_relative_position          | Service  | schunk_gripper_interfaces/srv/MoveToRelativePosition _(no GPE)_<br>schunk_gripper_interfaces/srv/MoveToRelativePositionGPE _(GPE)_  | active                |
 | Per-gripper  | /schunk/driver/<gripper_id>/prepare_for_shutdown               | Service  | std_srvs/srv/Trigger                                     | active                |
 | Per-gripper  | /schunk/driver/<gripper_id>/read_parameter                     | Service  | schunk_gripper_interfaces/srv/ReadGripperParameter       | active                |
 | Per-gripper  | /schunk/driver/<gripper_id>/release                            | Service  | schunk_gripper_interfaces/srv/ReleaseWithGPE             | active                |

@@ -83,7 +83,7 @@ All services and topics are bound to the lifecycle state and are only available 
 
 The driver exposes topics and services to retrieve the gripper state and parameters, and to issue commands such as gripping, moving, jogging, or releasing.
 All topics and services are **namespaced per gripper** and are advertised only when the driver is in the appropriate lifecycle state (e.g., `active`).
-All service names are consistent across all supported gripper types; however, the underlying service types for gripping differ because certain gripper types support different gripping modes.
+All service names are consistent across all supported gripper types; however, some underlying service types differ because certain gripper types support different execution modes.
 
 A full list of available endpoints and their lifecycle availability can be found here: [docs/topics_and_services.md](./docs/topics_and_services.md)
 
