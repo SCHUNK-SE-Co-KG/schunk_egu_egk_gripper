@@ -2,7 +2,7 @@
 
 The table below lists all driver-level and per-gripper endpoints and their lifecycle availability.
 
-Notes:
+#### Notes:
 - Per-gripper endpoints are namespaced under the driver using the gripper identifier: `/schunk/driver/<gripper_id>/...`
 - Service names are consistent across gripper types; however, the underlying service types for gripping differ because certain gripper types support different gripping modes.
 - In the `unconfigured` state, only driver-level endpoints are available; per-gripper topics/services are exposed in `active`.
