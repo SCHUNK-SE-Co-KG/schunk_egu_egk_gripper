@@ -44,7 +44,7 @@ def test_jogging(drivers):
     """
     skip_if_no_drivers(drivers)
 
-    jog_duration_s = 1  # [s]
+    jog_duration_s = 0.5  # [s]
     futures = []
     for driver in drivers:
         gpe_available = driver.gpe_available()
