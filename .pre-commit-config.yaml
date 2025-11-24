@@ -28,7 +28,7 @@ repos:
     rev: '6fdf8a4af28071ed1d079c01122b34c5d587207a' # 24.2.0
     hooks:
     -   id: black
-        args: ['--line-length=140']
+        args: ['--line-length=140', '--preview', '--skip-magic-trailing-comma']
 
   - repo: https://github.com/pre-commit/mirrors-mypy
     rev: 'f40886d54c729f533f864ed6ce584e920feb0af7'  # v1.15.0
