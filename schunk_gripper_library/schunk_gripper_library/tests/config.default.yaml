@@ -1,5 +1,9 @@
 # ---------------------------------------------------------------------------
-# Test Device Configuration File
+# DO NOT MODIFY THIS FILE!
+# This is the default configuration file. To customize settings, copy it
+# to `config.yaml` and modify the copy instead.
+# ---------------------------------------------------------------------------
+# Default Test Device Configuration File
 # ---------------------------------------------------------------------------
 # Purpose:
 #   Defines the configuration for all test devices used in the
@@ -9,6 +13,14 @@
 #   Each entry under this file represents a physical or simulated device
 #   that can be accessed during testing. Devices may communicate via
 #   Ethernet or Modbus Serial.
+#
+# Usage:
+#   This is the **default configuration file** (`config.default.yaml`).
+#   Users who wish to customize the configuration should:
+#     1. Copy this file to `config.yaml` in the same folder.
+#     2. Modify `config.yaml` as needed for their environment.
+#   The system will use `config.yaml` if it exists; otherwise, it will fall
+#   back to this default configuration.
 #
 # Device Types:
 #   1. Ethernet Device
