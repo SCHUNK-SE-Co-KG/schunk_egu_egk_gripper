@@ -50,7 +50,7 @@ The **SCHUNK Gripper ROS2 Driver** provides full functionality for controlling S
 >[Open documentation →](./docs/examples.md)
 
 >### 🧪 Testing
->Run automated checks and verify driver functionality using the included test suite.  
+>Run automated checks and verify driver functionality.  
 >[Open documentation →](./docs/testing.md)
 
 

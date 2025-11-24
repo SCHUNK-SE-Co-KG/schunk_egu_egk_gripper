@@ -24,9 +24,9 @@ docker run -it \
     schunk_gripper \
     ros2 launch schunk_gripper_driver driver.launch.py
 ```
-> **Note:** See [launching](launching.md) for available launch commands.  
-> Adjust the launch arguments to fit your setup.  
-> For example, if you do not use Modbus grippers via serial, you can omit the `-v /dev:/dev` and `--privileged` options.
+> **Note:** You can adjust the `docker run` arguments to fit your setup.  
+> For example, if you do not use Modbus grippers via serial, you can omit `-v /dev:/dev` and `--privileged`.  
+> See [launching](launching.md) for available ROS launch commands.
 
 
 ## Install on Host System
