@@ -2,7 +2,6 @@ build/
 install/
 log/
 /.vscode
-**/schunk_gripper_library/schunk_gripper_library/tests/config.yaml
 
 # Ignore test coverage artifacts
 *.coverage
