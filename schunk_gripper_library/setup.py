@@ -18,7 +18,7 @@ setup(
         ),
     ],
     install_requires=[
-        "setuptools==59.6.0",
+        "setuptools==70.0",
         "pymodbus==3.8.6",
         "pyserial==3.5",
         "httpx==0.28.1",
