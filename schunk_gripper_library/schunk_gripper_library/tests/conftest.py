@@ -6,6 +6,7 @@ from typing import Generator, List
 
 
 DEVICES_CONFIG_PATH = os.path.join(os.path.dirname(__file__), 'config.yaml')  # this file contains the device configs
+DEVICES_CONFIG_DEFAULT_PATH = os.path.join(os.path.dirname(__file__), 'config.default.yaml')  # this file contains the device configs
 DEVICE_CONFIG_ETHERNET_FIELDS = ['host', 'port']  # fields required for ethernet device configs
 DEVICE_CONFIG_MODBUS_FIELDS = ['serial_port', 'device_id']  # fields required for modbus device configs
 DEVICE_CONFIG_WORKPIECE_AT_POSITION = 'workpiece_at_position'  # optional field for workpiece position
@@ -25,7 +26,12 @@ def _load_device_configs() -> dict:
         with open(DEVICES_CONFIG_PATH, 'r') as f:
             device_configs = yaml.safe_load(f)
     except FileNotFoundError:
-        return {}
+        # no config file found, load default file as fallback
+        try:
+            with open(DEVICES_CONFIG_DEFAULT_PATH, 'r') as f:
+                device_configs = yaml.safe_load(f)
+        except FileNotFoundError:
+            return {}
 
     if not device_configs:
         return {}
