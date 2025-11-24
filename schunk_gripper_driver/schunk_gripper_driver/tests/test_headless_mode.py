@@ -13,6 +13,7 @@
 # You should have received a copy of the GNU General Public License along with
 # this program. If not, see <https://www.gnu.org/licenses/>.
 # --------------------------------------------------------------------------------
+
 from schunk_gripper_driver.driver import Driver
 from schunk_gripper_library.utility import skip_without_gripper
 from lifecycle_msgs.msg import State, Transition
