@@ -151,8 +151,8 @@ class Driver(object):
         device_id: int | None = None,
         update_cycle: float | None = 0.05,
     ) -> bool:
-        if (isinstance(update_cycle, float) or isinstance(update_cycle, int)) and update_cycle < 0.001:
-            raise ValueError("update_cycle must be at least 0.001 seconds")
+        if (isinstance(update_cycle, float) or isinstance(update_cycle, int)) and update_cycle < 0.05:
+            raise ValueError("update_cycle must be at least 0.05 seconds")
         if self.connected:
             return False
         self.update_count = 0
