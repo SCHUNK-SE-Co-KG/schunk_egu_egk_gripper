@@ -129,11 +129,11 @@ def test_concurrent_parameter_reads_and_writes_dont_deadlock(drivers):
 
         def read():
             for n in range(nr_iterations):
-                assert driver.read_module_parameter(param="0x0500")  # read module type
+                assert driver.read_param(param="0x0500")  # read module type
 
         def write():
             for n in range(nr_iterations):
-                assert driver.write_module_parameter(
+                assert driver.write_param(
                     param="0x0048", data=bytearray(bytes.fromhex("00" * 16))  # write plc_output (control word)
                 )
 
