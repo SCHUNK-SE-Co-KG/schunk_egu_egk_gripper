@@ -12,6 +12,7 @@ import termios
 import socket
 import netifaces
 
+
 def supports_parity(serial_port: str) -> bool:
     fd = None
     try:

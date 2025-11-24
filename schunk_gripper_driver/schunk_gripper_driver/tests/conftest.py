@@ -67,7 +67,6 @@ def ros2():
 
 @launch_pytest.fixture(scope="module")
 def driver(request, ros2):
-    headless = getattr(request.module, "headless", False)
     setup = IncludeLaunchDescription(
         PythonLaunchDescriptionSource(
             PathJoinSubstitution(

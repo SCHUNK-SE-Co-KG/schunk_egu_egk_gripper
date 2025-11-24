@@ -659,13 +659,22 @@ def test_driver_shows_configuration(ros2: None):
     config = driver.show_configuration()
 
     # check that both added grippers are in the configuration
-    has_gripper1 = False
-    has_gripper2 = False
-    for c in config:
-        if c.host == gripper1["host"] and c.port == gripper1["port"] and c.serial_port == gripper1["serial_port"] and c.device_id == gripper1["device_id"]:
-            has_gripper1 = True
-        if c.host == gripper2["host"] and c.port == gripper2["port"] and c.serial_port == gripper2["serial_port"] and c.device_id == gripper2["device_id"]:
-            has_gripper2 = True
+    has_gripper1 = any(
+        c.host == gripper1["host"]
+        and c.port == gripper1["port"]
+        and c.serial_port == gripper1["serial_port"]
+        and c.device_id == gripper1["device_id"]
+        for c in config
+    )
+
+    has_gripper2 = any(
+        c.host == gripper2["host"]
+        and c.port == gripper2["port"]
+        and c.serial_port == gripper2["serial_port"]
+        and c.device_id == gripper2["device_id"]
+        for c in config
+    )
+
     assert has_gripper1
     assert has_gripper2
 

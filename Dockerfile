@@ -17,7 +17,7 @@ RUN apt-get update -qq && apt-get install -y --no-install-recommends \
     apt-transport-https \
     ca-certificates \
     gnupg \
-    lsb-release 
+    lsb-release
 
 # Set workspace
 WORKDIR /schunk_mechatronic_gripper

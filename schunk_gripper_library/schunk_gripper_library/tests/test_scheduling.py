@@ -48,7 +48,7 @@ def test_tasks_are_comparable_for_equality():
     task1 = Task(func=partial(func, a=1, b=2))
     task2 = Task(func=partial(func, a=1, b=42))
     assert task1 != task2
-    
+
 
 def test_scheduler_uses_a_priority_queue_for_tasks():
     scheduler = Scheduler()

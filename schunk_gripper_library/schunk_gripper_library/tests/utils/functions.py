@@ -1,4 +1,4 @@
-from schunk_gripper_library.tests.conftest import workpiece_position_map 
+from schunk_gripper_library.tests.conftest import workpiece_position_map
 from schunk_gripper_library.driver import Driver
 import pytest
 

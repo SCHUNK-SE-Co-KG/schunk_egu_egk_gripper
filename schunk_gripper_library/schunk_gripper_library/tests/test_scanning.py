@@ -1,5 +1,6 @@
 from schunk_gripper_library.utility import EthernetScanner
 
+
 def test_ethernet_scan(hms_chip):
     # The fixture provides an HMS chip that should
     # respond to the scanning requests.

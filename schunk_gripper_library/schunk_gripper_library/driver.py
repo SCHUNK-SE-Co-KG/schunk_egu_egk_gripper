@@ -5,24 +5,22 @@ from pymodbus.pdu import ModbusPDU
 import re
 from threading import Thread, Event
 import time
-from httpx import Client, ConnectError, ConnectTimeout, ReadTimeout, HTTPError
+from httpx import Client, ConnectError, ConnectTimeout, HTTPError
 from importlib.resources import files
 from typing import Union
 import json
-from .utility import Scheduler, supports_parity, global_scheduler
+from .utility import supports_parity, global_scheduler
 from functools import partial
-from pymodbus.logging import Log
-import serial  # type: ignore [import-untyped]
-from pymodbus.exceptions import ModbusIOException
 from typing import Any, Type, cast
 from enum import Enum, auto
 
-# Letting each driver instance have its own non-exclusive modbus client instance does not work, 
-# because in rare occations the modbus clients seem to interfere with each other when reading parameters. 
+# Letting each driver instance have its own non-exclusive modbus client instance does not work,
+# because in rare occations the modbus clients seem to interfere with each other when reading parameters.
 # Therefore, we create a single global exclusive modbus client, shared by all driver instances.
 global_modbus_client_lock = Lock()
-# key: serial_port, value: ModbusSerialClient instance
-_global_modbus_client_map = {}  # do not use this directly, use get_global_modbus_client() instead
+# key: serial_port, value: ModbusSerialClient instance (do not use this map directly, use get_global_modbus_client() instead)
+_global_modbus_client_map : dict[str, ModbusSerialClient] = {}
+
 
 def get_global_modbus_client(serial_port: str = "/dev/ttyUSB0"):
     with global_modbus_client_lock:
@@ -411,7 +409,7 @@ class Driver(object):
             control_bits = {}
             control_bits["11"] = True
             control_bits["31"] = use_gpe if self.gpe_available() else False
-            return {"3": 0, "5": self._send_cmd(control_bits)} 
+            return {"3": 0, "5": self._send_cmd(control_bits)}
 
         # send the release command
         expected_status = global_scheduler.execute(func=partial(do_send)).result()
@@ -471,7 +469,7 @@ class Driver(object):
         if isinstance(spec["firmware_version"], str):
             tokens = spec["firmware_version"].split(".")
             if len(tokens) == 4:
-                spec["firmware_version"] = ".".join(tokens[:3])  
+                spec["firmware_version"] = ".".join(tokens[:3])
 
         return spec
 
@@ -487,7 +485,7 @@ class Driver(object):
         expected_status = global_scheduler.execute(func=partial(do_send)).result()
         # the timeout value is empirically determined with real hardware
         return self.wait_for_status(bits=expected_status, timeout_sec=6.0)
-    
+
     def estimate_duration(
         self,
         release: bool = False,
@@ -552,11 +550,11 @@ class Driver(object):
 
         def do_send() -> dict:
             cmd = {}
-            cmd[8 if velocity < 0 else 9] = True
-            cmd[31] = use_gpe and self.gpe_available()
-  
+            cmd["8" if velocity < 0 else "9"] = True
+            cmd["31"] = use_gpe and self.gpe_available()
+
             return {"5": self._send_cmd(cmd, vel=abs(velocity)), "6": 0, "7": 0}
-            
+
         expected_status = global_scheduler.execute(func=partial(do_send)).result()
         return self.wait_for_status(bits=expected_status)
 
@@ -677,7 +675,7 @@ class Driver(object):
         Return: The subvariant of the module as an integer number, e. g. an EGU50 returns 50.
         """
         if not self.module_type:
-            raise RuntimeError("No module connected")        
+            raise RuntimeError("No module connected")
         if self.module_type not in self.valid_module_types.values():
             raise RuntimeError("Invalid module type")
         # extract the number from the module type string
@@ -746,9 +744,9 @@ class Driver(object):
         self.module_type = ""
         self.gripper_type = ""
         return True
-    
+
     def read_param(self, param: str) -> bytearray:
-        """Reads the specified parameter from the module. 
+        """Reads the specified parameter from the module.
 
         Note: This is the client-side interface for reading module parameters.
         For internal use, see `_read_param_now()` to avoid deadlocks within the scheduler.
@@ -760,22 +758,21 @@ class Driver(object):
             bytearray: The value of the specified parameter.
                        Use `decode_module_parameter()` to convert the
                        bytearray into the correct type.
-                
+
         Raises:
             RuntimeError: If the parameter is not readable.
         """
         def do_read() -> bytearray:
             return self._read_param_now(param)
-        
+
         return global_scheduler.execute(func=partial(do_read)).result()
-        
 
     def _read_param_now(self, param: str) -> bytearray:
         """Reads the specified parameter from the module immediately, bypassing the scheduler.
 
         Note: This is an internal method and should not be called client-side.
         Use `read_param()` instead for client-side access.
-        
+
         Args:
             param (str): The parameter address in hex format, e.g. "0x0040".
 
@@ -783,7 +780,7 @@ class Driver(object):
             bytearray: The value of the specified parameter.
                        Use `decode_module_parameter()` to convert the
                        bytearray into the correct type.
-                
+
         Raises:
             RuntimeError: If the parameter is not readable.
         """
@@ -855,12 +852,12 @@ class Driver(object):
         """
         def do_write() -> bool:
             return self._write_param_now(param, data)
-        
+
         return global_scheduler.execute(func=partial(do_write)).result()
 
     def _write_param_now(self, param: str, data: bytearray) -> bool:
         """Writes the given module parameter to the module immediately, bypassing the scheduler.
-        
+
         Note: This is an internal method and should not be called client-side.
         Use `write_param()` instead for client-side access.
 
@@ -894,7 +891,7 @@ class Driver(object):
             ]
             with global_modbus_client_lock:
                 if self.mb_device_id is None:
-                        raise RuntimeError("Failed to read module parameter: Modbus device ID is not set")
+                    raise RuntimeError("Failed to write module parameter: Modbus device ID is not set")
                 pdu = self.mb_client.write_registers(
                     address=int(param, 16) - 1,  # Modbus convention
                     values=values,
@@ -961,7 +958,6 @@ class Driver(object):
             tuple[tuple[Any, ...], str]: A tuple containing the decoded values and
                                          a status or description string.
         """
-        error: tuple[tuple[Any, ...], str] = (tuple(), "")
         if not self.connected:
             raise RuntimeError("Failed to decode module parameter: Not connected.")
         if not data:
@@ -1179,7 +1175,7 @@ class Driver(object):
     def set_target_position(self, target_pos: int) -> bool:
         if not isinstance(target_pos, int):
             raise ValueError("Target position must be an integer")
-        
+
         with self.output_buffer_lock:
             # snap to limits if within epsilon to account for rounding errors
             eps = 10  # um
@@ -1312,7 +1308,7 @@ class Driver(object):
 
     def _send_cmd(self, control_bits: dict[str, bool], pos: int | None = None, vel: int | None = None, force: int | None = None) -> int:
         """Sends the given control bits to the device.
-        
+
         Args:
             control_bits -- A dictionary mapping control bits (keys) to their desired values (values).
             pos -- Optional target position in micrometers.
@@ -1324,7 +1320,7 @@ class Driver(object):
         self.clear_plc_output()
         self.send_plc_output()
         self.receive_plc_input()
-        
+
         cmd_toggle_before = self.get_status_bit(bit=5)
 
         for bit_str, value in control_bits.items():

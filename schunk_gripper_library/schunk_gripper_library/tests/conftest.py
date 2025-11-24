@@ -1,22 +1,23 @@
 import pytest
-import yaml
+import yaml  # type: ignore
 import os
 from schunk_gripper_library.driver import Driver
 from typing import Generator, List
 
 
-DEVICES_CONFIG_PATH = os.path.join(os.path.dirname(__file__), 'config.yaml') # this file contains the device configs
+DEVICES_CONFIG_PATH = os.path.join(os.path.dirname(__file__), 'config.yaml')  # this file contains the device configs
 DEVICE_CONFIG_ETHERNET_FIELDS = ['host', 'port']  # fields required for ethernet device configs
-DEVICE_CONFIG_MODBUS_FIELDS = ['serial_port', 'device_id'] # fields required for modbus device configs
+DEVICE_CONFIG_MODBUS_FIELDS = ['serial_port', 'device_id']  # fields required for modbus device configs
 DEVICE_CONFIG_WORKPIECE_AT_POSITION = 'workpiece_at_position'  # optional field for workpiece position
 
-workpiece_position_map: dict[Driver, int | None] = {} # stores for each driver the workpiece at position (None if not specified)
+workpiece_position_map: dict[Driver, int | None] = {}  # stores for each driver the workpiece at position (None if not specified)
+
 
 def _load_device_configs() -> dict:
     """Loads and asserts that the device configs from `DEVICES_CONFIG_PATH` are valid.
 
     Returns:
-        Dictionary of device configurations (device names are keys). 
+        Dictionary of device configurations (device names are keys).
         The structure is described in the config file itself.
     """
     device_configs = {}
@@ -69,7 +70,7 @@ def drivers() -> Generator[List[Driver], None, None]:
         driver = Driver()
         is_ethernet = all(field in config for field in DEVICE_CONFIG_ETHERNET_FIELDS)
         is_modbus = all(field in config for field in DEVICE_CONFIG_MODBUS_FIELDS)
-    
+
         if is_ethernet:
             connected = driver.connect(host=config['host'], port=config['port'])
 
@@ -79,7 +80,7 @@ def drivers() -> Generator[List[Driver], None, None]:
         assert connected, f"Failed to connect to device '{name}' at {driver.addr_str}."
         drivers.append(driver)
         workpiece_position_map[driver] = config.get(DEVICE_CONFIG_WORKPIECE_AT_POSITION, None)
-    
+
     yield drivers  # provide drivers to tests
 
     for driver in drivers:  # disconnect drivers after all tests are done

@@ -27,4 +27,3 @@ def test_brake_test(drivers):
 
         assert driver.brake_test(), \
             f"Failed to perform brake test. Driver: {driver.addr_str}, Status: {driver.get_status_diagnostics()}"
-

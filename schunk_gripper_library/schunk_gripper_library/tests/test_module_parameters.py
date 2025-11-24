@@ -1,4 +1,3 @@
-from schunk_gripper_library.utility import skip_without_gripper
 from schunk_gripper_library.driver import Driver
 import struct
 

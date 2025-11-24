@@ -5,7 +5,7 @@ from threading import Thread, Event
 
 class HMSChip(object):
     """Simulates an HMS chip that responds to Ethernet scanning requests.
-    
+
     The HMS chip listens for UDP broadcast messages on port 3250. When it receives a valid
     discovery message, it responds with a predefined payload that mimics the response of a real HMS chip.
     The response is broadcasted to the network on port 3250.

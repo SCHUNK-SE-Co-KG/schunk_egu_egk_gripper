@@ -23,4 +23,4 @@ def read_float_param(driver: Driver, param_addr: str) -> float:
     decode = driver.decode_module_parameter
     values, value_type = decode(read(param_addr), param_addr)
     assert value_type == "float", f"Expected float type for param {param_addr}, got {value_type}"
-    return values[0] 
+    return values[0]

@@ -1007,7 +1007,7 @@ class Driver(Node):
             response.success = False
             response.message = str(e)
             return response
-        
+
         if not spec:
             response.success = False
             response.message = gripper["driver"].get_status_diagnostics()
@@ -1144,7 +1144,7 @@ class Driver(Node):
         position = int(request.position * 1e6)
         velocity = int(request.velocity * 1e6)
         use_gpe = getattr(request, "use_gpe", False)
-        
+
         try:
             response.success = gripper["driver"].move_to_position(
                 position=position,
