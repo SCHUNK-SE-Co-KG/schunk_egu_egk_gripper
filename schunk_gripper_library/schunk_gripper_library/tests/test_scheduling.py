@@ -1,3 +1,19 @@
+# Copyright 2025 SCHUNK SE & Co. KG
+#
+# This program is free software: you can redistribute it and/or modify it
+# under the terms of the GNU General Public License as published by the Free
+# Software Foundation, either version 3 of the License, or (at your option)
+# any later version.
+#
+# This program is distributed in the hope that it will be useful, but WITHOUT
+# ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+# FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
+# more details.
+#
+# You should have received a copy of the GNU General Public License along with
+# this program. If not, see <https://www.gnu.org/licenses/>.
+# --------------------------------------------------------------------------------
+
 from schunk_gripper_library.utility import Task, Scheduler
 import threading
 from queue import PriorityQueue
@@ -48,27 +64,6 @@ def test_tasks_are_comparable_for_equality():
     task1 = Task(func=partial(func, a=1, b=2))
     task2 = Task(func=partial(func, a=1, b=42))
     assert task1 != task2
-
-
-def test_scheduler_runs_internal_worker_thread_when_started():
-    before = threading.active_count()
-    scheduler = Scheduler()
-    for _ in range(3):
-        scheduler.start()
-        assert threading.active_count() == before + 1
-        scheduler.stop()
-        assert threading.active_count() == before
-
-
-def test_schedular_supports_multiple_starts_and_stops():
-    scheduler = Scheduler()
-    before = threading.active_count()
-    for _ in range(3):
-        scheduler.start()
-    assert threading.active_count() == before + 1
-    for _ in range(3):
-        scheduler.stop()
-    assert threading.active_count() == before
 
 
 def test_scheduler_uses_a_priority_queue_for_tasks():

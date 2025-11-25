@@ -4,13 +4,19 @@ from threading import Thread, Event
 
 
 class HMSChip(object):
+    """Simulates an HMS chip that responds to Ethernet scanning requests.
+
+    The HMS chip listens for UDP broadcast messages on port 3250. When it receives a valid
+    discovery message, it responds with a predefined payload that mimics the response of a real HMS chip.
+    The response is broadcasted to the network on port 3250.
+    """
     def __init__(self) -> None:
         self.sock: Socket = Socket(socket.AF_INET, socket.SOCK_DGRAM)
         self.sock.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
         self.sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         self.sock.settimeout(0.5)
         self.port: int = 3250  # HMS standard
-        self.response_payload: bytes = bytes.fromhex(
+        self.response_payload: bytes = bytes.fromhex(  # magic sequence
             (
                 "00301145328d0100"
                 "5b000001000107352e30332e30300215"

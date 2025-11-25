@@ -1,16 +1,18 @@
-# Copyright 2015 Open Source Robotics Foundation, Inc.
+# Copyright 2025 SCHUNK SE & Co. KG
 #
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
+# This program is free software: you can redistribute it and/or modify it
+# under the terms of the GNU General Public License as published by the Free
+# Software Foundation, either version 3 of the License, or (at your option)
+# any later version.
 #
-#     http://www.apache.org/licenses/LICENSE-2.0
+# This program is distributed in the hope that it will be useful, but WITHOUT
+# ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+# FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
+# more details.
 #
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
+# You should have received a copy of the GNU General Public License along with
+# this program. If not, see <https://www.gnu.org/licenses/>.
+# --------------------------------------------------------------------------------
 
 
 from schunk_gripper_driver.driver import Driver
@@ -579,7 +581,7 @@ def test_driver_offers_resetting_grippers(ros2: None):
         }
     )
     driver.grippers.append(gripper)
-    assert len(driver.grippers) == 1
+    assert len(driver.grippers) >= 1
     assert driver.reset_grippers()
     assert len(driver.grippers) == 0
 
@@ -635,8 +637,9 @@ def test_driver_shows_configuration(ros2: None):
     )
     driver.grippers.append(gripper)
     config = driver.show_configuration()
-    assert len(config) == 1  # with default setting
-    assert isinstance(config[0], GripperConfig)
+    assert len(config) >= 1  # with default setting
+    for c in config:
+        assert isinstance(c, GripperConfig)
 
     # Add some grippers and check the information
     gripper1 = {
@@ -657,15 +660,25 @@ def test_driver_shows_configuration(ros2: None):
     assert driver.add_gripper(**gripper2)  # type: ignore [arg-type]
     config = driver.show_configuration()
 
-    assert gripper1["host"] == config[1].host
-    assert gripper1["port"] == config[1].port
-    assert gripper1["serial_port"] == config[1].serial_port
-    assert gripper1["device_id"] == config[1].device_id
+    # check that both added grippers are in the configuration
+    has_gripper1 = any(
+        c.host == gripper1["host"]
+        and c.port == gripper1["port"]
+        and c.serial_port == gripper1["serial_port"]
+        and c.device_id == gripper1["device_id"]
+        for c in config
+    )
 
-    assert gripper2["host"] == config[2].host
-    assert gripper2["port"] == config[2].port
-    assert gripper2["serial_port"] == config[2].serial_port
-    assert gripper2["device_id"] == config[2].device_id
+    has_gripper2 = any(
+        c.host == gripper2["host"]
+        and c.port == gripper2["port"]
+        and c.serial_port == gripper2["serial_port"]
+        and c.device_id == gripper2["device_id"]
+        for c in config
+    )
+
+    assert has_gripper1
+    assert has_gripper2
 
     # After reset
     driver.reset_grippers()

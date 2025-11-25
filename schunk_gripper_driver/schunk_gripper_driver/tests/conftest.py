@@ -67,8 +67,6 @@ def ros2():
 
 @launch_pytest.fixture(scope="module")
 def driver(request, ros2):
-    start_empty = getattr(request.module, "start_empty", False)
-    headless = getattr(request.module, "headless", False)
     setup = IncludeLaunchDescription(
         PythonLaunchDescriptionSource(
             PathJoinSubstitution(
@@ -80,8 +78,8 @@ def driver(request, ros2):
             )
         ),
         launch_arguments={
-            "start_empty": str(start_empty).lower(),
-            "headless": str(headless).lower(),
+            "headless": False,
+            "serial_port": "/dev/ttyUSB0",
         }.items(),
     )
     return LaunchDescription([setup, launch_pytest.actions.ReadyToTest()])

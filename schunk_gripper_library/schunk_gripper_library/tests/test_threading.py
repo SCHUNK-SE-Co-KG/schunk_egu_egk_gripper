@@ -1,6 +1,22 @@
+# Copyright 2025 SCHUNK SE & Co. KG
+#
+# This program is free software: you can redistribute it and/or modify it
+# under the terms of the GNU General Public License as published by the Free
+# Software Foundation, either version 3 of the License, or (at your option)
+# any later version.
+#
+# This program is distributed in the hope that it will be useful, but WITHOUT
+# ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+# FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
+# more details.
+#
+# You should have received a copy of the GNU General Public License along with
+# this program. If not, see <https://www.gnu.org/licenses/>.
+# --------------------------------------------------------------------------------
+
 from schunk_gripper_library.driver import Driver
 from threading import Thread
-from schunk_gripper_library.utility import skip_without_gripper
+from schunk_gripper_library.tests.utils.functions import skip_if_no_drivers
 
 
 def test_writing_entire_buffers_keeps_data_consistent():
@@ -100,13 +116,10 @@ def test_concurrent_output_buffer_reads_and_writes_dont_deadlock():
         assert not thread.is_alive()
 
 
-@skip_without_gripper
-def test_concurrent_receive_calls_dont_deadlock():
-    driver = Driver()
-    for host, port, serial_port in zip(
-        ["0.0.0.0", None], [8000, None], [None, "/dev/ttyUSB0"]
-    ):
-        driver.connect(host=host, port=port, serial_port=serial_port, device_id=12)
+def test_concurrent_receive_calls_dont_deadlock(drivers):
+    skip_if_no_drivers(drivers)
+
+    for driver in drivers:
         nr_iterations = 10
 
         def receive():
@@ -123,26 +136,21 @@ def test_concurrent_receive_calls_dont_deadlock():
             thread.join()
             assert not thread.is_alive()
 
-        driver.disconnect()
 
+def test_concurrent_parameter_reads_and_writes_dont_deadlock(drivers):
+    skip_if_no_drivers(drivers)
 
-@skip_without_gripper
-def test_concurrent_parameter_reads_and_writes_dont_deadlock():
-    driver = Driver()
-    for host, port, serial_port in zip(
-        ["0.0.0.0", None], [8000, None], [None, "/dev/ttyUSB0"]
-    ):
-        driver.connect(host=host, port=port, serial_port=serial_port, device_id=12)
+    for driver in drivers:
         nr_iterations = 10
 
         def read():
             for n in range(nr_iterations):
-                assert driver.read_module_parameter(param="0x0500")
+                assert driver.read_param(param="0x0500")  # read module type
 
         def write():
             for n in range(nr_iterations):
-                assert driver.write_module_parameter(
-                    param="0x0048", data=bytearray(bytes.fromhex("00" * 16))
+                assert driver.write_param(
+                    param="0x0048", data=bytearray(bytes.fromhex("00" * 16))  # write plc_output (control word)
                 )
 
         threads = []

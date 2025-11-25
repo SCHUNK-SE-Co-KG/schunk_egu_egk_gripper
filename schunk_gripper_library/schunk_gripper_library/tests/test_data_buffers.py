@@ -1,3 +1,19 @@
+# Copyright 2025 SCHUNK SE & Co. KG
+#
+# This program is free software: you can redistribute it and/or modify it
+# under the terms of the GNU General Public License as published by the Free
+# Software Foundation, either version 3 of the License, or (at your option)
+# any later version.
+#
+# This program is distributed in the hope that it will be useful, but WITHOUT
+# ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+# FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
+# more details.
+#
+# You should have received a copy of the GNU General Public License along with
+# this program. If not, see <https://www.gnu.org/licenses/>.
+# --------------------------------------------------------------------------------
+
 from schunk_gripper_library.driver import Driver
 
 
@@ -55,21 +71,3 @@ def test_check_for_non_hex_characters_behaves_as_expected():
         assert not driver.contains_non_hex_chars(string)
     for string in non_hex_strings:
         assert driver.contains_non_hex_chars(string)
-
-
-def test_driver_knows_valid_module_types():
-    driver = Driver()
-    assert isinstance(driver.valid_module_types, dict)
-    for key, value in driver.valid_module_types.items():
-        assert isinstance(key, str)
-        assert isinstance(value, str)
-
-        assert len(value.split("_")) == 4
-
-
-def test_driver_knows_valid_fieldbus_types():
-    driver = Driver()
-    assert isinstance(driver.valid_fieldbus_types, dict)
-    for key, value in driver.valid_fieldbus_types.items():
-        assert isinstance(key, str)
-        assert isinstance(value, str)

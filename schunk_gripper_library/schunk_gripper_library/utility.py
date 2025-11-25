@@ -1,4 +1,20 @@
-from threading import Thread
+# Copyright 2025 SCHUNK SE & Co. KG
+#
+# This program is free software: you can redistribute it and/or modify it
+# under the terms of the GNU General Public License as published by the Free
+# Software Foundation, either version 3 of the License, or (at your option)
+# any later version.
+#
+# This program is distributed in the hope that it will be useful, but WITHOUT
+# ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+# FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
+# more details.
+#
+# You should have received a copy of the GNU General Public License along with
+# this program. If not, see <https://www.gnu.org/licenses/>.
+# --------------------------------------------------------------------------------
+
+from threading import Thread, Lock
 from queue import PriorityQueue
 from concurrent.futures import Future
 from functools import partial
@@ -38,9 +54,7 @@ class Task(object):
         self.stamp: float = time.time()
 
     def __bool__(self) -> bool:
-        if self.func is None:
-            return False
-        return True
+        return self.func is not None
 
     def __lt__(self, other: "Task") -> bool:
         return self.stamp < other.stamp
@@ -65,6 +79,7 @@ class Scheduler(object):
         self.tasks: PriorityQueue = PriorityQueue()
         self.worker_thread: Thread = Thread()
         self.enqueued_tasks: list[Task] = []
+        self.enqueued_tasks_lock = Lock()
 
     def start(self) -> None:
         if not self.worker_thread.is_alive():
@@ -86,11 +101,12 @@ class Scheduler(object):
             future.set_result(False)
             return future
         task = Task(func=func, future=future)
-        if task not in self.enqueued_tasks:
-            self.enqueued_tasks.append(task)
-            self.tasks.put((priority, task))
-        else:
-            future.set_result(False)
+        with self.enqueued_tasks_lock:
+            if task not in self.enqueued_tasks:
+                self.enqueued_tasks.append(task)
+                self.tasks.put((priority, task))
+            else:
+                future.set_result(False)
         return future
 
     def cyclic_execute(
@@ -116,9 +132,10 @@ class Scheduler(object):
 
     def _cyclic_add(self, task: Task, cycle_time: float, priority: int = 2) -> None:
         while self.worker_thread.is_alive():
-            if task not in self.enqueued_tasks:
-                self.enqueued_tasks.append(task)
-                self.tasks.put((priority, task))
+            with self.enqueued_tasks_lock:
+                if task not in self.enqueued_tasks:
+                    self.enqueued_tasks.append(task)
+                    self.tasks.put((priority, task))
             time.sleep(cycle_time)
 
     def _process(self) -> None:
@@ -126,11 +143,20 @@ class Scheduler(object):
             _, task = self.tasks.get()
             if not task:
                 break
-            self.enqueued_tasks.remove(task)
-            result = task.func()
-            if task.future:
-                task.future.set_result(result)
+            with self.enqueued_tasks_lock:
+                self.enqueued_tasks.remove(task)
+            try:
+                result = task.func()
+                if task.future:
+                    task.future.set_result(result)
+            except Exception as e:
+                if task.future:
+                    task.future.set_exception(e)
             self.tasks.task_done()
+
+
+global_scheduler = Scheduler()
+global_scheduler.start()
 
 
 class EthernetScanner(object):
@@ -154,7 +180,7 @@ class EthernetScanner(object):
     def __init__(self) -> None:
         self.is_ready: bool = False
         self.discovery_port: int = 3250  # HMS standard
-        self.webserver_port: int = 80
+        self.webserver_port: int = 80  # default webserver port of grippers
         self.sender_sockets: dict[str, socket.socket] = {}  # one socket per interface
         self.receiver_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self.receiver_socket_timeout: float = 1.0
@@ -294,7 +320,7 @@ class EthernetScanner(object):
     def _build_discovery_message(self, iface: str) -> bytes:
         """Builds the discovery message for the given interface.
 
-        The message includes the interface's MAC address.
+        The message consists of a magic sequence and the interface's MAC address.
         Grippers that receive this message will respond via broadcast.
         """
         addresses = netifaces.ifaddresses(iface)

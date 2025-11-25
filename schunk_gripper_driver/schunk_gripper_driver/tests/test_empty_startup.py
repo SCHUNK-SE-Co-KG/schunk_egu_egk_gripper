@@ -13,6 +13,7 @@
 # You should have received a copy of the GNU General Public License along with
 # this program. If not, see <https://www.gnu.org/licenses/>.
 # --------------------------------------------------------------------------------
+
 from rclpy.node import Node
 import rclpy
 from schunk_gripper_interfaces.srv import (  # type: ignore [attr-defined]

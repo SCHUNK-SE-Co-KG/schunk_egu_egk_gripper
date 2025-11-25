@@ -60,7 +60,7 @@ from rclpy.service import Service
 from rclpy.publisher import Publisher
 from rclpy.executors import MultiThreadedExecutor, ExternalShutdownException
 from functools import partial
-from schunk_gripper_library.utility import Scheduler, EthernetScanner
+from schunk_gripper_library.utility import EthernetScanner
 from typing import TypedDict
 from rclpy.callback_groups import MutuallyExclusiveCallbackGroup, ReentrantCallbackGroup
 from rcl_interfaces.msg import SetParametersResult
@@ -133,8 +133,6 @@ class Driver(Node):
         # Node parameters
         self.declare_parameter("log_level", "INFO")
 
-        self.scheduler: Scheduler = Scheduler()
-        self.scheduler.start()
         self.gripper_services: list[Service] = []
         self.joint_state_publishers: dict[str, Publisher] = {}
         self.gripper_state_publishers: dict[str, Publisher] = {}
@@ -353,14 +351,12 @@ class Driver(Node):
 
         driver = GripperDriver()
         if not gripper_id:
-            scheduler = self.scheduler if serial_port else None
             if not driver.connect(
                 host=host,
                 port=port,
                 serial_port=serial_port,
                 device_id=device_id,
                 update_cycle=None,
-                scheduler=scheduler,
             ):
                 return False
             gripper_id = self.get_unique_id(driver.gripper_type)
@@ -395,19 +391,18 @@ class Driver(Node):
     def on_configure(self, state: State) -> TransitionCallbackReturn:
         self.get_logger().debug("on_configure() is called.")
         if not self.grippers:
+            self.get_logger().error("Failed to configure: no grippers added yet.")
             return TransitionCallbackReturn.FAILURE
 
         # Try to connect each gripper
         for idx, gripper in enumerate(self.grippers):
             driver = GripperDriver()
-            scheduler = self.scheduler if gripper["serial_port"] else None
             driver.connect(
                 host=gripper["host"],
                 port=gripper["port"],
                 serial_port=gripper["serial_port"],
                 device_id=gripper["device_id"],
                 update_cycle=None,
-                scheduler=scheduler,
             )
             self.grippers[idx]["driver"] = driver
 
@@ -421,8 +416,7 @@ class Driver(Node):
         # Start cyclic updates with reconnect mechanism for each gripper
         for idx, _ in enumerate(self.grippers):
             gripper = self.grippers[idx]
-            scheduler = self.scheduler if self.needs_synchronize(gripper) else None
-            gripper["driver"].start_module_updates(scheduler=scheduler)
+            gripper["driver"].start_module_updates()
 
         # Start info services
         self.list_grippers_srv = self.create_service(
@@ -451,10 +445,10 @@ class Driver(Node):
 
         # Get available grippers ready to go
         for idx, gripper in enumerate(self.grippers):
-            if self.needs_synchronize(gripper):
-                self.grippers[idx]["driver"].acknowledge(scheduler=self.scheduler)
-            else:
+            try:
                 self.grippers[idx]["driver"].acknowledge()
+            except Exception as e:
+                self.get_logger().error(f"Exception for '{gripper['gripper_id']}': {e}")
 
         # Gripper-specific services
         for idx, _ in enumerate(self.grippers):
@@ -756,7 +750,6 @@ class Driver(Node):
 
     def on_shutdown(self, state: State) -> TransitionCallbackReturn:
         self.get_logger().debug("on_shutdown() is called.")
-        self.scheduler.stop()
         self.connection_status_stop.set()
         self.connection_status_thread.join()
 
@@ -797,18 +790,24 @@ class Driver(Node):
 
             if now >= next_time:
                 for gripper in self.grippers:
-                    msg = JointState()
-                    gripper_id = gripper["gripper_id"]
-                    msg.header.frame_id = gripper_id
-                    msg.header.stamp = self.get_clock().now().to_msg()
-                    msg.name.append(gripper_id)
-                    msg.position.append(gripper["driver"].get_actual_position() / 1e6)
+                    if not gripper["driver"].connected:
+                        continue
+
+                    try:
+                        msg = JointState()
+                        gripper_id = gripper["gripper_id"]
+                        msg.header.frame_id = gripper_id
+                        msg.header.stamp = self.get_clock().now().to_msg()
+                        msg.name.append(gripper_id)
+                        msg.position.append(gripper["driver"].get_actual_position() / 1e6)
+                    except Exception as e:
+                        self.get_logger().error(f"Failed to publish joint state for '{gripper['gripper_id']}': {e}")
+                        continue
 
                     with self.joint_state_lock:
                         if gripper_id in self.joint_state_publishers:
                             try:
                                 self.joint_state_publishers[gripper_id].publish(msg)
-
                             # Catch InvalidHandle exceptions on SIGINT (ctrl-c)
                             except RuntimeError:
                                 break
@@ -825,63 +824,70 @@ class Driver(Node):
 
             if now >= next_time:
                 for gripper in self.grippers:
-                    msg = GripperState()
-                    gripper_id = gripper["gripper_id"]
-                    msg.header.frame_id = gripper_id
-                    msg.header.stamp = self.get_clock().now().to_msg()
+                    if not gripper["driver"].connected:
+                        continue
 
-                    status = gripper["driver"].get_status_diagnostics().split(",")
-                    msg.error_code = status[0].strip()
-                    msg.warning_code = status[1].strip()
-                    msg.additional_code = status[2].strip()
+                    try:
+                        msg = GripperState()
+                        gripper_id = gripper["gripper_id"]
+                        msg.header.frame_id = gripper_id
+                        msg.header.stamp = self.get_clock().now().to_msg()
 
-                    msg.bit0_ready_for_operation = bool(
-                        gripper["driver"].get_status_bit(bit=0)
-                    )
-                    msg.bit1_control_authority_fieldbus = bool(
-                        gripper["driver"].get_status_bit(bit=1)
-                    )
-                    msg.bit2_ready_for_shutdown = bool(
-                        gripper["driver"].get_status_bit(bit=2)
-                    )
-                    msg.bit3_not_feasible = bool(
-                        gripper["driver"].get_status_bit(bit=3)
-                    )
-                    msg.bit4_command_successfully_processed = bool(
-                        gripper["driver"].get_status_bit(bit=4)
-                    )
-                    msg.bit5_command_received_toggle = bool(
-                        gripper["driver"].get_status_bit(bit=5)
-                    )
-                    msg.bit6_warning = bool(gripper["driver"].get_status_bit(bit=6))
-                    msg.bit7_error = bool(gripper["driver"].get_status_bit(bit=7))
-                    msg.bit8_released_for_manual_movement = bool(
-                        gripper["driver"].get_status_bit(bit=8)
-                    )
-                    msg.bit9_software_limit_reached = bool(
-                        gripper["driver"].get_status_bit(bit=9)
-                    )
-                    msg.bit11_no_workpiece_detected = bool(
-                        gripper["driver"].get_status_bit(bit=11)
-                    )
-                    msg.bit12_workpiece_gripped = bool(
-                        gripper["driver"].get_status_bit(bit=12)
-                    )
-                    msg.bit13_position_reached = bool(
-                        gripper["driver"].get_status_bit(bit=13)
-                    )
-                    msg.bit14_workpiece_pre_grip_started = bool(
-                        gripper["driver"].get_status_bit(bit=14)
-                    )
-                    msg.bit16_workpiece_lost = bool(
-                        gripper["driver"].get_status_bit(bit=16)
-                    )
-                    msg.bit17_wrong_workpiece_gripped = bool(
-                        gripper["driver"].get_status_bit(bit=17)
-                    )
-                    msg.bit31_grip_force_and_position_maintenance_activated = bool(
-                        gripper["driver"].get_status_bit(bit=31)
-                    )
+                        status = gripper["driver"].get_status_diagnostics().split(",")
+                        msg.error_code = status[0].strip()
+                        msg.warning_code = status[1].strip()
+                        msg.additional_code = status[2].strip()
+
+                        msg.bit0_ready_for_operation = bool(
+                            gripper["driver"].get_status_bit(bit=0)
+                        )
+                        msg.bit1_control_authority_fieldbus = bool(
+                            gripper["driver"].get_status_bit(bit=1)
+                        )
+                        msg.bit2_ready_for_shutdown = bool(
+                            gripper["driver"].get_status_bit(bit=2)
+                        )
+                        msg.bit3_not_feasible = bool(
+                            gripper["driver"].get_status_bit(bit=3)
+                        )
+                        msg.bit4_command_successfully_processed = bool(
+                            gripper["driver"].get_status_bit(bit=4)
+                        )
+                        msg.bit5_command_received_toggle = bool(
+                            gripper["driver"].get_status_bit(bit=5)
+                        )
+                        msg.bit6_warning = bool(gripper["driver"].get_status_bit(bit=6))
+                        msg.bit7_error = bool(gripper["driver"].get_status_bit(bit=7))
+                        msg.bit8_released_for_manual_movement = bool(
+                            gripper["driver"].get_status_bit(bit=8)
+                        )
+                        msg.bit9_software_limit_reached = bool(
+                            gripper["driver"].get_status_bit(bit=9)
+                        )
+                        msg.bit11_no_workpiece_detected = bool(
+                            gripper["driver"].get_status_bit(bit=11)
+                        )
+                        msg.bit12_workpiece_gripped = bool(
+                            gripper["driver"].get_status_bit(bit=12)
+                        )
+                        msg.bit13_position_reached = bool(
+                            gripper["driver"].get_status_bit(bit=13)
+                        )
+                        msg.bit14_workpiece_pre_grip_started = bool(
+                            gripper["driver"].get_status_bit(bit=14)
+                        )
+                        msg.bit16_workpiece_lost = bool(
+                            gripper["driver"].get_status_bit(bit=16)
+                        )
+                        msg.bit17_wrong_workpiece_gripped = bool(
+                            gripper["driver"].get_status_bit(bit=17)
+                        )
+                        msg.bit31_grip_force_and_position_maintenance_activated = bool(
+                            gripper["driver"].get_status_bit(bit=31)
+                        )
+                    except Exception as e:
+                        self.get_logger().error(f"Failed to publish gripper state for '{gripper['gripper_id']}': {e}")
+                        continue
 
                     with self.gripper_state_lock:
                         if gripper_id in self.gripper_state_publishers:
@@ -993,7 +999,15 @@ class Driver(Node):
         gripper: Gripper,
     ):
         self.get_logger().debug("---> Show specification")
-        spec = gripper["driver"].show_specification()
+        spec = {}
+        try:
+            spec = gripper["driver"].show_specification()
+        except Exception as e:
+            self.get_logger().error(str(e))
+            response.success = False
+            response.message = str(e)
+            return response
+
         if not spec:
             response.success = False
             response.message = gripper["driver"].get_status_diagnostics()
@@ -1015,17 +1029,21 @@ class Driver(Node):
     ):
         self.get_logger().debug("---> Locate gripper")
         driver = GripperDriver()
-        scheduler = self.scheduler if request.gripper.serial_port else None
         driver.connect(
             host=request.gripper.host,
             port=request.gripper.port,
             serial_port=request.gripper.serial_port,
             device_id=request.gripper.device_id,
-            update_cycle=None,
-            scheduler=scheduler,
+            update_cycle=None
         )
-        driver.acknowledge(scheduler=scheduler)
-        response.success = driver.twitch_jaws(scheduler=scheduler)
+        try:
+            driver.acknowledge()
+            response.success = driver.twitch_jaws()
+        except Exception as e:
+            self.get_logger().error(str(e))
+            response.success = False
+            response.message = str(e)
+
         driver.disconnect()
         return response
 
@@ -1036,11 +1054,14 @@ class Driver(Node):
         gripper: Gripper,
     ):
         self.get_logger().debug("---> Acknowledge")
-        if self.needs_synchronize(gripper):
-            response.success = gripper["driver"].acknowledge(scheduler=self.scheduler)
-        else:
+        try:
             response.success = gripper["driver"].acknowledge()
-        response.message = gripper["driver"].get_status_diagnostics()
+            response.message = gripper["driver"].get_status_diagnostics()
+        except Exception as e:
+            self.get_logger().error(str(e))
+            response.success = False
+            response.message = str(e)
+
         return response
 
     def _stop_cb(
@@ -1051,12 +1072,14 @@ class Driver(Node):
     ):
         self.get_logger().debug("---> Stop")
         use_gpe = getattr(request, "use_gpe", False)
-        scheduler = self.scheduler if self.needs_synchronize(gripper) else None
-        response.success = gripper["driver"].stop(
-            scheduler=scheduler,
-            use_gpe=use_gpe,
-        )
-        response.message = gripper["driver"].get_status_diagnostics()
+        try:
+            response.success = gripper["driver"].stop(use_gpe=use_gpe)
+            response.message = gripper["driver"].get_status_diagnostics()
+        except Exception as e:
+            self.get_logger().error(str(e))
+            response.success = False
+            response.message = str(e)
+
         return response
 
     def _fast_stop_cb(
@@ -1066,11 +1089,14 @@ class Driver(Node):
         gripper: Gripper,
     ):
         self.get_logger().debug("---> Fast stop")
-        if self.needs_synchronize(gripper):
-            response.success = gripper["driver"].fast_stop(scheduler=self.scheduler)
-        else:
+        try:
             response.success = gripper["driver"].fast_stop()
-        response.message = gripper["driver"].get_status_diagnostics()
+            response.message = gripper["driver"].get_status_diagnostics()
+        except Exception as e:
+            self.get_logger().error(str(e))
+            response.success = False
+            response.message = str(e)
+
         return response
 
     def _prepare_for_shutdown_cb(
@@ -1080,13 +1106,14 @@ class Driver(Node):
         gripper: Gripper,
     ):
         self.get_logger().debug("---> Prepare for shutdown")
-        if self.needs_synchronize(gripper):
-            response.success = gripper["driver"].prepare_for_shutdown(
-                scheduler=self.scheduler
-            )
-        else:
+        try:
             response.success = gripper["driver"].prepare_for_shutdown()
-        response.message = gripper["driver"].get_status_diagnostics()
+            response.message = gripper["driver"].get_status_diagnostics()
+        except Exception as e:
+            self.get_logger().error(str(e))
+            response.success = False
+            response.message = str(e)
+
         return response
 
     def _soft_reset_cb(
@@ -1096,11 +1123,14 @@ class Driver(Node):
         gripper: Gripper,
     ):
         self.get_logger().debug("---> Soft reset")
-        if self.needs_synchronize(gripper):
-            response.success = gripper["driver"].soft_reset(scheduler=self.scheduler)
-        else:
+        try:
             response.success = gripper["driver"].soft_reset()
-        response.message = gripper["driver"].get_status_diagnostics()
+            response.message = gripper["driver"].get_status_diagnostics()
+        except Exception as e:
+            self.get_logger().error(str(e))
+            response.success = False
+            response.message = str(e)
+
         return response
 
     def _move_to_position_cb(
@@ -1114,16 +1144,20 @@ class Driver(Node):
         position = int(request.position * 1e6)
         velocity = int(request.velocity * 1e6)
         use_gpe = getattr(request, "use_gpe", False)
-        scheduler = self.scheduler if self.needs_synchronize(gripper) else None
 
-        response.success = gripper["driver"].move_to_position(
-            position=position,
-            is_absolute=is_absolute,
-            velocity=velocity,
-            use_gpe=use_gpe,
-            scheduler=scheduler,
-        )
-        response.message = gripper["driver"].get_status_diagnostics()
+        try:
+            response.success = gripper["driver"].move_to_position(
+                position=position,
+                is_absolute=is_absolute,
+                velocity=velocity,
+                use_gpe=use_gpe
+            )
+            response.message = gripper["driver"].get_status_diagnostics()
+        except Exception as e:
+            self.get_logger().error(str(e))
+            response.success = False
+            response.message = str(e)
+
         return response
 
     def _grip_cb(
@@ -1134,7 +1168,6 @@ class Driver(Node):
     ):
         self.get_logger().debug("---> Grip")
         use_gpe = getattr(request, "use_gpe", False)
-        scheduler = self.scheduler if self.needs_synchronize(gripper) else None
         position = getattr(request, "position", None)
         velocity = getattr(request, "velocity", None)
         if position is not None:
@@ -1142,30 +1175,34 @@ class Driver(Node):
         if velocity is not None:
             velocity = int(velocity * 1e6)
 
-        grip_result = gripper["driver"].grip(
-            position=position,
-            velocity=velocity,
-            force=request.force,
-            use_gpe=use_gpe,
-            outward=request.outward,
-            scheduler=scheduler,
-        )
+        try:
+            grip_result = gripper["driver"].grip(
+                position=position,
+                velocity=velocity,
+                force=request.force,
+                use_gpe=use_gpe,
+                outward=request.outward
+            )
+            response.success = False
+            if grip_result == gripper["driver"].GripResult.WORKPIECE_GRIPPED:
+                response.workpiece_gripped = True
+                response.success = True
+            elif grip_result == gripper["driver"].GripResult.WRONG_WORKPIECE_GRIPPED:
+                response.wrong_workpiece_gripped = True
+                response.success = True
+            elif grip_result == gripper["driver"].GripResult.NO_WORKPIECE_DETECTED:
+                response.no_workpiece_detected = True
+                response.success = True
+            elif grip_result == gripper["driver"].GripResult.WORKPIECE_LOST:
+                response.workpiece_lost = True
+                response.success = True
 
-        response.success = False
-        if grip_result == gripper["driver"].GripResult.WORKPIECE_GRIPPED:
-            response.workpiece_gripped = True
-            response.success = True
-        elif grip_result == gripper["driver"].GripResult.WRONG_WORKPIECE_GRIPPED:
-            response.wrong_workpiece_gripped = True
-            response.success = True
-        elif grip_result == gripper["driver"].GripResult.NO_WORKPIECE_DETECTED:
-            response.no_workpiece_detected = True
-            response.success = True
-        elif grip_result == gripper["driver"].GripResult.WORKPIECE_LOST:
-            response.workpiece_lost = True
-            response.success = True
+            response.message = gripper["driver"].get_status_diagnostics()
+        except Exception as e:
+            self.get_logger().error(str(e))
+            response.success = False
+            response.message = str(e)
 
-        response.message = gripper["driver"].get_status_diagnostics()
         return response
 
     def _release_cb(
@@ -1176,16 +1213,14 @@ class Driver(Node):
     ):
         self.get_logger().debug("---> Release")
         use_gpe = getattr(request, "use_gpe", False)
-        if self.needs_synchronize(gripper):
-            response.success = gripper["driver"].release(
-                use_gpe=use_gpe,
-                scheduler=self.scheduler,
-            )
-        else:
-            response.success = gripper["driver"].release(
-                use_gpe=use_gpe,
-            )
-        response.message = gripper["driver"].get_status_diagnostics()
+        try:
+            response.success = gripper["driver"].release(use_gpe=use_gpe)
+            response.message = gripper["driver"].get_status_diagnostics()
+        except Exception as e:
+            self.get_logger().error(str(e))
+            response.success = False
+            response.message = str(e)
+
         return response
 
     def _release_for_manual_movement_cb(
@@ -1195,13 +1230,14 @@ class Driver(Node):
         gripper: Gripper,
     ):
         self.get_logger().debug("---> Release for manual movement")
-        if self.needs_synchronize(gripper):
-            response.success = gripper["driver"].release_for_manual_movement(
-                scheduler=self.scheduler
-            )
-        else:
+        try:
             response.success = gripper["driver"].release_for_manual_movement()
-        response.message = gripper["driver"].get_status_diagnostics()
+            response.message = gripper["driver"].get_status_diagnostics()
+        except Exception as e:
+            self.get_logger().error(str(e))
+            response.success = False
+            response.message = str(e)
+
         return response
 
     def _start_jogging_cb(
@@ -1211,13 +1247,17 @@ class Driver(Node):
         gripper: Gripper,
     ):
         self.get_logger().debug("---> Start jogging")
-        response.success = gripper["driver"].start_jogging(
-            velocity=int(request.velocity * 1e6),
-            use_gpe=getattr(request, "use_gpe", False),
-            scheduler=self.scheduler if self.needs_synchronize(gripper) else None,
-        )
+        try:
+            response.success = gripper["driver"].start_jogging(
+                velocity=int(request.velocity * 1e6),
+                use_gpe=getattr(request, "use_gpe", False)
+            )
+            response.message = gripper["driver"].get_status_diagnostics()
+        except Exception as e:
+            self.get_logger().error(str(e))
+            response.success = False
+            response.message = str(e)
 
-        response.message = gripper["driver"].get_status_diagnostics()
         return response
 
     def _stop_jogging_cb(
@@ -1227,11 +1267,14 @@ class Driver(Node):
         gripper: Gripper,
     ):
         self.get_logger().debug("---> Stop jogging")
-        response.success = gripper["driver"].stop_jogging(
-            scheduler=self.scheduler if self.needs_synchronize(gripper) else None,
-        )
+        try:
+            response.success = gripper["driver"].stop_jogging()
+            response.message = gripper["driver"].get_status_diagnostics()
+        except Exception as e:
+            self.get_logger().error(str(e))
+            response.success = False
+            response.message = str(e)
 
-        response.message = gripper["driver"].get_status_diagnostics()
         return response
 
     def _brake_test_cb(
@@ -1241,9 +1284,7 @@ class Driver(Node):
         gripper: Gripper,
     ):
         self.get_logger().debug("---> Brake test")
-        response.success = gripper["driver"].brake_test(
-            scheduler=self.scheduler if self.needs_synchronize(gripper) else None,
-        )
+        response.success = gripper["driver"].brake_test()
         response.message = gripper["driver"].get_status_diagnostics()
         return response
 
@@ -1254,30 +1295,23 @@ class Driver(Node):
         gripper: Gripper,
     ):
         self.get_logger().debug("---> Read gripper parameter")
-
-        if self.needs_synchronize(gripper):
-            data = self.scheduler.execute(
-                func=partial(
-                    gripper["driver"].read_module_parameter, param=request.parameter
-                )
-            ).result()
-        else:
-            data = gripper["driver"].read_module_parameter(request.parameter)
-
-        values, value_type = gripper["driver"].decode_module_parameter(
-            data=data, param=request.parameter
-        )
-
-        # Find the corresponding message field for this type
-        # and assign the values to it if existent.
-        msg_field = f"value_{re.split(r'[^a-z0-9]', value_type)[0]}"
-        if getattr(response, msg_field, None) is not None:
-            setattr(response, msg_field, values)
-            response.success = True
-        else:
+        try:
+            data = gripper["driver"].read_param(request.parameter)
+            values, value_type = gripper["driver"].decode_module_parameter(data=data, param=request.parameter)
+            # Find the corresponding message field for this type
+            # and assign the values to it if existent.
+            msg_field = f"value_{re.split(r'[^a-z0-9]', value_type)[0]}"
+            if getattr(response, msg_field, None) is not None:
+                setattr(response, msg_field, values)
+                response.success = True
+            else:
+                response.success = False
+            response.message = gripper["driver"].get_status_diagnostics()
+        except Exception as e:
+            self.get_logger().error(str(e))
             response.success = False
+            response.message = str(e)
 
-        response.message = gripper["driver"].get_status_diagnostics()
         return response
 
     def _write_gripper_parameter_cb(
@@ -1296,23 +1330,15 @@ class Driver(Node):
                 if data:
                     break
 
-        bytes_data = gripper["driver"].encode_module_parameter(
-            data=data, param=request.parameter
-        )
+        try:
+            bytes_data = gripper["driver"].encode_module_parameter(data=data, param=request.parameter)
+            response.success = gripper["driver"].write_param(param=request.parameter, data=bytes_data)
+            response.message = gripper["driver"].get_status_diagnostics()
+        except Exception as e:
+            self.get_logger().error(str(e))
+            response.success = False
+            response.message = str(e)
 
-        if self.needs_synchronize(gripper):
-            response.success = self.scheduler.execute(
-                func=partial(
-                    gripper["driver"].write_module_parameter,
-                    param=request.parameter,
-                    data=bytes_data,
-                )
-            ).result()
-        else:
-            response.success = gripper["driver"].write_module_parameter(
-                param=request.parameter, data=bytes_data
-            )
-        response.message = gripper["driver"].get_status_diagnostics()
         return response
 
 
