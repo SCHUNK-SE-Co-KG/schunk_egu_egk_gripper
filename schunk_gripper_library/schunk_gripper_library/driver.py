@@ -604,7 +604,7 @@ class Driver(object):
             return self.move_to_position(
                 position=step,
                 velocity=self.module_parameters["max_vel"],
-                is_absolute=False,
+                is_absolute=True,
                 no_scheduler=True,
             )
 
@@ -615,12 +615,13 @@ class Driver(object):
             min_pos = self.module_parameters["min_pos"]
             max_pos = self.module_parameters["max_pos"]
             actual_pos = self.get_actual_position()
+            actual_pos = max(min_pos, min(actual_pos, max_pos))  # clamp to valid range
             start_inwards = actual_pos - min_pos > max_pos - actual_pos
             if start_inwards:
                 step *= -1
             for _ in range(2):
-                move(step)
-                move(-step)
+                move(max(min_pos, min(actual_pos + step, max_pos)))
+                move(actual_pos)
             return True
 
         return global_scheduler.execute(func=partial(do_send)).result()
