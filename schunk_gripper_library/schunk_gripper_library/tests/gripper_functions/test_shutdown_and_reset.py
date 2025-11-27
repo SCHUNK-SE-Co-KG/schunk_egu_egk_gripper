@@ -38,4 +38,4 @@ def test_prepare_for_shutdown_and_soft_reset(drivers):
             f"Failed to prepare for shutdown. Driver: {driver.addr_str}, Status: {driver.get_status_diagnostics()}"
         assert driver.soft_reset(), \
             f"Failed to perform soft reset. Driver: {driver.addr_str}, Status: {driver.get_status_diagnostics()}"
-        time.sleep(5)  # wait for reset to complete (the timeout value is empirical)
+        time.sleep(10)  # wait for reset to complete
