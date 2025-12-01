@@ -12,3 +12,6 @@ log/
 # Ignore Python cache files
 __pycache__/
 *.py[cod]
+
+# Ignore test configuration (may contain local paths/settings)
+**/tests/config.yaml

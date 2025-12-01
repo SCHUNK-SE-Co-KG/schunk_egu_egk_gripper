@@ -1,0 +1,31 @@
+{
+  "name": "SCHUNK Gripper Dev",
+  "context": "..",
+  "dockerFile": "../Dockerfile",
+  "workspaceFolder": "/workspace/src",
+  "mounts": [
+        {
+            "source": "${localWorkspaceFolder}",
+            "target": "/workspace/src",
+            "type": "bind"
+        }
+  ],
+  "overrideCommand": true,
+  "runArgs": [
+    "--net=host",
+    "--env=ROS_LOCALHOST_ONLY=1",
+    "-v", "/dev:/dev",
+    "--privileged"
+  ],
+  "remoteUser": "root",
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "ms-iot.vscode-ros",
+        "ms-python.python",
+        "ms-python.vscode-pylance"
+      ]
+    }
+  },
+  "postCreateCommand": "bash /workspace/src/devcontainer_post_create.sh"
+}

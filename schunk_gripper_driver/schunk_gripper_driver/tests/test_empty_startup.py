@@ -13,14 +13,12 @@
 # You should have received a copy of the GNU General Public License along with
 # this program. If not, see <https://www.gnu.org/licenses/>.
 # --------------------------------------------------------------------------------
+
 from rclpy.node import Node
 import rclpy
 from schunk_gripper_interfaces.srv import (  # type: ignore [attr-defined]
     ShowConfiguration,
 )
-
-# Module-wide settings
-start_empty = True
 
 
 def test_driver_can_start_without_initial_gripper(driver):
