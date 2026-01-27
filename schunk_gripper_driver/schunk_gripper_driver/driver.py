@@ -602,15 +602,15 @@ class Driver(Node):
                     callback_group=self.gripper_services_cb_group,
                 )
             )
-
-            self.gripper_services.append(
-                self.create_service(
-                    Trigger,
-                    f"~/{gripper_id}/brake_test",
-                    partial(self._brake_test_cb, gripper=gripper),
-                    callback_group=self.gripper_services_cb_group,
+            if gripper["driver"].gpe_available():
+                self.gripper_services.append(
+                    self.create_service(
+                        Trigger,
+                        f"~/{gripper_id}/brake_test",
+                        partial(self._brake_test_cb, gripper=gripper),
+                        callback_group=self.gripper_services_cb_group,
+                    )
                 )
-            )
             self.gripper_services.append(
                 self.create_service(
                     ReadGripperParameter,
