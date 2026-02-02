@@ -1,3 +1,6 @@
+bool scan_modbus        # Define if to scan using ModbusRTU or Ethernet
+string serial_port # Define the serial interface that is used for
+                        # scanning (Defaults to /dev/ttyUSB0).
 ---
 string[] grippers       # List of grippers currently visible to the driver.
                         # Each entry shows the gripper's module type.

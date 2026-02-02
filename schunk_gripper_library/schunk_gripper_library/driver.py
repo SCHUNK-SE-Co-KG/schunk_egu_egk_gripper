@@ -208,6 +208,10 @@ class Driver(object):
     def disconnect(self) -> bool:
         self.stop_module_updates()
 
+        if len(_global_modbus_client_map) > 0:
+            for port in _global_modbus_client_map:
+                _global_modbus_client_map[port].close()
+
         if self.web_client:
             with self.web_client_lock:
                 self.web_client = None
