@@ -74,7 +74,97 @@ jobs:
           echo "--- Trivy Image-Scan Zusammenfassung ---"
           cat security/trivy-reports/trivy_image_report.txt || true
 
-      # ── 5. Dockerfile-Misconfig-Scan ──────────────────────────
+      # ── 5. HIGH/CRITICAL-Only Report ─────────────────────────
+      - name: "Trivy: HIGH/CRITICAL Schwachstellen-Report"
+        run: |
+          # Separater Scan nur für HIGH + CRITICAL (Tabelle)
+          trivy image \
+            --format table \
+            --output security/trivy-reports/trivy_high_critical.txt \
+            --severity HIGH,CRITICAL \
+            schunk-gripper:scan || true
+
+          # Separater Scan nur für HIGH + CRITICAL (JSON)
+          trivy image \
+            --format json \
+            --output security/trivy-reports/trivy_high_critical.json \
+            --severity HIGH,CRITICAL \
+            schunk-gripper:scan || true
+
+          # Markdown-Report aus dem JSON generieren
+          python3 - <<'PYEOF'
+          import json, datetime
+
+          date = datetime.date.today().isoformat()
+          try:
+              with open("security/trivy-reports/trivy_high_critical.json") as f:
+                  data = json.load(f)
+          except Exception:
+              data = {}
+
+          vulns = []
+          for result in data.get("Results", []):
+              target = result.get("Target", "")
+              pkg_type = result.get("Type", "")
+              for v in result.get("Vulnerabilities", []):
+                  vulns.append({
+                      "target": target,
+                      "type": pkg_type,
+                      "id": v.get("VulnerabilityID", ""),
+                      "pkg": v.get("PkgName", ""),
+                      "installed": v.get("InstalledVersion", ""),
+                      "fixed": v.get("FixedVersion", ""),
+                      "severity": v.get("Severity", ""),
+                      "title": v.get("Title", ""),
+                      "url": v.get("PrimaryURL", ""),
+                  })
+
+          critical = [v for v in vulns if v["severity"] == "CRITICAL"]
+          high = [v for v in vulns if v["severity"] == "HIGH"]
+
+          lines = []
+          lines.append(f"# Trivy HIGH/CRITICAL Schwachstellen-Report")
+          lines.append(f"")
+          lines.append(f"**Datum:** {date}")
+          lines.append(f"**Image:** schunk-gripper:scan (gebaut aus Dockerfile)")
+          lines.append(f"**Base-Image:** ros:humble-ros-core (Ubuntu 22.04 Jammy)")
+          lines.append(f"")
+          lines.append(f"| Schweregrad | Anzahl |")
+          lines.append(f"|-------------|--------|")
+          lines.append(f"| CRITICAL    | {len(critical)} |")
+          lines.append(f"| HIGH        | {len(high)} |")
+          lines.append(f"| **Gesamt**  | **{len(vulns)}** |")
+          lines.append(f"")
+
+          if not vulns:
+              lines.append("Keine HIGH- oder CRITICAL-Schwachstellen gefunden.")
+          else:
+              for sev_label, sev_list in [("CRITICAL", critical), ("HIGH", high)]:
+                  if not sev_list:
+                      continue
+                  lines.append(f"## {sev_label} ({len(sev_list)})")
+                  lines.append(f"")
+                  lines.append(f"| Paket | CVE | Installiert | Fix verfügbar | Beschreibung |")
+                  lines.append(f"|-------|-----|-------------|---------------|--------------|")
+                  for v in sev_list:
+                      fix = v['fixed'] if v['fixed'] else '—'
+                      title = v['title'][:80] if v['title'] else '—'
+                      lines.append(f"| {v['pkg']} | [{v['id']}]({v['url']}) | {v['installed']} | {fix} | {title} |")
+                  lines.append(f"")
+
+          lines.append(f"---")
+          lines.append(f"*Automatisch erstellt von GitHub Actions (Trivy Docker-Image-Scan Workflow).*")
+
+          with open("security/trivy-reports/trivy_high_critical.md", "w") as f:
+              f.write("\n".join(lines) + "\n")
+
+          print(f"HIGH/CRITICAL Report: {len(critical)} CRITICAL, {len(high)} HIGH, {len(vulns)} gesamt")
+          PYEOF
+
+          echo "--- HIGH/CRITICAL Report ---"
+          cat security/trivy-reports/trivy_high_critical.md || true
+
+      # ── 6. Dockerfile-Misconfig-Scan ──────────────────────────
       - name: "Trivy: Dockerfile-Config-Scan"
         run: |
           trivy config \
@@ -90,7 +180,7 @@ jobs:
           echo "--- Trivy Config-Scan Zusammenfassung ---"
           cat security/trivy-reports/trivy_config_report.txt || true
 
-      # ── 6. Zusammenfassung erstellen ──────────────────────────
+      # ── 7. Zusammenfassung erstellen ──────────────────────────
       - name: Scan-Zusammenfassung erstellen
         id: summary
         run: |
@@ -132,6 +222,9 @@ jobs:
 
           ## Reports
 
+          - **[trivy_high_critical.md](trivy_high_critical.md) – HIGH/CRITICAL Schwachstellen (Markdown)**
+          - [trivy_high_critical.json](trivy_high_critical.json) – HIGH/CRITICAL Schwachstellen (JSON)
+          - [trivy_high_critical.txt](trivy_high_critical.txt) – HIGH/CRITICAL Schwachstellen (Tabelle)
           - [trivy_image_report.json](trivy_image_report.json) – Vollständiger Image-Scan (JSON)
           - [trivy_image_report.txt](trivy_image_report.txt) – Image-Scan (Tabelle)
           - [trivy_config_report.json](trivy_config_report.json) – Dockerfile-Config-Scan (JSON)
@@ -159,7 +252,7 @@ jobs:
           echo "CRITICAL: ${CRITICAL} | HIGH: ${HIGH} | MEDIUM: ${MEDIUM} | LOW: ${LOW} | TOTAL: ${TOTAL}"
           echo "Dockerfile-Misconfigs: ${MISCONFIGS}"
 
-      # ── 7. Reports committen ──────────────────────────────────
+      # ── 8. Reports committen ──────────────────────────────
       - name: Reports committen
         run: |
           git config user.name  "github-actions[bot]"
@@ -169,7 +262,7 @@ jobs:
           git commit -m "security: Trivy Docker-Image-Scan Report $(date -u +%Y-%m-%d)"
           git push
 
-      # ── 8. Issue-Alert bei kritischen Schwachstellen ──────────
+      # ── 9. Issue-Alert bei kritischen Schwachstellen ──────────
       - name: Issue-Alert bei kritischen Schwachstellen
         if: steps.summary.outputs.high_severity == 'true'
         env:
