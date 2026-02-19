@@ -1,14 +1,14 @@
 # ──────────────────────────────────────────────────────────────
-# Trivy Docker-Image-Scan – Sicherheits-Scan des Container-Images
+# Trivy Sicherheits-Scan – Docker-Image + Repository-Quellcode
 # ──────────────────────────────────────────────────────────────
-# Baut das Docker-Image aus dem Dockerfile und scannt es mit
-# Trivy auf:
-#   1. OS/APT-Paket-Schwachstellen (Debian/Ubuntu)
-#   2. Sprach-Paket-Schwachstellen (pip, npm, etc.)
+# Scannt mit Trivy auf:
+#   1. OS/APT-Paket-Schwachstellen im Docker-Image
+#   2. Sprach-Paket-Schwachstellen (pip, npm, etc.) im Image
 #   3. Dockerfile-Misconfigurations (Best-Practice-Verstöße)
+#   4. Repository-Quellcode (setup.py, package.xml etc.)
+#      → erfasst Abhängigkeiten die NICHT im Docker-Image sind
 #
-# Ergebnisse werden in security/trivy-reports/ abgelegt
-# (getrennt von den manuellen CVE-Scans in security/reports/).
+# Ergebnisse werden in security/trivy-reports/ abgelegt.
 #
 # Trigger: Täglich 07:00 UTC | Manuell | Push auf Development
 # ──────────────────────────────────────────────────────────────
@@ -180,7 +180,138 @@ jobs:
           echo "--- Trivy Config-Scan Zusammenfassung ---"
           cat security/trivy-reports/trivy_config_report.txt || true
 
-      # ── 7. Zusammenfassung erstellen ──────────────────────────
+      # ── 7. Repository-Filesystem-Scan (Nicht-Docker-Abhängigkeiten) ─
+      - name: "Trivy: Repository-Quellcode-Scan"
+        run: |
+          # Scannt setup.py, package.xml, etc. direkt im Repo
+          trivy fs \
+            --format json \
+            --output security/trivy-reports/trivy_repo_scan.json \
+            --severity LOW,MEDIUM,HIGH,CRITICAL \
+            --scanners vuln \
+            . || true
+
+          trivy fs \
+            --format table \
+            --output security/trivy-reports/trivy_repo_scan.txt \
+            --severity LOW,MEDIUM,HIGH,CRITICAL \
+            --scanners vuln \
+            . || true
+
+          echo "--- Trivy Repo-Scan Zusammenfassung ---"
+          cat security/trivy-reports/trivy_repo_scan.txt || true
+
+          # Markdown-Report: Repo-Findings die NICHT im Docker-Image sind
+          python3 - <<'PYEOF'
+          import json, datetime
+
+          date = datetime.date.today().isoformat()
+
+          # Lade Repo-Scan (filesystem)
+          try:
+              with open("security/trivy-reports/trivy_repo_scan.json") as f:
+                  repo_data = json.load(f)
+          except Exception:
+              repo_data = {}
+
+          # Lade Image-Scan
+          try:
+              with open("security/trivy-reports/trivy_image_report.json") as f:
+                  image_data = json.load(f)
+          except Exception:
+              image_data = {}
+
+          # Sammle alle CVE-IDs aus dem Image-Scan
+          image_cves = set()
+          for r in image_data.get("Results", []):
+              for v in r.get("Vulnerabilities", []):
+                  image_cves.add(v.get("VulnerabilityID", ""))
+
+          # Sammle Repo-Findings
+          repo_vulns = []
+          for result in repo_data.get("Results", []):
+              target = result.get("Target", "")
+              pkg_type = result.get("Type", "")
+              for v in result.get("Vulnerabilities", []):
+                  repo_vulns.append({
+                      "target": target,
+                      "type": pkg_type,
+                      "id": v.get("VulnerabilityID", ""),
+                      "pkg": v.get("PkgName", ""),
+                      "installed": v.get("InstalledVersion", ""),
+                      "fixed": v.get("FixedVersion", ""),
+                      "severity": v.get("Severity", ""),
+                      "title": v.get("Title", ""),
+                      "url": v.get("PrimaryURL", ""),
+                      "in_image": v.get("VulnerabilityID", "") in image_cves,
+                  })
+
+          # Nur Findings die NICHT im Docker-Image enthalten sind
+          repo_only = [v for v in repo_vulns if not v["in_image"]]
+          # Alle Findings (auch überlappende)
+          all_repo = repo_vulns
+
+          lines = []
+          lines.append("# Trivy Repository-Quellcode-Scan")
+          lines.append("")
+          lines.append(f"**Datum:** {date}")
+          lines.append("**Scan-Typ:** Filesystem-Scan (setup.py, package.xml, etc.)")
+          lines.append("**Scope:** Alle deklarierten Abhängigkeiten im Repository")
+          lines.append("")
+          lines.append("## Übersicht")
+          lines.append("")
+
+          sev_order = ["CRITICAL", "HIGH", "MEDIUM", "LOW"]
+          lines.append("| Schweregrad | Repo gesamt | Nur Repo (nicht im Docker) |")
+          lines.append("|-------------|-------------|---------------------------|")
+          for sev in sev_order:
+              total = len([v for v in all_repo if v["severity"] == sev])
+              only = len([v for v in repo_only if v["severity"] == sev])
+              lines.append(f"| {sev} | {total} | {only} |")
+          lines.append(f"| **Gesamt** | **{len(all_repo)}** | **{len(repo_only)}** |")
+          lines.append("")
+
+          if repo_only:
+              lines.append("## Schwachstellen NUR im Repository (nicht im Docker-Image)")
+              lines.append("")
+              lines.append("Diese CVEs betreffen Abhängigkeiten die im Repository deklariert,")
+              lines.append("aber **nicht** im Docker-Image installiert sind (z.B. Test-Dependencies).")
+              lines.append("")
+              lines.append("| Schweregrad | Quelle | Paket | CVE | Version | Fix | Beschreibung |")
+              lines.append("|-------------|--------|-------|-----|---------|-----|--------------|")
+              for v in sorted(repo_only, key=lambda x: sev_order.index(x["severity"]) if x["severity"] in sev_order else 99):
+                  fix = v["fixed"] if v["fixed"] else "—"
+                  title = v["title"][:60] if v["title"] else "—"
+                  lines.append(f"| {v['severity']} | {v['target']} | {v['pkg']} | [{v['id']}]({v['url']}) | {v['installed']} | {fix} | {title} |")
+              lines.append("")
+          else:
+              lines.append("Keine zusätzlichen Schwachstellen außerhalb des Docker-Images gefunden.")
+              lines.append("")
+
+          if all_repo:
+              lines.append("## Alle Repository-Findings (vollständig)")
+              lines.append("")
+              lines.append("| Schweregrad | Quelle | Paket | CVE | Version | Im Docker? | Beschreibung |")
+              lines.append("|-------------|--------|-------|-----|---------|------------|--------------|")
+              for v in sorted(all_repo, key=lambda x: sev_order.index(x["severity"]) if x["severity"] in sev_order else 99):
+                  in_docker = "✅" if v["in_image"] else "❌"
+                  title = v["title"][:60] if v["title"] else "—"
+                  lines.append(f"| {v['severity']} | {v['target']} | {v['pkg']} | [{v['id']}]({v['url']}) | {v['installed']} | {in_docker} | {title} |")
+              lines.append("")
+
+          lines.append("---")
+          lines.append("*Automatisch erstellt von GitHub Actions (Trivy Docker-Image-Scan Workflow).*")
+
+          with open("security/trivy-reports/trivy_repo_scan.md", "w") as f:
+              f.write("\n".join(lines) + "\n")
+
+          print(f"Repo-Scan: {len(all_repo)} gesamt, {len(repo_only)} nur im Repo (nicht im Docker)")
+          PYEOF
+
+          echo "--- Repo-Scan Report ---"
+          cat security/trivy-reports/trivy_repo_scan.md || true
+
+      # ── 8. Zusammenfassung erstellen ──────────────────────────────
       - name: Scan-Zusammenfassung erstellen
         id: summary
         run: |
@@ -197,6 +328,10 @@ jobs:
 
           # Zähle Dockerfile-Misconfigs
           MISCONFIGS=$(jq '[.Results[]?.Misconfigurations[]?] | length' security/trivy-reports/trivy_config_report.json 2>/dev/null || echo "0")
+
+          # Zähle Repo-Scan Findings
+          REPO_TOTAL=$(jq '[.Results[]?.Vulnerabilities[]?] | length' security/trivy-reports/trivy_repo_scan.json 2>/dev/null || echo "0")
+          REPO_HIGH=$(jq '[.Results[]?.Vulnerabilities[]? | select(.Severity=="HIGH" or .Severity=="CRITICAL")] | length' security/trivy-reports/trivy_repo_scan.json 2>/dev/null || echo "0")
 
           cat > "$REPORT" << EOF
           # Trivy Docker-Image-Scan – Zusammenfassung
@@ -220,13 +355,22 @@ jobs:
 
           Gefundene Misconfigurations: **${MISCONFIGS}**
 
+          ## Repository-Quellcode-Scan (Nicht-Docker-Abhängigkeiten)
+
+          Gefundene Schwachstellen im Repo: **${REPO_TOTAL}** (davon HIGH/CRITICAL: **${REPO_HIGH}**)
+
+          Siehe **[trivy_repo_scan.md](trivy_repo_scan.md)** für Details inkl. Abgleich mit Docker-Image.
+
           ## Reports
 
           - **[trivy_high_critical.md](trivy_high_critical.md) – HIGH/CRITICAL Schwachstellen (Markdown)**
+          - **[trivy_repo_scan.md](trivy_repo_scan.md) – Repository-Quellcode-Scan (Nicht-Docker)**
           - [trivy_high_critical.json](trivy_high_critical.json) – HIGH/CRITICAL Schwachstellen (JSON)
           - [trivy_high_critical.txt](trivy_high_critical.txt) – HIGH/CRITICAL Schwachstellen (Tabelle)
           - [trivy_image_report.json](trivy_image_report.json) – Vollständiger Image-Scan (JSON)
           - [trivy_image_report.txt](trivy_image_report.txt) – Image-Scan (Tabelle)
+          - [trivy_repo_scan.json](trivy_repo_scan.json) – Repository-Scan (JSON)
+          - [trivy_repo_scan.txt](trivy_repo_scan.txt) – Repository-Scan (Tabelle)
           - [trivy_config_report.json](trivy_config_report.json) – Dockerfile-Config-Scan (JSON)
           - [trivy_config_report.txt](trivy_config_report.txt) – Dockerfile-Config-Scan (Tabelle)
 
@@ -252,7 +396,7 @@ jobs:
           echo "CRITICAL: ${CRITICAL} | HIGH: ${HIGH} | MEDIUM: ${MEDIUM} | LOW: ${LOW} | TOTAL: ${TOTAL}"
           echo "Dockerfile-Misconfigs: ${MISCONFIGS}"
 
-      # ── 8. Reports committen ──────────────────────────────
+      # ── 9. Reports committen ──────────────────────────────
       - name: Reports committen
         run: |
           git config user.name  "github-actions[bot]"
@@ -262,7 +406,7 @@ jobs:
           git commit -m "security: Trivy Docker-Image-Scan Report $(date -u +%Y-%m-%d)"
           git push
 
-      # ── 9. Issue-Alert bei kritischen Schwachstellen ──────────
+      # ── 10. Issue-Alert bei kritischen Schwachstellen ─────────
       - name: Issue-Alert bei kritischen Schwachstellen
         if: steps.summary.outputs.high_severity == 'true'
         env:
