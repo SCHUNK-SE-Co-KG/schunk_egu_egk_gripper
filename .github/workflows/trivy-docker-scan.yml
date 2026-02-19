@@ -1,0 +1,235 @@
+# ──────────────────────────────────────────────────────────────
+# Trivy Docker-Image-Scan – Sicherheits-Scan des Container-Images
+# ──────────────────────────────────────────────────────────────
+# Baut das Docker-Image aus dem Dockerfile und scannt es mit
+# Trivy auf:
+#   1. OS/APT-Paket-Schwachstellen (Debian/Ubuntu)
+#   2. Sprach-Paket-Schwachstellen (pip, npm, etc.)
+#   3. Dockerfile-Misconfigurations (Best-Practice-Verstöße)
+#
+# Ergebnisse werden in security/trivy-reports/ abgelegt
+# (getrennt von den manuellen CVE-Scans in security/reports/).
+#
+# Trigger: Wöchentlich Montag 07:00 UTC | Manuell | Push auf Development
+# ──────────────────────────────────────────────────────────────
+
+name: Trivy Docker-Image-Scan
+
+on:
+  schedule:
+    - cron: "0 7 * * 1"          # Wöchentlich Montag 07:00 UTC
+  workflow_dispatch:               # Manuell auslösbar
+  push:
+    branches:
+      - Development
+
+permissions:
+  contents: write
+  issues: write
+
+jobs:
+  trivy-scan:
+    runs-on: ubuntu-latest
+
+    steps:
+      # ── 1. Repository auschecken ──────────────────────────────
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # ── 2. Docker-Image bauen ─────────────────────────────────
+      - name: Docker-Image bauen
+        run: |
+          docker build -t schunk-gripper:scan .
+
+      # ── 3. Trivy installieren ─────────────────────────────────
+      - name: Trivy installieren
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y wget apt-transport-https gnupg lsb-release
+          wget -qO - https://aquasecurity.github.io/trivy-repo/deb/public.key | sudo gpg --dearmor -o /usr/share/keyrings/trivy.gpg
+          echo "deb [signed-by=/usr/share/keyrings/trivy.gpg] https://aquasecurity.github.io/trivy-repo/deb $(lsb_release -sc) main" | sudo tee /etc/apt/sources.list.d/trivy.list
+          sudo apt-get update -qq
+          sudo apt-get install -y trivy
+
+      # ── 4. Image-Vulnerability-Scan ───────────────────────────
+      - name: "Trivy: Image-Vulnerability-Scan"
+        id: vuln_scan
+        run: |
+          mkdir -p security/trivy-reports
+
+          # JSON-Report (maschinenlesbar)
+          trivy image \
+            --format json \
+            --output security/trivy-reports/trivy_image_report.json \
+            --severity LOW,MEDIUM,HIGH,CRITICAL \
+            schunk-gripper:scan || true
+
+          # Tabellen-Report (menschenlesbar)
+          trivy image \
+            --format table \
+            --output security/trivy-reports/trivy_image_report.txt \
+            --severity LOW,MEDIUM,HIGH,CRITICAL \
+            schunk-gripper:scan || true
+
+          echo "--- Trivy Image-Scan Zusammenfassung ---"
+          cat security/trivy-reports/trivy_image_report.txt || true
+
+      # ── 5. Dockerfile-Misconfig-Scan ──────────────────────────
+      - name: "Trivy: Dockerfile-Config-Scan"
+        run: |
+          trivy config \
+            --format json \
+            --output security/trivy-reports/trivy_config_report.json \
+            Dockerfile || true
+
+          trivy config \
+            --format table \
+            --output security/trivy-reports/trivy_config_report.txt \
+            Dockerfile || true
+
+          echo "--- Trivy Config-Scan Zusammenfassung ---"
+          cat security/trivy-reports/trivy_config_report.txt || true
+
+      # ── 6. Zusammenfassung erstellen ──────────────────────────
+      - name: Scan-Zusammenfassung erstellen
+        id: summary
+        run: |
+          set -e
+          DATE=$(date -u +%Y-%m-%d)
+          REPORT="security/trivy-reports/trivy_summary.md"
+
+          # Zähle Schwachstellen aus dem JSON-Report
+          CRITICAL=$(jq '[.Results[]?.Vulnerabilities[]? | select(.Severity=="CRITICAL")] | length' security/trivy-reports/trivy_image_report.json 2>/dev/null || echo "0")
+          HIGH=$(jq '[.Results[]?.Vulnerabilities[]? | select(.Severity=="HIGH")] | length' security/trivy-reports/trivy_image_report.json 2>/dev/null || echo "0")
+          MEDIUM=$(jq '[.Results[]?.Vulnerabilities[]? | select(.Severity=="MEDIUM")] | length' security/trivy-reports/trivy_image_report.json 2>/dev/null || echo "0")
+          LOW=$(jq '[.Results[]?.Vulnerabilities[]? | select(.Severity=="LOW")] | length' security/trivy-reports/trivy_image_report.json 2>/dev/null || echo "0")
+          TOTAL=$((CRITICAL + HIGH + MEDIUM + LOW))
+
+          # Zähle Dockerfile-Misconfigs
+          MISCONFIGS=$(jq '[.Results[]?.Misconfigurations[]?] | length' security/trivy-reports/trivy_config_report.json 2>/dev/null || echo "0")
+
+          cat > "$REPORT" << EOF
+          # Trivy Docker-Image-Scan – Zusammenfassung
+
+          **Datum:** ${DATE}
+          **Image:** schunk-gripper:scan (gebaut aus Dockerfile)
+          **Base-Image:** ros:humble-ros-core (Ubuntu 22.04 Jammy)
+          **Scanner:** Trivy (GitHub Actions)
+
+          ## Schwachstellen (Image-Scan)
+
+          | Schweregrad | Anzahl |
+          |-------------|--------|
+          | CRITICAL    | ${CRITICAL} |
+          | HIGH        | ${HIGH} |
+          | MEDIUM      | ${MEDIUM} |
+          | LOW         | ${LOW} |
+          | **Gesamt**  | **${TOTAL}** |
+
+          ## Dockerfile-Misconfigurations
+
+          Gefundene Misconfigurations: **${MISCONFIGS}**
+
+          ## Reports
+
+          - [trivy_image_report.json](trivy_image_report.json) – Vollständiger Image-Scan (JSON)
+          - [trivy_image_report.txt](trivy_image_report.txt) – Image-Scan (Tabelle)
+          - [trivy_config_report.json](trivy_config_report.json) – Dockerfile-Config-Scan (JSON)
+          - [trivy_config_report.txt](trivy_config_report.txt) – Dockerfile-Config-Scan (Tabelle)
+
+          ---
+          *Automatisch erstellt von GitHub Actions (Trivy Docker-Image-Scan Workflow).*
+          EOF
+
+          # Heredoc-Einrückung entfernen
+          sed -i 's/^          //' "$REPORT"
+
+          echo "critical_count=${CRITICAL}" >> "$GITHUB_OUTPUT"
+          echo "high_count=${HIGH}" >> "$GITHUB_OUTPUT"
+          echo "total_count=${TOTAL}" >> "$GITHUB_OUTPUT"
+
+          # Flag für Issue-Alert
+          if [ "$CRITICAL" -gt 0 ] || [ "$HIGH" -gt 0 ]; then
+            echo "high_severity=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "high_severity=false" >> "$GITHUB_OUTPUT"
+          fi
+
+          echo "--- Zusammenfassung ---"
+          echo "CRITICAL: ${CRITICAL} | HIGH: ${HIGH} | MEDIUM: ${MEDIUM} | LOW: ${LOW} | TOTAL: ${TOTAL}"
+          echo "Dockerfile-Misconfigs: ${MISCONFIGS}"
+
+      # ── 7. Reports committen ──────────────────────────────────
+      - name: Reports committen
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add -f security/trivy-reports/ || echo "Nichts zum Adden."
+          git diff --cached --quiet && echo "Keine Änderungen." && exit 0
+          git commit -m "security: Trivy Docker-Image-Scan Report $(date -u +%Y-%m-%d)"
+          git push
+
+      # ── 8. Issue-Alert bei kritischen Schwachstellen ──────────
+      - name: Issue-Alert bei kritischen Schwachstellen
+        if: steps.summary.outputs.high_severity == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO_FULL: ${{ github.repository }}
+          CRITICAL_COUNT: ${{ steps.summary.outputs.critical_count }}
+          HIGH_COUNT: ${{ steps.summary.outputs.high_count }}
+          TOTAL_COUNT: ${{ steps.summary.outputs.total_count }}
+        run: |
+          set -e
+          DATE=$(date -u +%Y-%m-%d)
+          TITLE="🐳 Trivy-Alert: ${CRITICAL_COUNT} CRITICAL + ${HIGH_COUNT} HIGH Schwachstelle(n) im Docker-Image (${DATE})"
+
+          gh label create "trivy-alert" \
+            --description "Trivy Docker-Scan: Kritische Schwachstelle (HIGH/CRITICAL)" \
+            --color "b60205" 2>/dev/null || true
+
+          # Prüfe ob heute bereits ein Issue existiert
+          EXISTING=$(gh issue list \
+            --label "trivy-alert" \
+            --search "${DATE}" \
+            --state open \
+            --json number --jq 'length' 2>/dev/null || echo "0")
+          if [ "$EXISTING" -gt "0" ]; then
+            echo "Issue für heute existiert bereits – übersprungen."
+            exit 0
+          fi
+
+          {
+            echo "## 🐳 Trivy Docker-Image-Scan – ${DATE}"
+            echo ""
+            echo "Der automatische Trivy-Scan des Docker-Images hat **kritische Schwachstellen** gefunden:"
+            echo ""
+            echo "| Schweregrad | Anzahl |"
+            echo "|-------------|--------|"
+            echo "| CRITICAL    | ${CRITICAL_COUNT} |"
+            echo "| HIGH        | ${HIGH_COUNT} |"
+            echo "| Gesamt      | ${TOTAL_COUNT} |"
+            echo ""
+            echo "### Nächste Schritte"
+            echo "1. Report prüfen: [trivy_summary.md](https://github.com/${REPO_FULL}/blob/Development/security/trivy-reports/trivy_summary.md)"
+            echo "2. Betroffene Pakete identifizieren und aktualisieren"
+            echo "3. Docker-Image neu bauen und erneut scannen"
+            echo ""
+            echo "---"
+            echo "*Automatisch erstellt von GitHub Actions (Trivy Docker-Image-Scan Workflow).*"
+          } > /tmp/trivy_issue_body.md
+
+          ISSUE_URL=$(
+            gh issue create \
+              --title "${TITLE}" \
+              --body-file /tmp/trivy_issue_body.md \
+              --label "trivy-alert" \
+              --assignee "Bheowulf" 2>/dev/null \
+            || gh issue create \
+              --title "${TITLE}" \
+              --body-file /tmp/trivy_issue_body.md \
+              --label "trivy-alert" 2>/dev/null \
+            || gh issue create \
+              --title "${TITLE}" \
+              --body-file /tmp/trivy_issue_body.md
+          )
+          echo "✅ Issue erstellt: ${ISSUE_URL}"
