@@ -3,8 +3,8 @@
   "Trivy": {
     "Version": "0.69.1"
   },
-  "ReportID": "019c7660-57a1-71c5-9960-6f320e596e69",
-  "CreatedAt": "2026-02-19T14:49:11.32911791Z",
+  "ReportID": "019c766b-4074-7677-84e7-b1cb165d9b44",
+  "CreatedAt": "2026-02-19T15:01:06.292425428Z",
   "ArtifactName": "Dockerfile",
   "ArtifactType": "filesystem",
   "Results": [

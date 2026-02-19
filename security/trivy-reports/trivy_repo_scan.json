@@ -3,16 +3,16 @@
   "Trivy": {
     "Version": "0.69.1"
   },
-  "ReportID": "019c7660-5be5-707f-8858-3a9ae26264b6",
-  "CreatedAt": "2026-02-19T14:49:12.421033865Z",
-  "ArtifactID": "sha256:16e182dfd7a6cb7d27156d509b361ed7015b58f1c9d80b7cb14bfde3ab63a306",
+  "ReportID": "019c766b-44a6-7cd8-a2a1-aae60574bd2f",
+  "CreatedAt": "2026-02-19T15:01:07.366842825Z",
+  "ArtifactID": "sha256:3c538832ac21fd5948306ab13d9ee504866189b0dfcaafc50856c7518d4ddffe",
   "ArtifactName": ".",
   "ArtifactType": "repository",
   "Metadata": {
     "RepoURL": "https://github.com/SCHUNK-SE-Co-KG/schunk_mechatronic_gripper",
     "Branch": "Development",
-    "Commit": "feab62e660fcb556a9a364ded957871d63b66bfe",
-    "CommitMsg": "ci: Repository-Quellcode-Scan (Nicht-Docker) hinzugefügt\n\n- Neuer Step: trivy fs . scannt setup.py, package.xml etc. direkt\n- Erzeugt trivy_repo_scan.md mit tabellarischer Übersicht\n- Markiert Findings die NUR im Repo (nicht im Docker) vorhanden sind\n- Vergleich Docker-Image vs. Repo-Dependencies automatisch\n- Summary um Repo-Scan-Ergebnisse erweitert",
+    "Commit": "e7c4eb88f6a11f7465bba8a4c51904a138094e43",
+    "CommitMsg": "ci: translate all workflow comments and output to English\n\n- Converted trivy-docker-scan.yml to English (comments, step names,\n  report templates, issue bodies, labels, log messages)\n- Converted trivy-monthly-report.yml to English (same scope)\n- No functional changes, only language",
     "Author": "Bheowulf \u003cnico.peper@gmx.net\u003e",
     "Committer": "Bheowulf \u003cnico.peper@gmx.net\u003e"
   }
