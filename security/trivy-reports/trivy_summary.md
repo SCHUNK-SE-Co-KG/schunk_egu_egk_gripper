@@ -21,6 +21,9 @@ Gefundene Misconfigurations: **2**
 
 ## Reports
 
+- **[trivy_high_critical.md](trivy_high_critical.md) – HIGH/CRITICAL Schwachstellen (Markdown)**
+- [trivy_high_critical.json](trivy_high_critical.json) – HIGH/CRITICAL Schwachstellen (JSON)
+- [trivy_high_critical.txt](trivy_high_critical.txt) – HIGH/CRITICAL Schwachstellen (Tabelle)
 - [trivy_image_report.json](trivy_image_report.json) – Vollständiger Image-Scan (JSON)
 - [trivy_image_report.txt](trivy_image_report.txt) – Image-Scan (Tabelle)
 - [trivy_config_report.json](trivy_config_report.json) – Dockerfile-Config-Scan (JSON)

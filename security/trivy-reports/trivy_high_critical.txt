@@ -1,0 +1,307 @@
+
+Report Summary
+
+┌──────────────────────────────────────────────────────────────────────────────────┬────────────┬─────────────────┬─────────┐
+│                                      Target                                      │    Type    │ Vulnerabilities │ Secrets │
+├──────────────────────────────────────────────────────────────────────────────────┼────────────┼─────────────────┼─────────┤
+│ schunk-gripper:scan (ubuntu 22.04)                                               │   ubuntu   │        5        │    -    │
+├──────────────────────────────────────────────────────────────────────────────────┼────────────┼─────────────────┼─────────┤
+│ opt/ros/humble/lib/python3.10/site-packages/ament_copyright-0.12.14.egg-info/PK- │ python-pkg │        0        │    -    │
+│ G-INFO                                                                           │            │                 │         │
+├──────────────────────────────────────────────────────────────────────────────────┼────────────┼─────────────────┼─────────┤
+│ opt/ros/humble/lib/python3.10/site-packages/ament_cppcheck-0.12.14.egg-info/PKG- │ python-pkg │        0        │    -    │
+│ -INFO                                                                            │            │                 │         │
+├──────────────────────────────────────────────────────────────────────────────────┼────────────┼─────────────────┼─────────┤
+│ opt/ros/humble/lib/python3.10/site-packages/ament_cpplint-0.12.14.egg-info/PKG-- │ python-pkg │        0        │    -    │
+│ INFO                                                                             │            │                 │         │
+├──────────────────────────────────────────────────────────────────────────────────┼────────────┼─────────────────┼─────────┤
+│ opt/ros/humble/lib/python3.10/site-packages/ament_flake8-0.12.14.egg-info/PKG-I- │ python-pkg │        0        │    -    │
+│ NFO                                                                              │            │                 │         │
+├──────────────────────────────────────────────────────────────────────────────────┼────────────┼─────────────────┼─────────┤
+│ opt/ros/humble/lib/python3.10/site-packages/ament_index_python-1.4.0.egg-info/P- │ python-pkg │        0        │    -    │
+│ KG-INFO                                                                          │            │                 │         │
+├──────────────────────────────────────────────────────────────────────────────────┼────────────┼─────────────────┼─────────┤
+│ opt/ros/humble/lib/python3.10/site-packages/ament_lint-0.12.14.egg-info/PKG-INFO │ python-pkg │        0        │    -    │
+├──────────────────────────────────────────────────────────────────────────────────┼────────────┼─────────────────┼─────────┤
+│ opt/ros/humble/lib/python3.10/site-packages/ament_lint_cmake-0.12.14.egg-info/P- │ python-pkg │        0        │    -    │
+│ KG-INFO                                                                          │            │                 │         │
+├──────────────────────────────────────────────────────────────────────────────────┼────────────┼─────────────────┼─────────┤
+│ opt/ros/humble/lib/python3.10/site-packages/ament_package-0.14.1.egg-info/PKG-I- │ python-pkg │        0        │    -    │
+│ NFO                                                                              │            │                 │         │
+├──────────────────────────────────────────────────────────────────────────────────┼────────────┼─────────────────┼─────────┤
+│ opt/ros/humble/lib/python3.10/site-packages/ament_pep257-0.12.14.egg-info/PKG-I- │ python-pkg │        0        │    -    │
+│ NFO                                                                              │            │                 │         │
+├──────────────────────────────────────────────────────────────────────────────────┼────────────┼─────────────────┼─────────┤
+│ opt/ros/humble/lib/python3.10/site-packages/ament_uncrustify-0.12.14.egg-info/P- │ python-pkg │        0        │    -    │
+│ KG-INFO                                                                          │            │                 │         │
+├──────────────────────────────────────────────────────────────────────────────────┼────────────┼─────────────────┼─────────┤
+│ opt/ros/humble/lib/python3.10/site-packages/ament_xmllint-0.12.14.egg-info/PKG-- │ python-pkg │        0        │    -    │
+│ INFO                                                                             │            │                 │         │
+├──────────────────────────────────────────────────────────────────────────────────┼────────────┼─────────────────┼─────────┤
+│ opt/ros/humble/lib/python3.10/site-packages/launch-1.0.13.egg-info/PKG-INFO      │ python-pkg │        0        │    -    │
+├──────────────────────────────────────────────────────────────────────────────────┼────────────┼─────────────────┼─────────┤
+│ opt/ros/humble/lib/python3.10/site-packages/launch_pytest-1.0.13.egg-info/PKG-I- │ python-pkg │        0        │    -    │
+│ NFO                                                                              │            │                 │         │
+├──────────────────────────────────────────────────────────────────────────────────┼────────────┼─────────────────┼─────────┤
+│ opt/ros/humble/lib/python3.10/site-packages/launch_ros-0.19.13.egg-info/PKG-INFO │ python-pkg │        0        │    -    │
+├──────────────────────────────────────────────────────────────────────────────────┼────────────┼─────────────────┼─────────┤
+│ opt/ros/humble/lib/python3.10/site-packages/launch_testing-1.0.13.egg-info/PKG-- │ python-pkg │        0        │    -    │
+│ INFO                                                                             │            │                 │         │
+├──────────────────────────────────────────────────────────────────────────────────┼────────────┼─────────────────┼─────────┤
+│ opt/ros/humble/lib/python3.10/site-packages/launch_testing_ros-0.19.13.egg-info- │ python-pkg │        0        │    -    │
+│ /PKG-INFO                                                                        │            │                 │         │
+├──────────────────────────────────────────────────────────────────────────────────┼────────────┼─────────────────┼─────────┤
+│ opt/ros/humble/lib/python3.10/site-packages/launch_xml-1.0.13.egg-info/PKG-INFO  │ python-pkg │        0        │    -    │
+├──────────────────────────────────────────────────────────────────────────────────┼────────────┼─────────────────┼─────────┤
+│ opt/ros/humble/lib/python3.10/site-packages/launch_yaml-1.0.13.egg-info/PKG-INFO │ python-pkg │        0        │    -    │
+├──────────────────────────────────────────────────────────────────────────────────┼────────────┼─────────────────┼─────────┤
+│ opt/ros/humble/lib/python3.10/site-packages/osrf_pycommon-2.1.6.egg-info/PKG-IN- │ python-pkg │        0        │    -    │
+│ FO                                                                               │            │                 │         │
+├──────────────────────────────────────────────────────────────────────────────────┼────────────┼─────────────────┼─────────┤
+│ opt/ros/humble/lib/python3.10/site-packages/ros2action-0.18.15.egg-info/PKG-INFO │ python-pkg │        0        │    -    │
+├──────────────────────────────────────────────────────────────────────────────────┼────────────┼─────────────────┼─────────┤
+│ opt/ros/humble/lib/python3.10/site-packages/ros2cli-0.18.15.egg-info/PKG-INFO    │ python-pkg │        0        │    -    │
+├──────────────────────────────────────────────────────────────────────────────────┼────────────┼─────────────────┼─────────┤
+│ opt/ros/humble/lib/python3.10/site-packages/ros2component-0.18.15.egg-info/PKG-- │ python-pkg │        0        │    -    │
+│ INFO                                                                             │            │                 │         │
+├──────────────────────────────────────────────────────────────────────────────────┼────────────┼─────────────────┼─────────┤
+│ opt/ros/humble/lib/python3.10/site-packages/ros2doctor-0.18.15.egg-info/PKG-INFO │ python-pkg │        0        │    -    │
+├──────────────────────────────────────────────────────────────────────────────────┼────────────┼─────────────────┼─────────┤
+│ opt/ros/humble/lib/python3.10/site-packages/ros2interface-0.18.15.egg-info/PKG-- │ python-pkg │        0        │    -    │
+│ INFO                                                                             │            │                 │         │
+├──────────────────────────────────────────────────────────────────────────────────┼────────────┼─────────────────┼─────────┤
+│ opt/ros/humble/lib/python3.10/site-packages/ros2launch-0.19.13.egg-info/PKG-INFO │ python-pkg │        0        │    -    │
+├──────────────────────────────────────────────────────────────────────────────────┼────────────┼─────────────────┼─────────┤
+│ opt/ros/humble/lib/python3.10/site-packages/ros2lifecycle-0.18.15.egg-info/PKG-- │ python-pkg │        0        │    -    │
+│ INFO                                                                             │            │                 │         │
+├──────────────────────────────────────────────────────────────────────────────────┼────────────┼─────────────────┼─────────┤
+│ opt/ros/humble/lib/python3.10/site-packages/ros2multicast-0.18.15.egg-info/PKG-- │ python-pkg │        0        │    -    │
+│ INFO                                                                             │            │                 │         │
+├──────────────────────────────────────────────────────────────────────────────────┼────────────┼─────────────────┼─────────┤
+│ opt/ros/humble/lib/python3.10/site-packages/ros2node-0.18.15.egg-info/PKG-INFO   │ python-pkg │        0        │    -    │
+├──────────────────────────────────────────────────────────────────────────────────┼────────────┼─────────────────┼─────────┤
+│ opt/ros/humble/lib/python3.10/site-packages/ros2param-0.18.15.egg-info/PKG-INFO  │ python-pkg │        0        │    -    │
+├──────────────────────────────────────────────────────────────────────────────────┼────────────┼─────────────────┼─────────┤
+│ opt/ros/humble/lib/python3.10/site-packages/ros2pkg-0.18.15.egg-info/PKG-INFO    │ python-pkg │        0        │    -    │
+├──────────────────────────────────────────────────────────────────────────────────┼────────────┼─────────────────┼─────────┤
+│ opt/ros/humble/lib/python3.10/site-packages/ros2run-0.18.15.egg-info/PKG-INFO    │ python-pkg │        0        │    -    │
+├──────────────────────────────────────────────────────────────────────────────────┼────────────┼─────────────────┼─────────┤
+│ opt/ros/humble/lib/python3.10/site-packages/ros2service-0.18.15.egg-info/PKG-IN- │ python-pkg │        0        │    -    │
+│ FO                                                                               │            │                 │         │
+├──────────────────────────────────────────────────────────────────────────────────┼────────────┼─────────────────┼─────────┤
+│ opt/ros/humble/lib/python3.10/site-packages/ros2topic-0.18.15.egg-info/PKG-INFO  │ python-pkg │        0        │    -    │
+├──────────────────────────────────────────────────────────────────────────────────┼────────────┼─────────────────┼─────────┤
+│ opt/ros/humble/lib/python3.10/site-packages/rosidl_runtime_py-0.9.3.egg-info/PK- │ python-pkg │        0        │    -    │
+│ G-INFO                                                                           │            │                 │         │
+├──────────────────────────────────────────────────────────────────────────────────┼────────────┼─────────────────┼─────────┤
+│ opt/ros/humble/lib/python3.10/site-packages/rpyutils-0.2.2.egg-info/PKG-INFO     │ python-pkg │        0        │    -    │
+├──────────────────────────────────────────────────────────────────────────────────┼────────────┼─────────────────┼─────────┤
+│ opt/ros/humble/local/lib/python3.10/dist-packages/action_msgs-1.2.2-py3.10.egg-- │ python-pkg │        0        │    -    │
+│ info/PKG-INFO                                                                    │            │                 │         │
+├──────────────────────────────────────────────────────────────────────────────────┼────────────┼─────────────────┼─────────┤
+│ opt/ros/humble/local/lib/python3.10/dist-packages/actionlib_msgs-4.9.0-py3.10.e- │ python-pkg │        0        │    -    │
+│ gg-info/PKG-INFO                                                                 │            │                 │         │
+├──────────────────────────────────────────────────────────────────────────────────┼────────────┼─────────────────┼─────────┤
+│ opt/ros/humble/local/lib/python3.10/dist-packages/ament_cmake_test-1.3.12-py3.1- │ python-pkg │        0        │    -    │
+│ 0.egg-info/PKG-INFO                                                              │            │                 │         │
+├──────────────────────────────────────────────────────────────────────────────────┼────────────┼─────────────────┼─────────┤
+│ opt/ros/humble/local/lib/python3.10/dist-packages/builtin_interfaces-1.2.2-py3.- │ python-pkg │        0        │    -    │
+│ 10.egg-info/PKG-INFO                                                             │            │                 │         │
+├──────────────────────────────────────────────────────────────────────────────────┼────────────┼─────────────────┼─────────┤
+│ opt/ros/humble/local/lib/python3.10/dist-packages/composition_interfaces-1.2.2-- │ python-pkg │        0        │    -    │
+│ py3.10.egg-info/PKG-INFO                                                         │            │                 │         │
+├──────────────────────────────────────────────────────────────────────────────────┼────────────┼─────────────────┼─────────┤
+│ opt/ros/humble/local/lib/python3.10/dist-packages/diagnostic_msgs-4.9.0-py3.10.- │ python-pkg │        0        │    -    │
+│ egg-info/PKG-INFO                                                                │            │                 │         │
+├──────────────────────────────────────────────────────────────────────────────────┼────────────┼─────────────────┼─────────┤
+│ opt/ros/humble/local/lib/python3.10/dist-packages/geometry_msgs-4.9.0-py3.10.eg- │ python-pkg │        0        │    -    │
+│ g-info/PKG-INFO                                                                  │            │                 │         │
+├──────────────────────────────────────────────────────────────────────────────────┼────────────┼─────────────────┼─────────┤
+│ opt/ros/humble/local/lib/python3.10/dist-packages/lifecycle_msgs-1.2.2-py3.10.e- │ python-pkg │        0        │    -    │
+│ gg-info/PKG-INFO                                                                 │            │                 │         │
+├──────────────────────────────────────────────────────────────────────────────────┼────────────┼─────────────────┼─────────┤
+│ opt/ros/humble/local/lib/python3.10/dist-packages/nav_msgs-4.9.0-py3.10.egg-inf- │ python-pkg │        0        │    -    │
+│ o/PKG-INFO                                                                       │            │                 │         │
+├──────────────────────────────────────────────────────────────────────────────────┼────────────┼─────────────────┼─────────┤
+│ opt/ros/humble/local/lib/python3.10/dist-packages/rcl_interfaces-1.2.2-py3.10.e- │ python-pkg │        0        │    -    │
+│ gg-info/PKG-INFO                                                                 │            │                 │         │
+├──────────────────────────────────────────────────────────────────────────────────┼────────────┼─────────────────┼─────────┤
+│ opt/ros/humble/local/lib/python3.10/dist-packages/rclpy-3.3.19-py3.10.egg-info/- │ python-pkg │        0        │    -    │
+│ PKG-INFO                                                                         │            │                 │         │
+├──────────────────────────────────────────────────────────────────────────────────┼────────────┼─────────────────┼─────────┤
+│ opt/ros/humble/local/lib/python3.10/dist-packages/rcutils-5.1.8-py3.10.egg-info- │ python-pkg │        0        │    -    │
+│ /PKG-INFO                                                                        │            │                 │         │
+├──────────────────────────────────────────────────────────────────────────────────┼────────────┼─────────────────┼─────────┤
+│ opt/ros/humble/local/lib/python3.10/dist-packages/rosgraph_msgs-1.2.2-py3.10.eg- │ python-pkg │        0        │    -    │
+│ g-info/PKG-INFO                                                                  │            │                 │         │
+├──────────────────────────────────────────────────────────────────────────────────┼────────────┼─────────────────┼─────────┤
+│ opt/ros/humble/local/lib/python3.10/dist-packages/rosidl_typesupport_c-2.0.2-py- │ python-pkg │        0        │    -    │
+│ 3.10.egg-info/PKG-INFO                                                           │            │                 │         │
+├──────────────────────────────────────────────────────────────────────────────────┼────────────┼─────────────────┼─────────┤
+│ opt/ros/humble/local/lib/python3.10/dist-packages/rosidl_typesupport_cpp-2.0.2-- │ python-pkg │        0        │    -    │
+│ py3.10.egg-info/PKG-INFO                                                         │            │                 │         │
+├──────────────────────────────────────────────────────────────────────────────────┼────────────┼─────────────────┼─────────┤
+│ opt/ros/humble/local/lib/python3.10/dist-packages/rosidl_typesupport_fastrtps_c- │ python-pkg │        0        │    -    │
+│ -2.2.4-py3.10.egg-info/PKG-INFO                                                  │            │                 │         │
+├──────────────────────────────────────────────────────────────────────────────────┼────────────┼─────────────────┼─────────┤
+│ opt/ros/humble/local/lib/python3.10/dist-packages/rosidl_typesupport_fastrtps_c- │ python-pkg │        0        │    -    │
+│ pp-2.2.4-py3.10.egg-info/PKG-INFO                                                │            │                 │         │
+├──────────────────────────────────────────────────────────────────────────────────┼────────────┼─────────────────┼─────────┤
+│ opt/ros/humble/local/lib/python3.10/dist-packages/sensor_msgs-4.9.0-py3.10.egg-- │ python-pkg │        0        │    -    │
+│ info/PKG-INFO                                                                    │            │                 │         │
+├──────────────────────────────────────────────────────────────────────────────────┼────────────┼─────────────────┼─────────┤
+│ opt/ros/humble/local/lib/python3.10/dist-packages/shape_msgs-4.9.0-py3.10.egg-i- │ python-pkg │        0        │    -    │
+│ nfo/PKG-INFO                                                                     │            │                 │         │
+├──────────────────────────────────────────────────────────────────────────────────┼────────────┼─────────────────┼─────────┤
+│ opt/ros/humble/local/lib/python3.10/dist-packages/statistics_msgs-1.2.2-py3.10.- │ python-pkg │        0        │    -    │
+│ egg-info/PKG-INFO                                                                │            │                 │         │
+├──────────────────────────────────────────────────────────────────────────────────┼────────────┼─────────────────┼─────────┤
+│ opt/ros/humble/local/lib/python3.10/dist-packages/std_msgs-4.9.0-py3.10.egg-inf- │ python-pkg │        0        │    -    │
+│ o/PKG-INFO                                                                       │            │                 │         │
+├──────────────────────────────────────────────────────────────────────────────────┼────────────┼─────────────────┼─────────┤
+│ opt/ros/humble/local/lib/python3.10/dist-packages/std_srvs-4.9.0-py3.10.egg-inf- │ python-pkg │        0        │    -    │
+│ o/PKG-INFO                                                                       │            │                 │         │
+├──────────────────────────────────────────────────────────────────────────────────┼────────────┼─────────────────┼─────────┤
+│ opt/ros/humble/local/lib/python3.10/dist-packages/stereo_msgs-4.9.0-py3.10.egg-- │ python-pkg │        0        │    -    │
+│ info/PKG-INFO                                                                    │            │                 │         │
+├──────────────────────────────────────────────────────────────────────────────────┼────────────┼─────────────────┼─────────┤
+│ opt/ros/humble/local/lib/python3.10/dist-packages/trajectory_msgs-4.9.0-py3.10.- │ python-pkg │        0        │    -    │
+│ egg-info/PKG-INFO                                                                │            │                 │         │
+├──────────────────────────────────────────────────────────────────────────────────┼────────────┼─────────────────┼─────────┤
+│ opt/ros/humble/local/lib/python3.10/dist-packages/unique_identifier_msgs-2.2.1-- │ python-pkg │        0        │    -    │
+│ py3.10.egg-info/PKG-INFO                                                         │            │                 │         │
+├──────────────────────────────────────────────────────────────────────────────────┼────────────┼─────────────────┼─────────┤
+│ opt/ros/humble/local/lib/python3.10/dist-packages/visualization_msgs-4.9.0-py3.- │ python-pkg │        0        │    -    │
+│ 10.egg-info/PKG-INFO                                                             │            │                 │         │
+├──────────────────────────────────────────────────────────────────────────────────┼────────────┼─────────────────┼─────────┤
+│ schunk_mechatronic_gripper/build/schunk_gripper_driver/schunk_gripper_driver.eg- │ python-pkg │        0        │    -    │
+│ g-info/PKG-INFO                                                                  │            │                 │         │
+├──────────────────────────────────────────────────────────────────────────────────┼────────────┼─────────────────┼─────────┤
+│ schunk_mechatronic_gripper/build/schunk_gripper_dummy/schunk_gripper_dummy.egg-- │ python-pkg │        0        │    -    │
+│ info/PKG-INFO                                                                    │            │                 │         │
+├──────────────────────────────────────────────────────────────────────────────────┼────────────┼─────────────────┼─────────┤
+│ schunk_mechatronic_gripper/build/schunk_gripper_interfaces/ament_cmake_python/s- │ python-pkg │        0        │    -    │
+│ chunk_gripper_interfaces/schunk_gripper_interfaces.egg-info/PKG-INFO             │            │                 │         │
+├──────────────────────────────────────────────────────────────────────────────────┼────────────┼─────────────────┼─────────┤
+│ schunk_mechatronic_gripper/build/schunk_gripper_library/schunk_gripper_library.- │ python-pkg │        0        │    -    │
+│ egg-info/PKG-INFO                                                                │            │                 │         │
+├──────────────────────────────────────────────────────────────────────────────────┼────────────┼─────────────────┼─────────┤
+│ schunk_mechatronic_gripper/install/schunk_gripper_driver/lib/python3.10/site-pa- │ python-pkg │        0        │    -    │
+│ ckages/schunk_gripper_driver-0.0.0-py3.10.egg-info/PKG-INFO                      │            │                 │         │
+├──────────────────────────────────────────────────────────────────────────────────┼────────────┼─────────────────┼─────────┤
+│ schunk_mechatronic_gripper/install/schunk_gripper_dummy/lib/python3.10/site-pac- │ python-pkg │        0        │    -    │
+│ kages/schunk_gripper_dummy-0.0.1-py3.10.egg-info/PKG-INFO                        │            │                 │         │
+├──────────────────────────────────────────────────────────────────────────────────┼────────────┼─────────────────┼─────────┤
+│ schunk_mechatronic_gripper/install/schunk_gripper_interfaces/local/lib/python3.- │ python-pkg │        0        │    -    │
+│ 10/dist-packages/schunk_gripper_interfaces-0.0.1-py3.10.egg-info/PKG-INFO        │            │                 │         │
+├──────────────────────────────────────────────────────────────────────────────────┼────────────┼─────────────────┼─────────┤
+│ schunk_mechatronic_gripper/install/schunk_gripper_library/lib/python3.10/site-p- │ python-pkg │        0        │    -    │
+│ ackages/schunk_gripper_library-0.0.1-py3.10.egg-info/PKG-INFO                    │            │                 │         │
+├──────────────────────────────────────────────────────────────────────────────────┼────────────┼─────────────────┼─────────┤
+│ schunk_mechatronic_gripper/src/schunk_gripper_dummy/schunk_gripper_dummy.egg-in- │ python-pkg │        0        │    -    │
+│ fo/PKG-INFO                                                                      │            │                 │         │
+├──────────────────────────────────────────────────────────────────────────────────┼────────────┼─────────────────┼─────────┤
+│ schunk_mechatronic_gripper/src/schunk_gripper_library/schunk_gripper_library.eg- │ python-pkg │        0        │    -    │
+│ g-info/PKG-INFO                                                                  │            │                 │         │
+├──────────────────────────────────────────────────────────────────────────────────┼────────────┼─────────────────┼─────────┤
+│ usr/lib/python3/dist-packages/catkin_pkg_modules-1.1.0.egg-info/PKG-INFO         │ python-pkg │        0        │    -    │
+├──────────────────────────────────────────────────────────────────────────────────┼────────────┼─────────────────┼─────────┤
+│ usr/lib/python3/dist-packages/colcon_powershell-0.4.0.egg-info/PKG-INFO          │ python-pkg │        0        │    -    │
+├──────────────────────────────────────────────────────────────────────────────────┼────────────┼─────────────────┼─────────┤
+│ usr/lib/python3/dist-packages/rosdep-0.26.0.egg-info/PKG-INFO                    │ python-pkg │        0        │    -    │
+├──────────────────────────────────────────────────────────────────────────────────┼────────────┼─────────────────┼─────────┤
+│ usr/lib/python3/dist-packages/rosdep_modules-0.26.0.egg-info/PKG-INFO            │ python-pkg │        0        │    -    │
+├──────────────────────────────────────────────────────────────────────────────────┼────────────┼─────────────────┼─────────┤
+│ usr/lib/python3/dist-packages/rosdistro_modules-1.0.1.egg-info/PKG-INFO          │ python-pkg │        0        │    -    │
+├──────────────────────────────────────────────────────────────────────────────────┼────────────┼─────────────────┼─────────┤
+│ usr/local/lib/python3.10/dist-packages/annotated_doc-0.0.4.dist-info/METADATA    │ python-pkg │        0        │    -    │
+├──────────────────────────────────────────────────────────────────────────────────┼────────────┼─────────────────┼─────────┤
+│ usr/local/lib/python3.10/dist-packages/annotated_types-0.7.0.dist-info/METADATA  │ python-pkg │        0        │    -    │
+├──────────────────────────────────────────────────────────────────────────────────┼────────────┼─────────────────┼─────────┤
+│ usr/local/lib/python3.10/dist-packages/anyio-4.12.1.dist-info/METADATA           │ python-pkg │        0        │    -    │
+├──────────────────────────────────────────────────────────────────────────────────┼────────────┼─────────────────┼─────────┤
+│ usr/local/lib/python3.10/dist-packages/catkin_pkg-1.1.0.dist-info/METADATA       │ python-pkg │        0        │    -    │
+├──────────────────────────────────────────────────────────────────────────────────┼────────────┼─────────────────┼─────────┤
+│ usr/local/lib/python3.10/dist-packages/certifi-2026.1.4.dist-info/METADATA       │ python-pkg │        0        │    -    │
+├──────────────────────────────────────────────────────────────────────────────────┼────────────┼─────────────────┼─────────┤
+│ usr/local/lib/python3.10/dist-packages/charset_normalizer-3.4.4.dist-info/METAD- │ python-pkg │        0        │    -    │
+│ ATA                                                                              │            │                 │         │
+├──────────────────────────────────────────────────────────────────────────────────┼────────────┼─────────────────┼─────────┤
+│ usr/local/lib/python3.10/dist-packages/click-8.3.1.dist-info/METADATA            │ python-pkg │        0        │    -    │
+├──────────────────────────────────────────────────────────────────────────────────┼────────────┼─────────────────┼─────────┤
+│ usr/local/lib/python3.10/dist-packages/exceptiongroup-1.3.1.dist-info/METADATA   │ python-pkg │        0        │    -    │
+├──────────────────────────────────────────────────────────────────────────────────┼────────────┼─────────────────┼─────────┤
+│ usr/local/lib/python3.10/dist-packages/fastapi-0.129.0.dist-info/METADATA        │ python-pkg │        0        │    -    │
+├──────────────────────────────────────────────────────────────────────────────────┼────────────┼─────────────────┼─────────┤
+│ usr/local/lib/python3.10/dist-packages/h11-0.16.0.dist-info/METADATA             │ python-pkg │        0        │    -    │
+├──────────────────────────────────────────────────────────────────────────────────┼────────────┼─────────────────┼─────────┤
+│ usr/local/lib/python3.10/dist-packages/httpcore-1.0.9.dist-info/METADATA         │ python-pkg │        0        │    -    │
+├──────────────────────────────────────────────────────────────────────────────────┼────────────┼─────────────────┼─────────┤
+│ usr/local/lib/python3.10/dist-packages/httpx-0.28.1.dist-info/METADATA           │ python-pkg │        0        │    -    │
+├──────────────────────────────────────────────────────────────────────────────────┼────────────┼─────────────────┼─────────┤
+│ usr/local/lib/python3.10/dist-packages/idna-3.11.dist-info/METADATA              │ python-pkg │        0        │    -    │
+├──────────────────────────────────────────────────────────────────────────────────┼────────────┼─────────────────┼─────────┤
+│ usr/local/lib/python3.10/dist-packages/netifaces2-0.0.22.dist-info/METADATA      │ python-pkg │        0        │    -    │
+├──────────────────────────────────────────────────────────────────────────────────┼────────────┼─────────────────┼─────────┤
+│ usr/local/lib/python3.10/dist-packages/pydantic-2.12.5.dist-info/METADATA        │ python-pkg │        0        │    -    │
+├──────────────────────────────────────────────────────────────────────────────────┼────────────┼─────────────────┼─────────┤
+│ usr/local/lib/python3.10/dist-packages/pydantic_core-2.41.5.dist-info/METADATA   │ python-pkg │        0        │    -    │
+├──────────────────────────────────────────────────────────────────────────────────┼────────────┼─────────────────┼─────────┤
+│ usr/local/lib/python3.10/dist-packages/pymodbus-3.8.6.dist-info/METADATA         │ python-pkg │        0        │    -    │
+├──────────────────────────────────────────────────────────────────────────────────┼────────────┼─────────────────┼─────────┤
+│ usr/local/lib/python3.10/dist-packages/pyserial-3.5.dist-info/METADATA           │ python-pkg │        0        │    -    │
+├──────────────────────────────────────────────────────────────────────────────────┼────────────┼─────────────────┼─────────┤
+│ usr/local/lib/python3.10/dist-packages/python_multipart-0.0.22.dist-info/METADA- │ python-pkg │        0        │    -    │
+│ TA                                                                               │            │                 │         │
+├──────────────────────────────────────────────────────────────────────────────────┼────────────┼─────────────────┼─────────┤
+│ usr/local/lib/python3.10/dist-packages/requests-2.32.5.dist-info/METADATA        │ python-pkg │        0        │    -    │
+├──────────────────────────────────────────────────────────────────────────────────┼────────────┼─────────────────┼─────────┤
+│ usr/local/lib/python3.10/dist-packages/starlette-0.52.1.dist-info/METADATA       │ python-pkg │        0        │    -    │
+├──────────────────────────────────────────────────────────────────────────────────┼────────────┼─────────────────┼─────────┤
+│ usr/local/lib/python3.10/dist-packages/typing_extensions-4.15.0.dist-info/METAD- │ python-pkg │        0        │    -    │
+│ ATA                                                                              │            │                 │         │
+├──────────────────────────────────────────────────────────────────────────────────┼────────────┼─────────────────┼─────────┤
+│ usr/local/lib/python3.10/dist-packages/typing_inspection-0.4.2.dist-info/METADA- │ python-pkg │        0        │    -    │
+│ TA                                                                               │            │                 │         │
+├──────────────────────────────────────────────────────────────────────────────────┼────────────┼─────────────────┼─────────┤
+│ usr/local/lib/python3.10/dist-packages/urllib3-2.6.3.dist-info/METADATA          │ python-pkg │        0        │    -    │
+├──────────────────────────────────────────────────────────────────────────────────┼────────────┼─────────────────┼─────────┤
+│ usr/local/lib/python3.10/dist-packages/uvicorn-0.41.0.dist-info/METADATA         │ python-pkg │        0        │    -    │
+└──────────────────────────────────────────────────────────────────────────────────┴────────────┴─────────────────┴─────────┘
+Legend:
+- '-': Not scanned
+- '0': Clean (no security findings detected)
+
+
+For OSS Maintainers: VEX Notice
+--------------------------------
+If you're an OSS maintainer and Trivy has detected vulnerabilities in your project that you believe are not actually exploitable, consider issuing a VEX (Vulnerability Exploitability eXchange) statement.
+VEX allows you to communicate the actual status of vulnerabilities in your project, improving security transparency and reducing false positives for your users.
+Learn more and start using VEX: https://trivy.dev/docs/v0.69/guide/supply-chain/vex/repo#publishing-vex-documents
+
+To disable this notice, set the TRIVY_DISABLE_VEX_NOTICE environment variable.
+
+
+schunk-gripper:scan (ubuntu 22.04)
+==================================
+Total: 5 (HIGH: 5, CRITICAL: 0)
+
+┌────────────────┬────────────────┬──────────┬──────────┬───────────────────┬───────────────┬────────────────────────────────────────────────────────────┐
+│    Library     │ Vulnerability  │ Severity │  Status  │ Installed Version │ Fixed Version │                           Title                            │
+├────────────────┼────────────────┼──────────┼──────────┼───────────────────┼───────────────┼────────────────────────────────────────────────────────────┤
+│ linux-libc-dev │ CVE-2024-35870 │ HIGH     │ affected │ 5.15.0-170.180    │               │ kernel: smb: client: fix UAF in smb2_reconnect_server()    │
+│                │                │          │          │                   │               │ https://avd.aquasec.com/nvd/cve-2024-35870                 │
+│                ├────────────────┤          │          │                   ├───────────────┼────────────────────────────────────────────────────────────┤
+│                │ CVE-2024-53179 │          │          │                   │               │ kernel: smb: client: fix use-after-free of signing key     │
+│                │                │          │          │                   │               │ https://avd.aquasec.com/nvd/cve-2024-53179                 │
+│                ├────────────────┤          │          │                   ├───────────────┼────────────────────────────────────────────────────────────┤
+│                │ CVE-2025-37849 │          │          │                   │               │ kernel: KVM: arm64: Tear down vGIC on failed vCPU creation │
+│                │                │          │          │                   │               │ https://avd.aquasec.com/nvd/cve-2025-37849                 │
+│                ├────────────────┤          │          │                   ├───────────────┼────────────────────────────────────────────────────────────┤
+│                │ CVE-2025-37899 │          │          │                   │               │ kernel: ksmbd: fix use-after-free in session logoff        │
+│                │                │          │          │                   │               │ https://avd.aquasec.com/nvd/cve-2025-37899                 │
+│                ├────────────────┤          │          │                   ├───────────────┼────────────────────────────────────────────────────────────┤
+│                │ CVE-2025-38118 │          │          │                   │               │ kernel: Linux kernel: Bluetooth MGMT use-after-free        │
+│                │                │          │          │                   │               │ vulnerability allows privilege escalation                  │
+│                │                │          │          │                   │               │ https://avd.aquasec.com/nvd/cve-2025-38118                 │
+└────────────────┴────────────────┴──────────┴──────────┴───────────────────┴───────────────┴────────────────────────────────────────────────────────────┘
