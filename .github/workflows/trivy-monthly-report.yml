@@ -1,15 +1,15 @@
 # ──────────────────────────────────────────────────────────────
-# Trivy Monthly Report – Monatlicher Docker-Sicherheitsbericht
+# Trivy Monthly Report – Monthly Docker Security Report
 # ──────────────────────────────────────────────────────────────
-# Erstellt am 1. Montag jedes Monats um 09:00 Uhr (MEZ/MESZ)
-# ein GitHub Issue mit dem vollständigen Trivy Docker-Image-
-# Sicherheitsbericht.
+# Runs on the 1st Monday of each month at 09:00 CET (08:00 UTC)
+# and creates a GitHub Issue with the full Trivy Docker image
+# security report.
 #
-# Baut das Docker-Image, scannt es mit Trivy und erstellt
-# einen Monatsreport als GitHub Issue.
+# Builds the Docker image, scans it with Trivy and generates
+# a monthly report as a GitHub Issue.
 #
-# Trigger: 1. Montag im Monat 08:00 UTC (= 09:00 MEZ)
-#          Manuell via workflow_dispatch
+# Trigger: 1st Monday of the month 08:00 UTC (= 09:00 CET)
+#          Manual via workflow_dispatch
 # ──────────────────────────────────────────────────────────────
 
 name: Trivy Monthly Report
@@ -28,35 +28,35 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # ── 1. Prüfe ob 1. Montag im Monat ───────────────────────
-      - name: Prüfe ob 1. Montag im Monat
+      # ── 1. Check if 1st Monday of the month ──────────────────
+      - name: Check if 1st Monday of the month
         id: check
         run: |
           DAY=$(date -u +%d)
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            echo "Manueller Start – Report wird erstellt."
+            echo "Manual trigger – generating report."
             echo "skip=false" >> $GITHUB_OUTPUT
           elif [ "$DAY" -le "7" ]; then
-            echo "1. Montag im Monat – Report wird erstellt."
+            echo "1st Monday of the month – generating report."
             echo "skip=false" >> $GITHUB_OUTPUT
           else
-            echo "Nicht der 1. Montag – übersprungen."
+            echo "Not the 1st Monday – skipped."
             echo "skip=true" >> $GITHUB_OUTPUT
           fi
 
-      # ── 2. Repository auschecken ──────────────────────────────
+      # ── 2. Checkout repository ────────────────────────────────
       - name: Checkout
         if: steps.check.outputs.skip != 'true'
         uses: actions/checkout@v4
 
-      # ── 3. Docker-Image bauen ─────────────────────────────────
-      - name: Docker-Image bauen
+      # ── 3. Build Docker image ─────────────────────────────────
+      - name: Build Docker image
         if: steps.check.outputs.skip != 'true'
         run: |
           docker build -t schunk-gripper:monthly-scan .
 
-      # ── 4. Trivy installieren ─────────────────────────────────
-      - name: Trivy installieren
+      # ── 4. Install Trivy ──────────────────────────────────────
+      - name: Install Trivy
         if: steps.check.outputs.skip != 'true'
         run: |
           sudo apt-get update -qq
@@ -66,8 +66,8 @@ jobs:
           sudo apt-get update -qq
           sudo apt-get install -y trivy
 
-      # ── 5. Vollständiger Image-Scan ───────────────────────────
-      - name: "Trivy: Vollständiger Image-Scan"
+      # ── 5. Full image scan ────────────────────────────────────
+      - name: "Trivy: Full image scan"
         if: steps.check.outputs.skip != 'true'
         run: |
           mkdir -p security/trivy-reports
@@ -84,8 +84,8 @@ jobs:
             --severity LOW,MEDIUM,HIGH,CRITICAL \
             schunk-gripper:monthly-scan || true
 
-      # ── 6. HIGH/CRITICAL Scan ─────────────────────────────────
-      - name: "Trivy: HIGH/CRITICAL Scan"
+      # ── 6. HIGH/CRITICAL scan ─────────────────────────────────
+      - name: "Trivy: HIGH/CRITICAL scan"
         if: steps.check.outputs.skip != 'true'
         run: |
           trivy image \
@@ -100,8 +100,8 @@ jobs:
             --severity HIGH,CRITICAL \
             schunk-gripper:monthly-scan || true
 
-      # ── 7. Dockerfile-Config-Scan ─────────────────────────────
-      - name: "Trivy: Dockerfile-Config-Scan"
+      # ── 7. Dockerfile config scan ─────────────────────────────
+      - name: "Trivy: Dockerfile config scan"
         if: steps.check.outputs.skip != 'true'
         run: |
           trivy config \
@@ -114,8 +114,8 @@ jobs:
             --output security/trivy-reports/trivy_config_report.txt \
             Dockerfile || true
 
-      # ── 8. Monatsreport generieren ────────────────────────────
-      - name: Monatsreport generieren
+      # ── 8. Generate monthly report ────────────────────────────
+      - name: Generate monthly report
         if: steps.check.outputs.skip != 'true'
         id: report
         run: |
@@ -123,7 +123,7 @@ jobs:
           DATE=$(date -u +%Y-%m-%d)
           MONTH=$(date -u +"%B %Y")
 
-          # Zähle Schwachstellen
+          # Count vulnerabilities
           CRITICAL=$(jq '[.Results[]?.Vulnerabilities[]? | select(.Severity=="CRITICAL")] | length' security/trivy-reports/trivy_image_report.json 2>/dev/null || echo "0")
           HIGH=$(jq '[.Results[]?.Vulnerabilities[]? | select(.Severity=="HIGH")] | length' security/trivy-reports/trivy_image_report.json 2>/dev/null || echo "0")
           MEDIUM=$(jq '[.Results[]?.Vulnerabilities[]? | select(.Severity=="MEDIUM")] | length' security/trivy-reports/trivy_image_report.json 2>/dev/null || echo "0")
@@ -140,28 +140,28 @@ jobs:
           echo "month=${MONTH}" >> "$GITHUB_OUTPUT"
           echo "date=${DATE}" >> "$GITHUB_OUTPUT"
 
-          # Markdown-Monatsreport generieren
+          # Generate Markdown monthly report
           python3 - <<'PYEOF'
           import json, datetime, os
 
           date = os.environ.get("DATE", datetime.date.today().isoformat())
           month = datetime.datetime.now().strftime("%B %Y")
 
-          # Image-Scan laden
+          # Load image scan
           try:
               with open("security/trivy-reports/trivy_image_report.json") as f:
                   img_data = json.load(f)
           except Exception:
               img_data = {}
 
-          # Config-Scan laden
+          # Load config scan
           try:
               with open("security/trivy-reports/trivy_config_report.json") as f:
                   cfg_data = json.load(f)
           except Exception:
               cfg_data = {}
 
-          # Schwachstellen sammeln
+          # Collect vulnerabilities
           all_vulns = []
           for result in img_data.get("Results", []):
               target = result.get("Target", "")
@@ -181,7 +181,7 @@ jobs:
           for v in all_vulns:
               by_sev.setdefault(v["severity"], []).append(v)
 
-          # Misconfigs
+          # Misconfigurations
           misconfigs = []
           for result in cfg_data.get("Results", []):
               for m in result.get("Misconfigurations", []):
@@ -200,90 +200,90 @@ jobs:
           low = by_sev.get("LOW", [])
 
           lines = []
-          lines.append(f"# 🐳 Trivy Docker-Image Monthly Report – {month}")
-          lines.append(f"")
-          lines.append(f"**Berichtszeitraum:** {month}")
-          lines.append(f"**Erstellt am:** {date}")
-          lines.append(f"**Image:** schunk-gripper (gebaut aus Dockerfile)")
-          lines.append(f"**Base-Image:** ros:humble-ros-core (Ubuntu 22.04 Jammy)")
-          lines.append(f"**Scanner:** Trivy (GitHub Actions)")
-          lines.append(f"")
-          lines.append(f"---")
-          lines.append(f"")
-          lines.append(f"## Übersicht")
-          lines.append(f"")
-          lines.append(f"| Schweregrad | Anzahl |")
-          lines.append(f"|-------------|--------|")
-          lines.append(f"| CRITICAL    | {len(critical)} |")
-          lines.append(f"| HIGH        | {len(high)} |")
-          lines.append(f"| MEDIUM      | {len(medium)} |")
-          lines.append(f"| LOW         | {len(low)} |")
-          lines.append(f"| **Gesamt**  | **{len(all_vulns)}** |")
-          lines.append(f"")
-          lines.append(f"**Dockerfile-Misconfigurations:** {len(misconfigs)}")
-          lines.append(f"")
+          lines.append(f"# 🐳 Trivy Docker Image Monthly Report – {month}")
+          lines.append("")
+          lines.append(f"**Reporting period:** {month}")
+          lines.append(f"**Generated on:** {date}")
+          lines.append("**Image:** schunk-gripper (built from Dockerfile)")
+          lines.append("**Base image:** ros:humble-ros-core (Ubuntu 22.04 Jammy)")
+          lines.append("**Scanner:** Trivy (GitHub Actions)")
+          lines.append("")
+          lines.append("---")
+          lines.append("")
+          lines.append("## Overview")
+          lines.append("")
+          lines.append("| Severity | Count |")
+          lines.append("|----------|-------|")
+          lines.append(f"| CRITICAL | {len(critical)} |")
+          lines.append(f"| HIGH     | {len(high)} |")
+          lines.append(f"| MEDIUM   | {len(medium)} |")
+          lines.append(f"| LOW      | {len(low)} |")
+          lines.append(f"| **Total** | **{len(all_vulns)}** |")
+          lines.append("")
+          lines.append(f"**Dockerfile misconfigurations:** {len(misconfigs)}")
+          lines.append("")
 
-          # CRITICAL + HIGH Details
+          # CRITICAL + HIGH details
           for sev_label, sev_list in [("CRITICAL", critical), ("HIGH", high)]:
-              lines.append(f"---")
-              lines.append(f"")
-              lines.append(f"## {sev_label} Schwachstellen ({len(sev_list)})")
-              lines.append(f"")
+              lines.append("---")
+              lines.append("")
+              lines.append(f"## {sev_label} Vulnerabilities ({len(sev_list)})")
+              lines.append("")
               if not sev_list:
-                  lines.append(f"Keine {sev_label}-Schwachstellen gefunden. ✅")
-                  lines.append(f"")
+                  lines.append(f"No {sev_label} vulnerabilities found. ✅")
+                  lines.append("")
               else:
-                  lines.append(f"| Paket | CVE | Installiert | Fix | Beschreibung |")
-                  lines.append(f"|-------|-----|-------------|-----|--------------|")
+                  lines.append("| Package | CVE | Installed | Fix | Description |")
+                  lines.append("|---------|-----|-----------|-----|-------------|")
                   for v in sev_list:
                       fix = v["fixed"] if v["fixed"] else "—"
                       title = v["title"][:70] if v["title"] else "—"
                       lines.append(f"| {v['pkg']} | [{v['id']}]({v['url']}) | {v['installed']} | {fix} | {title} |")
-                  lines.append(f"")
+                  lines.append("")
 
-          # MEDIUM/LOW nur als Zusammenfassung
-          lines.append(f"---")
-          lines.append(f"")
-          lines.append(f"## MEDIUM/LOW Schwachstellen")
-          lines.append(f"")
-          lines.append(f"- **MEDIUM:** {len(medium)} Schwachstellen")
-          lines.append(f"- **LOW:** {len(low)} Schwachstellen")
-          lines.append(f"")
-          lines.append(f"Details siehe vollständiger Report: `security/trivy-reports/trivy_image_report.txt`")
-          lines.append(f"")
+          # MEDIUM/LOW summary only
+          lines.append("---")
+          lines.append("")
+          lines.append("## MEDIUM/LOW Vulnerabilities")
+          lines.append("")
+          lines.append(f"- **MEDIUM:** {len(medium)} vulnerabilities")
+          lines.append(f"- **LOW:** {len(low)} vulnerabilities")
+          lines.append("")
+          lines.append("For details see full report: `security/trivy-reports/trivy_image_report.txt`")
+          lines.append("")
 
-          # Dockerfile Misconfigurations
+          # Dockerfile misconfigurations
           if misconfigs:
-              lines.append(f"---")
-              lines.append(f"")
-              lines.append(f"## Dockerfile-Misconfigurations ({len(misconfigs)})")
-              lines.append(f"")
-              lines.append(f"| ID | Schweregrad | Beschreibung |")
-              lines.append(f"|----|------------|--------------|")
+              lines.append("---")
+              lines.append("")
+              lines.append(f"## Dockerfile Misconfigurations ({len(misconfigs)})")
+              lines.append("")
+              lines.append("| ID | Severity | Description |")
+              lines.append("|----|----------|-------------|")
               for m in misconfigs:
                   desc = m["title"][:60] if m["title"] else m["desc"][:60]
                   url = m["url"] or ""
                   mid = m["avdid"] or m["id"]
                   lines.append(f"| [{mid}]({url}) | {m['severity']} | {desc} |")
-              lines.append(f"")
+              lines.append("")
 
-          lines.append(f"---")
-          lines.append(f"")
-          lines.append(f"*Automatisch erstellt von GitHub Actions (Trivy Monthly Report Workflow).*")
+          lines.append("---")
+          lines.append("")
+          lines.append("*Automatically generated by GitHub Actions (Trivy Monthly Report Workflow).*")
 
           report_path = "security/trivy-reports/trivy_monthly_report.md"
           with open(report_path, "w") as f:
               f.write("\n".join(lines) + "\n")
 
-          print(f"Monthly Report: {len(critical)} CRITICAL, {len(high)} HIGH, {len(medium)} MEDIUM, {len(low)} LOW")
+          print(f"Monthly report: {len(critical)} CRITICAL, {len(high)} HIGH, {len(medium)} MEDIUM, {len(low)} LOW")
           print(f"Misconfigs: {len(misconfigs)}")
           PYEOF
 
-          echo "--- Monthly Report erstellt ---"
+          echo "--- Monthly report generated ---"
           cat security/trivy-reports/trivy_monthly_report.md | head -40
 
-      # ── 9. Zusammenfassung aktualisieren ──────────────────────
-      - name: Zusammenfassung aktualisieren
+      # ── 9. Update summary ─────────────────────────────────────
+      - name: Update summary
         if: steps.check.outputs.skip != 'true'
         run: |
           DATE=$(date -u +%Y-%m-%d)
@@ -297,57 +297,57 @@ jobs:
           MISCONFIGS=${{ steps.report.outputs.misconfigs }}
 
           cat > "$REPORT" << EOF
-          # Trivy Docker-Image-Scan – Zusammenfassung
+          # Trivy Docker Image Scan – Summary
 
-          **Datum:** ${DATE}
-          **Image:** schunk-gripper:scan (gebaut aus Dockerfile)
-          **Base-Image:** ros:humble-ros-core (Ubuntu 22.04 Jammy)
+          **Date:** ${DATE}
+          **Image:** schunk-gripper:scan (built from Dockerfile)
+          **Base image:** ros:humble-ros-core (Ubuntu 22.04 Jammy)
           **Scanner:** Trivy (GitHub Actions)
 
-          ## Schwachstellen (Image-Scan)
+          ## Vulnerabilities (Image Scan)
 
-          | Schweregrad | Anzahl |
-          |-------------|--------|
-          | CRITICAL    | ${CRITICAL} |
-          | HIGH        | ${HIGH} |
-          | MEDIUM      | ${MEDIUM} |
-          | LOW         | ${LOW} |
-          | **Gesamt**  | **${TOTAL}** |
+          | Severity | Count |
+          |----------|-------|
+          | CRITICAL | ${CRITICAL} |
+          | HIGH     | ${HIGH} |
+          | MEDIUM   | ${MEDIUM} |
+          | LOW      | ${LOW} |
+          | **Total** | **${TOTAL}** |
 
-          ## Dockerfile-Misconfigurations
+          ## Dockerfile Misconfigurations
 
-          Gefundene Misconfigurations: **${MISCONFIGS}**
+          Misconfigurations found: **${MISCONFIGS}**
 
           ## Reports
 
-          - **[trivy_high_critical.md](trivy_high_critical.md) – HIGH/CRITICAL Schwachstellen (Markdown)**
-          - **[trivy_monthly_report.md](trivy_monthly_report.md) – Monatlicher Gesamtreport**
-          - [trivy_high_critical.json](trivy_high_critical.json) – HIGH/CRITICAL Schwachstellen (JSON)
-          - [trivy_high_critical.txt](trivy_high_critical.txt) – HIGH/CRITICAL Schwachstellen (Tabelle)
-          - [trivy_image_report.json](trivy_image_report.json) – Vollständiger Image-Scan (JSON)
-          - [trivy_image_report.txt](trivy_image_report.txt) – Image-Scan (Tabelle)
-          - [trivy_config_report.json](trivy_config_report.json) – Dockerfile-Config-Scan (JSON)
-          - [trivy_config_report.txt](trivy_config_report.txt) – Dockerfile-Config-Scan (Tabelle)
+          - **[trivy_high_critical.md](trivy_high_critical.md) – HIGH/CRITICAL vulnerabilities (Markdown)**
+          - **[trivy_monthly_report.md](trivy_monthly_report.md) – Monthly full report**
+          - [trivy_high_critical.json](trivy_high_critical.json) – HIGH/CRITICAL vulnerabilities (JSON)
+          - [trivy_high_critical.txt](trivy_high_critical.txt) – HIGH/CRITICAL vulnerabilities (table)
+          - [trivy_image_report.json](trivy_image_report.json) – Full image scan (JSON)
+          - [trivy_image_report.txt](trivy_image_report.txt) – Image scan (table)
+          - [trivy_config_report.json](trivy_config_report.json) – Dockerfile config scan (JSON)
+          - [trivy_config_report.txt](trivy_config_report.txt) – Dockerfile config scan (table)
 
           ---
-          *Automatisch erstellt von GitHub Actions (Trivy Docker-Image-Scan / Trivy Monthly Report Workflow).*
+          *Automatically generated by GitHub Actions (Trivy Docker Image Scan / Trivy Monthly Report Workflow).*
           EOF
 
           sed -i 's/^          //' "$REPORT"
 
-      # ── 10. Reports committen ─────────────────────────────────
-      - name: Reports committen
+      # ── 10. Commit reports ────────────────────────────────────
+      - name: Commit reports
         if: steps.check.outputs.skip != 'true'
         run: |
           git config user.name  "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add -f security/trivy-reports/ || echo "Nichts zum Adden."
-          git diff --cached --quiet && echo "Keine Änderungen." && exit 0
+          git add -f security/trivy-reports/ || echo "Nothing to add."
+          git diff --cached --quiet && echo "No changes." && exit 0
           git commit -m "security: Trivy Monthly Report $(date -u +%Y-%m-%d)"
           git push
 
-      # ── 11. Monthly Report Issue erstellen ────────────────────
-      - name: Monthly Report Issue erstellen
+      # ── 11. Create monthly report issue ───────────────────────
+      - name: Create monthly report issue
         if: steps.check.outputs.skip != 'true'
         env:
           GH_TOKEN: ${{ github.token }}
@@ -363,13 +363,13 @@ jobs:
           REPORT_DATE: ${{ steps.report.outputs.date }}
         run: |
           set -e
-          TITLE="🐳 Trivy Monthly Report – Docker-Image-Sicherheit – ${MONTH_NAME}"
+          TITLE="🐳 Trivy Monthly Report – Docker Image Security – ${MONTH_NAME}"
 
           gh label create "trivy-monthly-report" \
-            --description "Monatlicher Trivy Docker-Image-Sicherheitsbericht" \
+            --description "Monthly Trivy Docker image security report" \
             --color "1d76db" 2>/dev/null || true
 
-          # Duplikat-Schutz (nur bei Schedule)
+          # Duplicate protection (schedule only)
           if [ "$EVENT_NAME" != "workflow_dispatch" ]; then
             YEAR_MONTH=$(date -u +"%Y-%m")
             EXISTING=$(gh issue list \
@@ -378,38 +378,38 @@ jobs:
               --state all \
               --json number --jq 'length' 2>/dev/null || echo "0")
             if [ "$EXISTING" -gt "0" ]; then
-              echo "Monthly Report für ${MONTH_NAME} existiert bereits – übersprungen."
+              echo "Monthly report for ${MONTH_NAME} already exists – skipped."
               exit 0
             fi
           else
-            echo "Manueller Start – Duplikat-Schutz übersprungen."
+            echo "Manual trigger – duplicate protection skipped."
           fi
 
-          # Issue-Body aus dem generierten Monthly Report
+          # Issue body from generated monthly report
           {
             if [ -f security/trivy-reports/trivy_monthly_report.md ]; then
               cat security/trivy-reports/trivy_monthly_report.md
             else
               echo "# 🐳 Trivy Monthly Report – ${MONTH_NAME}"
               echo ""
-              echo "| Schweregrad | Anzahl |"
-              echo "|-------------|--------|"
-              echo "| CRITICAL    | ${CRITICAL} |"
-              echo "| HIGH        | ${HIGH} |"
-              echo "| MEDIUM      | ${MEDIUM} |"
-              echo "| LOW         | ${LOW} |"
-              echo "| **Gesamt**  | **${TOTAL}** |"
+              echo "| Severity | Count |"
+              echo "|----------|-------|"
+              echo "| CRITICAL | ${CRITICAL} |"
+              echo "| HIGH     | ${HIGH} |"
+              echo "| MEDIUM   | ${MEDIUM} |"
+              echo "| LOW      | ${LOW} |"
+              echo "| **Total** | **${TOTAL}** |"
               echo ""
-              echo "Dockerfile-Misconfigurations: **${MISCONFIGS}**"
+              echo "Dockerfile misconfigurations: **${MISCONFIGS}**"
             fi
             echo ""
             echo "---"
-            echo "**Vollständiger Report:** [trivy_monthly_report.md](https://github.com/${REPO_FULL}/blob/Development/security/trivy-reports/trivy_monthly_report.md)"
-            echo "**HIGH/CRITICAL Report:** [trivy_high_critical.md](https://github.com/${REPO_FULL}/blob/Development/security/trivy-reports/trivy_high_critical.md)"
-            echo "*Automatisch erstellt von GitHub Actions (Trivy Monthly Report Workflow).*"
+            echo "**Full report:** [trivy_monthly_report.md](https://github.com/${REPO_FULL}/blob/Development/security/trivy-reports/trivy_monthly_report.md)"
+            echo "**HIGH/CRITICAL report:** [trivy_high_critical.md](https://github.com/${REPO_FULL}/blob/Development/security/trivy-reports/trivy_high_critical.md)"
+            echo "*Automatically generated by GitHub Actions (Trivy Monthly Report Workflow).*"
           } > /tmp/trivy_monthly_body.md
 
-          echo "Issue-Body erstellt ($(wc -c < /tmp/trivy_monthly_body.md) Bytes)"
+          echo "Issue body created ($(wc -c < /tmp/trivy_monthly_body.md) bytes)"
 
           ISSUE_URL=$(
             gh issue create \
@@ -425,4 +425,4 @@ jobs:
               --title "${TITLE}" \
               --body-file /tmp/trivy_monthly_body.md
           )
-          echo "✅ Issue erstellt: ${ISSUE_URL}"
+          echo "✅ Issue created: ${ISSUE_URL}"
