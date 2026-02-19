@@ -27,6 +27,7 @@ Lizenz: GPL-3.0
 from __future__ import annotations
 
 import argparse
+import ast
 import json
 import os
 import re
@@ -218,17 +219,109 @@ class ScanResult:
 
 
 # ═══════════════════════════════════════════════════════════════
-# 1) Python pip-Abhängigkeiten aus setup.py extrahieren
+# 1) Python pip-Abhängigkeiten aus setup.py extrahieren (AST-basiert)
 # ═══════════════════════════════════════════════════════════════
+def _extract_string_list(node: ast.expr) -> list[str]:
+    """Extrahiert String-Werte aus einem AST-Knoten (List, Tuple oder String)."""
+    strings: list[str] = []
+    if isinstance(node, (ast.List, ast.Tuple)):
+        for elt in node.elts:
+            if isinstance(elt, ast.Constant) and isinstance(elt.value, str):
+                strings.append(elt.value)
+    elif isinstance(node, ast.Constant) and isinstance(node.value, str):
+        strings.append(node.value)
+    return strings
+
+
+def _parse_requirement_string(req: str) -> tuple[str, str]:
+    """Parst einen PEP 508 Requirement-String in (name, version).
+
+    Unterstützte Formate:
+      "numpy==2.2.6"
+      "numpy>=2.2.6"
+      "numpy>=2.2.6, <3"
+      "numpy"             (ohne Version)
+      "requests[security]>=2.31"
+
+    Gibt (name, erste_version) oder (name, "") zurück.
+    """
+    req = req.strip()
+    if not req:
+        return ("", "")
+
+    match = re.match(r"^([a-zA-Z0-9_.-]+(?:\[[^\]]*\])?)\s*(.*)", req)
+    if not match:
+        return ("", "")
+
+    name_part = match.group(1)
+    version_part = match.group(2).strip()
+
+    # Extras wie [security] entfernen
+    name = re.sub(r"\[.*?\]", "", name_part).strip()
+
+    if not version_part:
+        return (name, "")
+
+    # Erste Versionsnummer extrahieren
+    ver_match = re.match(r"(?:==|>=|<=|~=|!=|<|>)\s*([^\s,;]+)", version_part)
+    if ver_match:
+        return (name, ver_match.group(1))
+
+    return (name, "")
+
+
+def _parse_setup_py_install_requires(content: str) -> list[tuple[str, str]]:
+    """Parst install_requires aus setup.py mittels Python AST.
+
+    Gibt Liste von (paket_name, version_string) Tupeln zurück.
+    Robuster als Regex: behandelt Kommentare, Klammern und alle
+    PEP 508 Versions-Spezifizierer korrekt.
+    """
+    try:
+        tree = ast.parse(content)
+    except SyntaxError:
+        return []
+
+    requirements: list[tuple[str, str]] = []
+
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.Call):
+            continue
+
+        func = node.func
+        func_name = ""
+        if isinstance(func, ast.Name):
+            func_name = func.id
+        elif isinstance(func, ast.Attribute):
+            func_name = func.attr
+
+        if func_name != "setup":
+            continue
+
+        for kw in node.keywords:
+            if kw.arg != "install_requires":
+                continue
+
+            req_strings = _extract_string_list(kw.value)
+            for req_str in req_strings:
+                name, version = _parse_requirement_string(req_str)
+                if name:
+                    requirements.append((name, version))
+
+    return requirements
+
+
 def extract_setup_py_deps(root_dir: Path) -> list[Dependency]:
-    """Extrahiert gepinnte Python-Pakete aus allen setup.py install_requires."""
+    """Extrahiert Python-Pakete aus allen setup.py install_requires mittels AST.
+
+    Nutzt Pythons ast-Modul statt Regex für robustes Parsing.
+    Dedup-Key basiert auf (normalisierter_name, version), damit verschiedene
+    Versionen desselben Pakets aus mehreren setup.py korrekt gescannt werden.
+    """
     deps: list[Dependency] = []
     seen: set[str] = set()
 
-    # Regex für install_requires-Block
-    install_req_re = re.compile(r"install_requires\s*=\s*\[([^\]]+)\]", re.DOTALL)
-    # Regex für einzelne Paket-Spezifikationen: "name==version" oder "name>=version"
-    pkg_re = re.compile(r"""['"]([a-zA-Z0-9_-]+)\s*(==|>=|<=|~=|!=)\s*([^'"]+)['"]""")
+    internal_norm = {p.lower().replace("-", "_") for p in INTERNAL_PACKAGES}
 
     for setup_py in root_dir.rglob("setup.py"):
         try:
@@ -237,64 +330,23 @@ def extract_setup_py_deps(root_dir: Path) -> list[Dependency]:
             continue
 
         source = str(setup_py.relative_to(root_dir))
+        requirements = _parse_setup_py_install_requires(content)
 
-        match = install_req_re.search(content)
-        if not match:
-            continue
-
-        block = match.group(1)
-
-        # Zuerst gepinnte Pakete extrahieren
-        pinned_names: set[str] = set()
-        for pkg_match in pkg_re.finditer(block):
-            name = pkg_match.group(1)
-            version = pkg_match.group(3).strip().rstrip(",")
-
-            # Normalisierter Name für Dedup
+        for name, version in requirements:
             norm_name = name.lower().replace("-", "_")
-            if norm_name in seen:
-                continue
-            seen.add(norm_name)
-            pinned_names.add(norm_name)
 
-            # Interne Pakete überspringen
-            if name in INTERNAL_PACKAGES:
+            if norm_name in internal_norm:
                 continue
+
+            dedup_key = f"{norm_name}:{version}"
+            if dedup_key in seen:
+                continue
+            seen.add(dedup_key)
 
             deps.append(
                 Dependency(
                     name=name,
                     version=version,
-                    ecosystem="PyPI",
-                    source=source,
-                )
-            )
-
-        # Dann ungepinnte Pakete (nur Name, ohne Versionsoperator)
-        for line in block.split(","):
-            line = line.strip().strip("'\"").strip()
-            if not line:
-                continue
-            # Skip wenn es einen Versionsoperator enthält (bereits erfasst)
-            if any(op in line for op in ["==", ">=", "<=", "~=", "!="]):
-                continue
-            # Extrahiere nur den Paketnamen
-            name_match = re.match(r"[a-zA-Z0-9_-]+", line)
-            if not name_match:
-                continue
-            name = name_match.group(0)
-            norm_name = name.lower().replace("-", "_")
-            if norm_name in seen:
-                continue
-            seen.add(norm_name)
-
-            if name in INTERNAL_PACKAGES:
-                continue
-
-            deps.append(
-                Dependency(
-                    name=name,
-                    version="",
                     ecosystem="PyPI",
                     source=source,
                 )
@@ -372,11 +424,11 @@ def extract_package_xml_deps(root_dir: Path) -> list[Dependency]:
 # Dedup + Merge
 # ═══════════════════════════════════════════════════════════════
 def deduplicate_deps(deps: list[Dependency]) -> list[Dependency]:
-    """Entfernt doppelte Abhängigkeiten (gleicher Name + Ecosystem)."""
+    """Entfernt doppelte Abhängigkeiten (gleicher Name + Ecosystem + Version)."""
     seen: set[str] = set()
     unique: list[Dependency] = []
     for d in deps:
-        key = f"{d.ecosystem}:{d.name}"
+        key = f"{d.ecosystem}:{d.name}:{d.version}"
         if key not in seen:
             seen.add(key)
             unique.append(d)
@@ -385,30 +437,43 @@ def deduplicate_deps(deps: list[Dependency]) -> list[Dependency]:
 
 # ── GitHub Advisory Scan für ROS upstream repos ──────────────────────
 def scan_github_advisories(dep: Dependency) -> list[dict]:
-    """Scannt GitHub Advisory Database für ein bestimmtes Repository."""
+    """Scannt GitHub Advisory Database für ein bestimmtes Repository.
+
+    Fragt mehrere Ecosystems ab, da ROS-Pakete Advisories unter
+    verschiedenen Ecosystems haben können (pip, Go, Rust, npm).
+    Dedupliziert Ergebnisse anhand der GHSA-ID.
+    """
     if not dep.upstream_repo:
         return []
 
-    url = "https://api.github.com/advisories"
-    try:
-        resp = requests.get(
-            url,
-            timeout=15,
-            params={
-                "ecosystem": "pip",
-                "affects": dep.upstream_repo,
-            },
-            headers={
-                "Accept": "application/vnd.github+json",
-                "X-GitHub-Api-Version": "2022-11-28",
-            },
-        )
-        if resp.status_code == 200:
-            return resp.json()
-    except (Exception, KeyboardInterrupt):
-        pass
+    all_advisories: list[dict] = []
+    seen_ids: set[str] = set()
 
-    # Alternative: Direkt über Repository Security Advisories
+    url = "https://api.github.com/advisories"
+    for ecosystem in ("pip", "go", "rust", "npm"):
+        try:
+            resp = requests.get(
+                url,
+                timeout=15,
+                params={
+                    "ecosystem": ecosystem,
+                    "affects": dep.upstream_repo,
+                },
+                headers={
+                    "Accept": "application/vnd.github+json",
+                    "X-GitHub-Api-Version": "2022-11-28",
+                },
+            )
+            if resp.status_code == 200:
+                for adv in resp.json():
+                    adv_id = adv.get("ghsa_id", "")
+                    if adv_id and adv_id not in seen_ids:
+                        seen_ids.add(adv_id)
+                        all_advisories.append(adv)
+        except (Exception, KeyboardInterrupt):
+            pass
+
+    # Fallback: Repository-spezifische Security Advisories
     repo_url = f"https://api.github.com/repos/{dep.upstream_repo}/security-advisories"
     try:
         resp = requests.get(
@@ -420,11 +485,15 @@ def scan_github_advisories(dep: Dependency) -> list[dict]:
             },
         )
         if resp.status_code == 200:
-            return resp.json()
+            for adv in resp.json():
+                adv_id = adv.get("ghsa_id", "")
+                if adv_id and adv_id not in seen_ids:
+                    seen_ids.add(adv_id)
+                    all_advisories.append(adv)
     except (Exception, KeyboardInterrupt):
         pass
 
-    return []
+    return all_advisories
 
 
 # ── OSV-API-Abfragen ────────────────────────────────────────────────
