@@ -10,14 +10,14 @@
 # Ergebnisse werden in security/trivy-reports/ abgelegt
 # (getrennt von den manuellen CVE-Scans in security/reports/).
 #
-# Trigger: Wöchentlich Montag 07:00 UTC | Manuell | Push auf Development
+# Trigger: Täglich 07:00 UTC | Manuell | Push auf Development
 # ──────────────────────────────────────────────────────────────
 
 name: Trivy Docker-Image-Scan
 
 on:
   schedule:
-    - cron: "0 7 * * 1"          # Wöchentlich Montag 07:00 UTC
+    - cron: "0 7 * * *"          # Täglich 07:00 UTC
   workflow_dispatch:               # Manuell auslösbar
   push:
     branches:
