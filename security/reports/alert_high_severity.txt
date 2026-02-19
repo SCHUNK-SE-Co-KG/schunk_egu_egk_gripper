@@ -1,0 +1,145 @@
+CVE-Alert: Kritische Schwachstellen in schunk_mechatronic_gripper
+====================================================================
+
+Scan-Zeitpunkt: 2026-02-18T14:28:52Z
+Repository:     SCHUNK-SE-Co-KG/schunk_mechatronic_gripper
+Schwachstellen: 29 gesamt, 19 mit CVSS >= 7.0
+
+--------------------------------------------------------------------
+
+  GHSA-27x4-j476-jp5f  (CVSS 8.4)
+  Paket:       PyPI:setuptools
+  CVE:         CVE-2013-1633
+  Fix-Version: 0.7
+  Setuptools vulnerable to Man-in-the-middle attacks
+  -> https://nvd.nist.gov/vuln/detail/CVE-2013-1633
+
+  GHSA-5rjg-fvgr-3xxf  (CVSS 7.7)
+  Paket:       PyPI:setuptools
+  CVE:         CVE-2025-47273
+  Fix-Version: 78.1.1
+  setuptools has a path traversal vulnerability in PackageIndex.download that leads to Arbitrary File Write
+  -> https://github.com/pypa/setuptools/security/advisories/GHSA-5rjg-fvgr-3xxf
+
+  GHSA-cx63-2mw6-8hw5  (CVSS 7.5)
+  Paket:       PyPI:setuptools
+  CVE:         CVE-2024-6345
+  Fix-Version: 70.0.0
+  setuptools vulnerable to Command Injection via package URL
+  -> https://nvd.nist.gov/vuln/detail/CVE-2024-6345
+
+  GHSA-r9hx-vwmv-q579  (CVSS 8.7)
+  Paket:       PyPI:setuptools
+  CVE:         CVE-2022-40897
+  Fix-Version: 65.5.1
+  pypa/setuptools vulnerable to Regular Expression Denial of Service (ReDoS)
+  -> https://nvd.nist.gov/vuln/detail/CVE-2022-40897
+
+  PYSEC-2013-22  (CVSS 8.4)
+  Paket:       PyPI:setuptools
+  CVE:         CVE-2013-1633
+  Fix-Version: 0.7
+  easy_install in setuptools before 0.7 uses HTTP to retrieve packages from the PyPI repository, and does not perform integrity checks on package contents, which allows man-in-the-middle attackers to ex
+  -> http://www.reddit.com/r/Python/comments/17rfh7/warning_dont_use_pip_in_an_untrusted_network_a/
+
+  PYSEC-2022-43012  (CVSS 8.7)
+  Paket:       PyPI:setuptools
+  CVE:         CVE-2022-40897
+  Fix-Version: 43a9c9bfa6aa626ec2a22540bea28d2ca77964be
+  Python Packaging Authority (PyPA) setuptools before 65.5.1 allows remote attackers to cause a denial of service via HTML in a crafted package or custom PackageIndex page. There is a Regular Expression
+  -> https://github.com/pypa/setuptools/blob/fe8a98e696241487ba6ac9f91faa38ade939ec5d/setuptools/package_index.py#L200
+
+  PYSEC-2025-49  (CVSS 7.7)
+  Paket:       PyPI:setuptools
+  CVE:         CVE-2025-47273
+  Fix-Version: 250a6d17978f9f6ac3ac887091f2d32886fbbb0b
+  setuptools is a package that allows users to download, build, install, upgrade, and uninstall Python packages. A path traversal vulnerability in `PackageIndex` is present in setuptools prior to versio
+  -> https://github.com/pypa/setuptools/security/advisories/GHSA-5rjg-fvgr-3xxf
+
+  GHSA-8h2j-cgx8-6xv7  (CVSS 8.8)
+  Paket:       PyPI:fastapi
+  CVE:         CVE-2021-32677
+  Fix-Version: 0.65.2
+  Cross-Site Request Forgery (CSRF) in FastAPI
+  -> https://github.com/tiangolo/fastapi/security/advisories/GHSA-8h2j-cgx8-6xv7
+
+  PYSEC-2021-100  (CVSS 8.8)
+  Paket:       PyPI:fastapi
+  CVE:         CVE-2021-32677
+  Fix-Version: fa7e3c996edf2d5482fff8f9d890ac2390dede4d
+  FastAPI is a web framework for building APIs with Python 3.6+ based on standard Python type hints. FastAPI versions lower than 0.65.2 that used cookies for authentication in path operations that recei
+  -> https://github.com/tiangolo/fastapi/commit/fa7e3c996edf2d5482fff8f9d890ac2390dede4d
+
+  PYSEC-2024-38  (CVSS 7.5)
+  Paket:       PyPI:fastapi
+  CVE:         CVE-2024-24762
+  Fix-Version: 9d34ad0ee8a0dfbbcce06f76c2d5d851085024fc
+  FastAPI is a web framework for building APIs with Python 3.8+ based on standard Python type hints. When using form data, `python-multipart` uses a Regular Expression to parse the HTTP `Content-Type` h
+  -> https://github.com/tiangolo/fastapi/security/advisories/GHSA-qf9m-vfgh-m389
+
+  GHSA-33c7-2mpw-hg34  (CVSS 8.7)
+  Paket:       PyPI:uvicorn
+  CVE:         CVE-2020-7694
+  Fix-Version: 0.11.7
+  Log injection in uvicorn
+  -> https://nvd.nist.gov/vuln/detail/CVE-2020-7694
+
+  GHSA-f97h-2pfx-f59f  (CVSS 8.7)
+  Paket:       PyPI:uvicorn
+  CVE:         CVE-2020-7695
+  Fix-Version: 0.11.7
+  HTTP response splitting in uvicorn
+  -> https://nvd.nist.gov/vuln/detail/CVE-2020-7695
+
+  PYSEC-2020-150  (CVSS 8.7)
+  Paket:       PyPI:uvicorn
+  CVE:         CVE-2020-7694
+  Fix-Version: 0.11.7
+  This affects all versions of package uvicorn. The request logger provided by the package is vulnerable to ASNI escape sequence injection. Whenever any HTTP request is received, the default behaviour o
+  -> https://snyk.io/vuln/SNYK-PYTHON-UVICORN-575560
+
+  PYSEC-2020-151  (CVSS 8.7)
+  Paket:       PyPI:uvicorn
+  CVE:         CVE-2020-7695
+  Fix-Version: 0.11.7
+  Uvicorn before 0.11.7 is vulnerable to HTTP response splitting. CRLF sequences are not escaped in the value of HTTP headers. Attackers can exploit this to add arbitrary headers to HTTP responses, or e
+  -> https://snyk.io/vuln/SNYK-PYTHON-UVICORN-570471
+
+  GHSA-x84v-xcm2-53pg  (CVSS 7.5)
+  Paket:       PyPI:requests
+  CVE:         CVE-2018-18074
+  Fix-Version: 2.20.0
+  Insufficiently Protected Credentials in Requests
+  -> https://nvd.nist.gov/vuln/detail/CVE-2018-18074
+
+  PYSEC-2018-28  (CVSS 7.5)
+  Paket:       PyPI:requests
+  CVE:         CVE-2018-18074
+  Fix-Version: c45d7c49ea75133e52ab22a8e9e13173938e36ff
+  The Requests package before 2.20.0 for Python sends an HTTP Authorization header to an http URI upon receiving a same-hostname https-to-http redirect, which makes it easier for remote attackers to dis
+  -> https://github.com/requests/requests/pull/4718
+
+  GHSA-2jv5-9r88-3w3p  (CVSS 7.5)
+  Paket:       PyPI:python-multipart
+  CVE:         CVE-2024-24762
+  Fix-Version: 0.0.7
+  python-multipart vulnerable to Content-Type Header ReDoS
+  -> https://github.com/Kludex/python-multipart/security/advisories/GHSA-2jv5-9r88-3w3p
+
+  GHSA-59g5-xgcq-4qw3  (CVSS 8.7)
+  Paket:       PyPI:python-multipart
+  CVE:         CVE-2024-53981
+  Fix-Version: 0.0.18
+  Denial of service (DoS) via deformation `multipart/form-data` boundary
+  -> https://github.com/Kludex/python-multipart/security/advisories/GHSA-59g5-xgcq-4qw3
+
+  GHSA-wp53-j4wj-2cfg  (CVSS 8.6)
+  Paket:       PyPI:python-multipart
+  CVE:         CVE-2026-24486
+  Fix-Version: 0.0.22
+  Python-Multipart has Arbitrary File Write via Non-Default Configuration
+  -> https://github.com/Kludex/python-multipart/security/advisories/GHSA-wp53-j4wj-2cfg
+
+--------------------------------------------------------------------
+Vollstaendiger Report: security/reports/cve_report.md
+https://github.com/SCHUNK-SE-Co-KG/schunk_mechatronic_gripper/blob/main/security/reports/cve_report.md
