@@ -655,9 +655,6 @@ class Driver(object):
             return self._write_param_now(self.plc_output, self.plc_output_buffer)
 
     def gpe_available(self) -> bool:
-        if not self.connected:
-            return False
-
         if not self.module_type:
             return False
         keys = self.module_type.split("_")
