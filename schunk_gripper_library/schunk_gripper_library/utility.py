@@ -416,7 +416,7 @@ class ModbusScanner(object):
         range_max: int = 14
         max_grippers: int = 2
 
-        def do() -> list[int]:
+        def do() -> list[dict]:
 
             grippers_found: list[dict] = []
             remaining = 10
