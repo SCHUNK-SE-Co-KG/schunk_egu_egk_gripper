@@ -19,7 +19,7 @@ import rclpy
 
 from rclpy.lifecycle import Node, State, TransitionCallbackReturn
 import rclpy.logging
-from pymodbus.exceptions import ConnectionException as connectionException
+from pymodbus.exceptions import ConnectionException as ConnectionException
 from schunk_gripper_library.driver import Driver as GripperDriver
 from schunk_gripper_interfaces.srv import (  # type: ignore [attr-defined]
     ListGrippers,
@@ -970,7 +970,7 @@ class Driver(Node):
     def _scan_grippers_cb(
         self, request: ScanGrippers.Request, response: ScanGrippers.Response
     ):
-        serial_port = getattr(request, "serial_port", "dev/ttyUSB0")
+        serial_port = getattr(request, "serial_port", "/dev/ttyUSB0")
         if request.scan_modbus:
             try:
                 self.modbus_scanner: ModbusScanner = ModbusScanner(serial_port=serial_port)
@@ -987,8 +987,8 @@ class Driver(Node):
                         response.connections.append(cfg)
                         response.grippers.append(driver.gripper_type)
                         driver.disconnect()
-            except connectionException:
-                self.get_logger().info("connectionException")
+            except ConnectionException:
+                self.get_logger().error("ConnectionException")
                 response.grippers = []
                 response.connections = []
         else:

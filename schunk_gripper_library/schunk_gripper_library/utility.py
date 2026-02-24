@@ -380,7 +380,7 @@ class ModbusScanner(object):
 
             result = self.client.read_holding_registers(
                 address=0x1020 - 1, slave=dev_id, count=2
-            )
+            ) # Read serial number from parameter 0x1020 of the gripper
 
             if not result.isError() and result.dev_id == dev_id:
                 serial_num = (result.registers[0] << 16) | result.registers[1]
@@ -396,7 +396,7 @@ class ModbusScanner(object):
         builder.add_8bit_uint(00)
         builder.add_8bit_uint(range_max)
         payload = builder.to_registers()
-        register_address = 0x11A7
+        register_address = 0x11A7 # Modbus Slave id (Parameter 0x11A8)
 
         self.client.retries = 0
         self.client.write_registers(
@@ -420,7 +420,6 @@ class ModbusScanner(object):
 
             grippers_found: list[dict] = []
             remaining = 10
-            k : int = range_min
 
             while remaining > 0:
                 grippers_found = []
