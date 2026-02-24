@@ -18,11 +18,6 @@ from threading import Thread, Lock
 from queue import PriorityQueue
 from concurrent.futures import Future
 from functools import partial
-from pymodbus.client import ModbusSerialClient
-from pymodbus.payload import BinaryPayloadBuilder
-from pymodbus.constants import Endian
-import struct
-import math
 import threading
 import time
 from pathlib import Path
@@ -32,7 +27,9 @@ import os
 import termios
 import socket
 import netifaces
-
+from pymodbus.client import ModbusSerialClient
+from pymodbus.payload import BinaryPayloadBuilder
+from pymodbus.constants import Endian
 
 def supports_parity(serial_port: str) -> bool:
     fd = None
@@ -349,25 +346,25 @@ class EthernetScanner(object):
             raise ValueError(f"Interface {iface} lacks an IPv4 address.")
 
         return addresses[AF_INET][0].get("broadcast", "255.255.255.255")
-    
+
 class ModbusScanner(object):
     def __init__(self, serial_port: str = "/dev/ttyUSB0") -> None:
         self.client = ModbusSerialClient(
-                port=serial_port,
-                baudrate=115200,
-                parity="E" if supports_parity(serial_port) else "N",
-                stopbits=1,
-                timeout=0.1,
-                trace_connect=None,
-                trace_packet=None,
-                trace_pdu=None,
-            )     
+            port=serial_port,
+            baudrate=115200,
+            parity="E" if supports_parity(serial_port) else "N",
+            stopbits=1,
+            timeout=0.1,
+            trace_connect=None,
+            trace_packet=None,
+            trace_pdu=None,
+        )
         self.client.set_max_no_responses(99999)  # Set a high limit for no responses
         self.client.connect()
 
     def __enter__(self) -> "ModbusScanner":
         return self
-    
+
     def __exit__(self, exc_type, exc_value, traceback) -> None:
         self.client.close()
 
@@ -427,12 +424,11 @@ class ModbusScanner(object):
                 grippers_found = []
                 self.change_gripper_id(old_id=0, range_min=range_min, range_max=range_max)  # broadcast
                 time.sleep(0.2)
-                for k in range(range_min, range_max+1):
+                for k in range(range_min, range_max + 1):
                     serial_number = self.get_serial_number(dev_id=k)
                     if not serial_number or not isinstance(serial_number, str):
                         continue
-                    grippers_found.append({"serial": serial_number, "new_id": k}
-                )
+                    grippers_found.append({"serial": serial_number, "new_id": k})
                 if (len(grippers_found) >= max_grippers):
                     break
                 remaining -= 1
@@ -444,7 +440,6 @@ class ModbusScanner(object):
             return scheduler.execute(func=partial(do)).result()
         else:
             return do()
-
 
 
 def gripper_available() -> bool:
