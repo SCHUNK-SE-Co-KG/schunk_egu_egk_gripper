@@ -977,7 +977,6 @@ class Driver(Node):
                 with self.modbus_scanner:
                     self.get_logger().info("Starting Modbus Scan")
                     entries = self.modbus_scanner.scan()
-                
                 for entry in entries:
                     device_id = entry["new_id"]
                     driver = GripperDriver()
@@ -991,7 +990,7 @@ class Driver(Node):
             except connectionException:
                 self.get_logger().info("connectionException")
                 response.grippers = []
-                response.connections = []                
+                response.connections = []
         else:
             with self.ethernet_scanner:
                 entries = self.ethernet_scanner.scan()

@@ -31,6 +31,7 @@ from pymodbus.client import ModbusSerialClient
 from pymodbus.payload import BinaryPayloadBuilder
 from pymodbus.constants import Endian
 
+
 def supports_parity(serial_port: str) -> bool:
     fd = None
     try:
@@ -346,6 +347,7 @@ class EthernetScanner(object):
             raise ValueError(f"Interface {iface} lacks an IPv4 address.")
 
         return addresses[AF_INET][0].get("broadcast", "255.255.255.255")
+
 
 class ModbusScanner(object):
     def __init__(self, serial_port: str = "/dev/ttyUSB0") -> None:
