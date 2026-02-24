@@ -980,7 +980,6 @@ class Driver(Node):
                 
                 for entry in entries:
                     device_id = entry["new_id"]
-                    #serial_port ="/dev/ttyUSB0"
                     driver = GripperDriver()
                     if driver.connect(device_id=device_id, serial_port=serial_port):
                         cfg = GripperConfig()
@@ -988,7 +987,6 @@ class Driver(Node):
                         cfg.serial_port = serial_port
                         response.connections.append(cfg)
                         response.grippers.append(driver.gripper_type)
-                        #self.get_logger().info(device_id)
                         driver.disconnect()
             except connectionException:
                 self.get_logger().info("connectionException")

@@ -370,32 +370,25 @@ class ModbusScanner(object):
     
     def __exit__(self, exc_type, exc_value, traceback) -> None:
         self.client.close()
-        print("Exit")
-
 
     def get_serial_number(self, dev_id: int) -> str | None:
         try:
             if not (0 <= dev_id <= 247):
-                #Log.debug(f"Device ID must be between 0 and 247, got: {dev_id}")
                 return None
 
             if not self.client.connected:
                 self.client.connect()
-                #time.sleep(0.1)
 
             result = self.client.read_holding_registers(
                 address=0x1020 - 1, slave=dev_id, count=2
             )
-            #Log.debug(f"Read serial number for device {dev_id}: {result}")
+
             if not result.isError() and result.dev_id == dev_id:
                 serial_num = (result.registers[0] << 16) | result.registers[1]
                 serial_hex_str = f"{serial_num:08X}"
                 return serial_hex_str
-
             return None
         except Exception:
-            # Modbus throws an exception if the device
-            # is not responding the wrong device responds
             return None
 
     def change_gripper_id(self, old_id: int, range_min: int, range_max: int):
@@ -410,8 +403,6 @@ class ModbusScanner(object):
         self.client.write_registers(
             register_address, payload, slave=old_id, no_response_expected=True
         )
-        #Log.debug("Successfully changed gripper ID to ", new_id)
-
         return True
 
     def scan(
@@ -420,11 +411,11 @@ class ModbusScanner(object):
     ) -> list[int]:
         """
         Discover every gripper on the Modbus and assign them incremental IDs
-        starting from 12.
+        starting from 10 to 14
         """
         range_min: int = 10
         range_max: int = 14
-        maxGrippers: int = 2
+        max_grippers: int = 2
 
         def do() -> list[int]:
 
@@ -442,7 +433,7 @@ class ModbusScanner(object):
                         continue
                     grippers_found.append({"serial": serial_number, "new_id": k}
                 )
-                if (len(grippers_found) >= maxGrippers):
+                if (len(grippers_found) >= max_grippers):
                     break
                 remaining -= 1
 
