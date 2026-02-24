@@ -407,7 +407,7 @@ class ModbusScanner(object):
     def scan(
         self,
         scheduler: Scheduler | None = None,
-    ) -> list[int]:
+    ) -> list[dict]:
         """
         Discover every gripper on the Modbus and assign them incremental IDs
         starting from 10 to 14
