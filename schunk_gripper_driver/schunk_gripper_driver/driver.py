@@ -977,6 +977,7 @@ class Driver(Node):
                 with self.modbus_scanner:
                     self.get_logger().info("Starting Modbus Scan")
                     entries = self.modbus_scanner.scan()
+                    self.get_logger().info("Modbus Scan Finished")
                 for entry in entries:
                     device_id = entry["new_id"]
                     driver = GripperDriver()
@@ -993,8 +994,9 @@ class Driver(Node):
                 response.connections = []
         else:
             with self.ethernet_scanner:
+                self.get_logger().info("Starting Ethernet Scan")
                 entries = self.ethernet_scanner.scan()
-                self.get_logger().info("Finished Scan")
+                self.get_logger().info("Ethernet Scan Finished")
                 for entry in entries:
                     host = entry["host"]
                     port = entry["port"]
@@ -1006,7 +1008,7 @@ class Driver(Node):
                         response.connections.append(cfg)
                         response.grippers.append(driver.gripper_type)
                         driver.disconnect()
-        self.get_logger().info("returning response")
+        self.get_logger().info("Returning response")
         return response
 
     def _list_grippers_cb(
