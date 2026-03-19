@@ -45,7 +45,9 @@ from schunk_gripper_interfaces.srv import (  # type: ignore [attr-defined]
     ScanGrippers,
     LocateGripper,
     ReadGripperParameter,
+    ReadGripperParameterRaw,
     WriteGripperParameter,
+    WriteGripperParameterRaw,
     Stop,
     StopWithGPE,
 )
@@ -623,9 +625,25 @@ class Driver(Node):
             )
             self.gripper_services.append(
                 self.create_service(
+                    ReadGripperParameterRaw,
+                    f"~/{gripper_id}/_read_parameter_raw",
+                    partial(self._read_gripper_parameter_raw_cb, gripper=gripper),
+                    callback_group=self.gripper_services_cb_group,
+                )
+            )
+            self.gripper_services.append(
+                self.create_service(
                     WriteGripperParameter,
                     f"~/{gripper_id}/write_parameter",
                     partial(self._write_gripper_parameter_cb, gripper=gripper),
+                    callback_group=self.gripper_services_cb_group,
+                )
+            )
+            self.gripper_services.append(
+                self.create_service(
+                    WriteGripperParameterRaw,
+                    f"~/{gripper_id}/_write_parameter_raw",
+                    partial(self._write_gripper_parameter_raw_cb, gripper=gripper),
                     callback_group=self.gripper_services_cb_group,
                 )
             )
@@ -1339,6 +1357,28 @@ class Driver(Node):
             response.message = str(e)
 
         return response
+    
+    def _read_gripper_parameter_raw_cb(
+        self,
+        request: ReadGripperParameterRaw.Request,
+        response: ReadGripperParameterRaw.Response,
+        gripper: Gripper,
+    ):
+        self.get_logger().debug("---> Read gripper parameter RAW")
+        try:
+            data = gripper["driver"].read_param(request.parameter, True, request.length)
+            if (len(data) == 0):
+                response.success = False
+            else:
+                response.success = True
+                response.payload = [bytes([b]) for b in data]
+            response.message = gripper["driver"].get_status_diagnostics()
+        except Exception as e:
+            self.get_logger().error(str(e))
+            response.success = False
+            response.message = str(e)
+
+        return response
 
     def _write_gripper_parameter_cb(
         self,
@@ -1358,7 +1398,27 @@ class Driver(Node):
 
         try:
             bytes_data = gripper["driver"].encode_module_parameter(data=data, param=request.parameter)
-            response.success = gripper["driver"].write_param(param=request.parameter, data=bytes_data)
+            response.success = gripper["driver"].write_param(param=request.parameter, data=bytes_data, write_raw=False, length=0)
+            response.message = gripper["driver"].get_status_diagnostics()
+        except Exception as e:
+            self.get_logger().error(str(e))
+            response.success = False
+            response.message = str(e)
+
+        return response
+    
+    def _write_gripper_parameter_raw_cb(
+        self,
+        request: WriteGripperParameterRaw.Request,
+        response: WriteGripperParameterRaw.Response,
+        gripper: Gripper,
+    ):
+        self.get_logger().debug("---> Write gripper parameter")
+
+        try:
+            # Convert sequence of bytes objects back to bytearray
+            bytes_data = bytearray(b''.join(request.payload))
+            response.success = gripper["driver"].write_param(param=request.parameter, data=bytes_data, write_raw=True, length=request.length)
             response.message = gripper["driver"].get_status_diagnostics()
         except Exception as e:
             self.get_logger().error(str(e))

@@ -1,0 +1,7 @@
+string parameter  # Module parameter in hex, e.g. "0x0528"
+uint8 length      # Length of the parameter in Registers
+byte[] payload    # Byte Array with the payload   
+
+---
+bool success
+string message
