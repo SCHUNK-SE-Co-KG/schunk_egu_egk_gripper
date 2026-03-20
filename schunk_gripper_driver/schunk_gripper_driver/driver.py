@@ -1371,12 +1371,12 @@ class Driver(Node):
                 response.success = False
             else:
                 response.success = True
-                response.payload = [bytes([b]) for b in data]
-            response.message = gripper["driver"].get_status_diagnostics()
+                response.payload = "-".join(f"{byte:02X}" for byte in data)
+            #response.message = gripper["driver"].get_status_diagnostics()
         except Exception as e:
             self.get_logger().error(str(e))
             response.success = False
-            response.message = str(e)
+            #response.message = str(e)
 
         return response
 
@@ -1413,17 +1413,16 @@ class Driver(Node):
         response: WriteGripperParameterRaw.Response,
         gripper: Gripper,
     ):
-        self.get_logger().debug("---> Write gripper parameter")
+        self.get_logger().debug("---> Write gripper parameter RAW")
 
         try:
-            # Convert sequence of bytes objects back to bytearray
-            bytes_data = bytearray(b''.join(request.payload))
+            bytes_data = bytearray(int(h, 16) for h in request.payload.split("-"))
             response.success = gripper["driver"].write_param(param=request.parameter, data=bytes_data, write_raw=True, length=request.length)
-            response.message = gripper["driver"].get_status_diagnostics()
+            #response.message = gripper["driver"].get_status_diagnostics()
         except Exception as e:
             self.get_logger().error(str(e))
             response.success = False
-            response.message = str(e)
+            #response.message = str(e)
 
         return response
 
