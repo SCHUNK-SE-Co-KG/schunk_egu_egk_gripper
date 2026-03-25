@@ -40,6 +40,7 @@ rosidl_generate_interfaces(
     srv/StopWithGPE.srv
     srv/WriteGripperParameter.srv
     srv/WriteGripperParameterRaw.srv
+    srv/ToggleStreamingMode.srv
     msg/ConnectionState.msg
     msg/Gripper.msg
     msg/GripperState.msg

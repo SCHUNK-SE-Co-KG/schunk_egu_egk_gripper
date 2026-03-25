@@ -137,7 +137,7 @@ class Driver(object):
         self.web_client_lock: Lock = Lock()
         self.connected: bool = False
         self.polling_thread: Thread = Thread()
-        self.update_cycle: float = 0.05  # sec
+        self.update_cycle: float = 0.01  # sec default is 0.05
         self.update_count: int = 0  # since last connect() call
         self.stop_request: Event = Event()
         self.reconnect_interval: float = 1.0  # sec
@@ -149,10 +149,10 @@ class Driver(object):
         port: int = 80,
         serial_port: str = "/dev/ttyUSB0",
         device_id: int | None = None,
-        update_cycle: float | None = 0.05,
+        update_cycle: float | None = 0.01,
     ) -> bool:
-        if (isinstance(update_cycle, float) or isinstance(update_cycle, int)) and update_cycle < 0.05:
-            raise ValueError("update_cycle must be at least 0.05 seconds")
+        if (isinstance(update_cycle, float) or isinstance(update_cycle, int)) and update_cycle < 0.01:
+            raise ValueError("update_cycle must be at least 0.01 seconds")
         if self.connected:
             return False
         self.update_count = 0
@@ -278,6 +278,65 @@ class Driver(object):
 
         expected_status = global_scheduler.execute(func=partial(do_send)).result()
         return self.wait_for_status(bits=expected_status)
+
+    def stream_absolute_positions(
+        self,
+        position: int,
+        velocity: int,
+        is_absolute: bool = True,
+        use_gpe: bool = False,
+        no_scheduler: bool = False,
+    ) -> bool:
+        """Sends a move to position command to the gripper.
+
+        This command blocks until the move is completed or an error occurs.
+
+        Note:
+            All integer parameters must be 32-bit signed integers,
+            as expected by the gripper.
+            If a value exceeds these bounds, an error is returned.
+
+        Args:
+            position (int): Target position in micrometers.
+            velocity (int): Movement velocity in micrometers per second.
+            is_absolute (bool): Whether the position is absolute (True)
+                                or relative (False).
+            use_gpe (bool): Whether to use GPE functionality.
+            no_scheduler (bool): If True, the request is sent directly without any scheduler.
+
+        Returns:
+            bool: True if the move was successful, False otherwise.
+        """
+        if not self.connected:
+            raise RuntimeError("Failed to move to position: Not connected.")
+
+        def do_send() -> dict:
+            control_bits = {}
+            control_bits["13" if is_absolute else "14"] = True
+            control_bits["31"] = use_gpe if self.gpe_available() else False
+            return {"3": 0, "5": self._send_cmd(control_bits, vel=velocity, pos=position)}
+
+        do_send() if no_scheduler else global_scheduler.execute(func=partial(do_send)).result()
+
+        # wait for the command to be acknowledged
+        #if not self.wait_for_status(bits=expected_status):
+        #    return False
+
+        # estimate how long the move will take
+        #epsilon_sec = 2  # additional time to account for delays (e. g. releasing brakes)
+        #estimated_duration_sec = self.estimate_duration(
+        #    position_abs=position, is_absolute=is_absolute, velocity=velocity
+        #)
+        #duration_sec = estimated_duration_sec + epsilon_sec
+
+        # wait for the command to complete or an error to occur
+        #bits: list[dict[str, int]] = []
+        #bits.append({"4": 1, "13": 1})  # command processed and position reached
+        #bits.append({"7": 1})  # error state
+        #matched_pattern = self.wait_for_any_status(bits=bits, timeout_sec=duration_sec)
+
+        # a move has failed if either an error occured or the wait timed out
+        #return matched_pattern not in [{}, {"7": 1}]
 
     def move_to_position(
         self,
@@ -930,6 +989,7 @@ class Driver(object):
         if self.web_client:
             # write to http server
             payload = {"inst": param, "value": data.hex().upper()}
+            i = 0
             with self.web_client_lock:
                 response = self.web_client.post(
                     url=f"http://{self.host}:{self.port}/adi/update.json", data=payload

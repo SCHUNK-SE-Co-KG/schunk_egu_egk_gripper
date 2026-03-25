@@ -1,0 +1,4 @@
+bool streaming  # boolean to set the streaming mode. 
+---
+bool success
+string message

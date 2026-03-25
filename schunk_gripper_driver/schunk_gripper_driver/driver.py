@@ -50,6 +50,7 @@ from schunk_gripper_interfaces.srv import (  # type: ignore [attr-defined]
     WriteGripperParameterRaw,
     Stop,
     StopWithGPE,
+    ToggleStreamingMode,
 )
 from schunk_gripper_interfaces.msg import (  # type: ignore [attr-defined]
     Gripper as GripperConfig,
@@ -143,6 +144,10 @@ class Driver(Node):
         self.joint_state_lock: Lock = Lock()
         self.gripper_state_lock: Lock = Lock()
 
+        # Streaming mode subscribers (gripper_id -> Subscription)
+        from rclpy.subscription import Subscription
+        self.streaming_subscribers: dict[str, Subscription] = {}
+
         # Setup services
         self.add_gripper_srv = self.create_service(
             AddGripper, "~/add_gripper", self._add_gripper_cb
@@ -192,6 +197,9 @@ class Driver(Node):
         self.gripper_states_stop: Event = Event()
         self.gripper_states_period: float = 0.05  # sec
         self.gripper_states_thread: Thread = Thread()
+
+        # Streaming mode flag
+        self.toggle_streaming: bool = False
 
         # Connection state
         self.connection_state_publisher: Publisher = self.create_publisher(
@@ -677,6 +685,15 @@ class Driver(Node):
                 )
             )
 
+            self.gripper_services.append(
+                self.create_service(
+                    srv_type=ToggleStreamingMode,
+                    srv_name=f"~/{gripper_id}/toggle_streaming_mode",
+                    callback=partial(self._toggle_streaming_mode_cb, gripper=gripper),
+                    callback_group=self.gripper_services_cb_group,
+                )
+            )
+
         # Publishers for each gripper
         for idx, _ in enumerate(self.grippers):
             gripper = self.grippers[idx]
@@ -720,6 +737,11 @@ class Driver(Node):
         for idx, _ in enumerate(self.gripper_services):
             self.destroy_service(self.gripper_services[idx])
         self.gripper_services.clear()
+
+        # Remove streaming subscribers
+        for gripper_id in list(self.streaming_subscribers.keys()):
+            self.destroy_subscription(self.streaming_subscribers.pop(gripper_id))
+        self.toggle_streaming = False
 
         # Remove gripper-specific publishers
         for gripper in self.list_grippers():
@@ -1176,6 +1198,89 @@ class Driver(Node):
             response.message = str(e)
 
         return response
+    
+    def _toggle_streaming_mode_cb(
+        self,
+        request: ToggleStreamingMode.Request,
+        response: ToggleStreamingMode.Response,
+        gripper: Gripper,
+    ):
+        gripper_id = gripper["gripper_id"]
+        self.toggle_streaming = request.streaming
+        self.get_logger().debug(f"---> Toggle streaming mode: {self.toggle_streaming}")
+
+        if request.streaming:
+            # Create subscriber for streaming JointStates to this gripper
+            if gripper_id not in self.streaming_subscribers:
+                self.streaming_subscribers[gripper_id] = self.create_subscription(
+                    msg_type=JointState,
+                    topic=f"~/{gripper_id}/target_joint_states",
+                    callback=partial(self._streaming_joint_state_cb, gripper=gripper),
+                    qos_profile=1,
+                    callback_group=self.gripper_services_cb_group,
+                )
+                self.get_logger().info(
+                    f"Streaming mode enabled for '{gripper_id}'. "
+                    f"Subscribing to ~/{gripper_id}/target_joint_states"
+                )
+        else:
+            # Destroy subscriber when streaming mode is disabled
+            if gripper_id in self.streaming_subscribers:
+                self.destroy_subscription(self.streaming_subscribers.pop(gripper_id))
+                self.get_logger().info(f"Streaming mode disabled for '{gripper_id}'")
+
+        response.success = True
+        return response
+
+    def _streaming_joint_state_cb(
+        self,
+        msg: JointState,
+        gripper: Gripper,
+    ):
+        """Callback for streaming target JointStates to the gripper.
+
+        Expects the JointState message to contain:
+        - position[0]: Target position in meters
+        - velocity[0]: Target velocity in meters per second
+
+        The position and velocity are converted to micrometers and
+        sent to the gripper using move_to_position with no_scheduler=True
+        for non-blocking behavior.
+        """
+        gripper_id = gripper["gripper_id"]
+
+        if not gripper["driver"].connected:
+            self.get_logger().warning(
+                f"Streaming: Gripper '{gripper_id}' not connected, skipping"
+            )
+            return
+
+        if len(msg.position) == 0:
+            self.get_logger().warning(
+                f"Streaming: JointState for '{gripper_id}' has no position, skipping"
+            )
+            return
+
+        # Get position (required) and velocity (optional, default to max velocity)
+        position = int(msg.position[0] * 1e6)  # Convert m to um
+        if len(msg.velocity) > 0:
+            velocity = int(msg.velocity[0] * 1e6)  # Convert m/s to um/s
+        else:
+            # Use max velocity if not specified
+            velocity = gripper["driver"].module_parameters.get("max_vel", 100000)
+
+        try:
+            gripper["driver"].stream_absolute_positions(
+                position=position,
+                velocity=velocity,
+                is_absolute=True,
+                use_gpe=False,
+                no_scheduler=True,
+            )
+        except Exception as e:
+            self.get_logger().error(
+                f"Streaming: Failed to move gripper '{gripper_id}': {e}"
+            )
 
     def _move_to_position_cb(
         self,
@@ -1400,6 +1505,7 @@ class Driver(Node):
             bytes_data = gripper["driver"].encode_module_parameter(data=data, param=request.parameter)
             response.success = gripper["driver"].write_param(param=request.parameter, data=bytes_data, write_raw=False, length=0)
             response.message = gripper["driver"].get_status_diagnostics()
+            self.get_logger().info(f"Wrote parameter '{request.parameter}' with data: {bytes_data} (encoded: {bytes_data.hex()})")
         except Exception as e:
             self.get_logger().error(str(e))
             response.success = False
