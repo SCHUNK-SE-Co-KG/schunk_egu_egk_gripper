@@ -936,7 +936,7 @@ class Driver(object):
             raise RuntimeError(f"Failed to encode module parameter: Invalid data or parameter '{param}'.")
 
         type_str = str(self.writable_parameters[param]["type"])
-        expected_size = int(self.writable_parameters[param]["registers"]) * 2
+        expected_size = int(self.writable_parameters[param]["registers"] * 2)
         endianness = ">" if self.fieldbus == "PN" else "<"
         encodings = {
             "bool": {"char": "?", "type": bool},

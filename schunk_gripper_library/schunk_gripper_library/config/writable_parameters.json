@@ -15,5 +15,6 @@
     "0x0898": {"name": "max_wrn_lgc_volt", "registers": 2, "type": "float"},
     "0x11A0": {"name": "baudrate", "registers": 2, "type": "uint32"},
     "0x11A8": {"name": "slave_id", "registers": 1, "type": "uint8"},
-    "0x1330": {"name": "enable_softreset", "registers": 1, "type": "bool"}
+    "0x1330": {"name": "enable_softreset", "registers": 1, "type": "bool"},
+    "0x0110": {"name": "ctrl_authority", "registers": 0.5, "type": "uint8"}
 }

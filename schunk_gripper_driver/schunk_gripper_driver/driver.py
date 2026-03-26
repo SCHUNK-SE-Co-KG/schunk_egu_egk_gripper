@@ -446,6 +446,8 @@ class Driver(Node):
         # Get available grippers ready to go
         for idx, gripper in enumerate(self.grippers):
             try:
+                value = self.grippers[idx]["driver"].encode_module_parameter([146], "0x0110")
+                self.grippers[idx]["driver"].write_param("0x0110", value)
                 self.grippers[idx]["driver"].acknowledge()
             except Exception as e:
                 self.get_logger().error(f"Exception for '{gripper['gripper_id']}': {e}")
