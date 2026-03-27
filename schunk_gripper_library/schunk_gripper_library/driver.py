@@ -137,7 +137,7 @@ class Driver(object):
         self.web_client_lock: Lock = Lock()
         self.connected: bool = False
         self.polling_thread: Thread = Thread()
-        self.update_cycle: float = 0.01  # sec default is 0.05
+        self.update_cycle: float = 0.001  # sec default is 0.05
         self.update_count: int = 0  # since last connect() call
         self.stop_request: Event = Event()
         self.reconnect_interval: float = 1.0  # sec
@@ -149,10 +149,10 @@ class Driver(object):
         port: int = 80,
         serial_port: str = "/dev/ttyUSB0",
         device_id: int | None = None,
-        update_cycle: float | None = 0.01,
+        update_cycle: float | None = 0.001,
     ) -> bool:
-        if (isinstance(update_cycle, float) or isinstance(update_cycle, int)) and update_cycle < 0.01:
-            raise ValueError("update_cycle must be at least 0.01 seconds")
+        if (isinstance(update_cycle, float) or isinstance(update_cycle, int)) and update_cycle < 0.001:
+            raise ValueError("update_cycle must be at least 0.001 seconds")
         if self.connected:
             return False
         self.update_count = 0

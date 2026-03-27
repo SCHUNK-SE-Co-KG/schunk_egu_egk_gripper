@@ -1275,7 +1275,7 @@ class Driver(Node):
                 velocity=velocity,
                 is_absolute=True,
                 use_gpe=False,
-                no_scheduler=True,
+                no_scheduler=False,
             )
         except Exception as e:
             self.get_logger().error(
