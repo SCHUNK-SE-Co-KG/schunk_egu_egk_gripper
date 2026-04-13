@@ -21,7 +21,7 @@ setup(
         "pymodbus==3.8.6",
         "pyserial==3.5",
         "httpx==0.28.1",
-        "pytest==6.2.5",
+        "pytest==9.0.3",
         "netifaces2==0.0.22",
         "empy==3.3.4",
         "catkin_pkg==1.1.0",
