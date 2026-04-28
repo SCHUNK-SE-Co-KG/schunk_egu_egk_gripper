@@ -19,6 +19,7 @@ import rclpy
 
 from rclpy.lifecycle import Node, State, TransitionCallbackReturn
 import rclpy.logging
+from pymodbus.exceptions import ConnectionException as ConnectionException
 from schunk_gripper_library.driver import Driver as GripperDriver
 from schunk_gripper_interfaces.srv import (  # type: ignore [attr-defined]
     ListGrippers,
@@ -61,6 +62,7 @@ from rclpy.publisher import Publisher
 from rclpy.executors import MultiThreadedExecutor, ExternalShutdownException
 from functools import partial
 from schunk_gripper_library.utility import EthernetScanner
+from schunk_gripper_library.utility import ModbusScanner
 from typing import TypedDict
 from rclpy.callback_groups import MutuallyExclusiveCallbackGroup, ReentrantCallbackGroup
 from rcl_interfaces.msg import SetParametersResult
@@ -968,21 +970,45 @@ class Driver(Node):
     def _scan_grippers_cb(
         self, request: ScanGrippers.Request, response: ScanGrippers.Response
     ):
-        with self.ethernet_scanner:
-            entries = self.ethernet_scanner.scan()
-
-        for entry in entries:
-            host = entry["host"]
-            port = entry["port"]
-            driver = GripperDriver()
-            if driver.connect(host=host, port=port):
-                cfg = GripperConfig()
-                cfg.host = host
-                cfg.port = port
-                response.connections.append(cfg)
-                response.grippers.append(driver.gripper_type)
-                driver.disconnect()
-
+        serial_port = getattr(request, "serial_port", "/dev/ttyUSB0")
+        if request.scan_modbus:
+            try:
+                self.modbus_scanner: ModbusScanner = ModbusScanner(serial_port=serial_port)
+                with self.modbus_scanner:
+                    self.get_logger().info("Starting Modbus Scan")
+                    entries = self.modbus_scanner.scan()
+                    self.get_logger().info("Modbus Scan Finished")
+                for entry in entries:
+                    device_id = entry["new_id"]
+                    driver = GripperDriver()
+                    if driver.connect(device_id=device_id, serial_port=serial_port):
+                        cfg = GripperConfig()
+                        cfg.device_id = device_id
+                        cfg.serial_port = serial_port
+                        response.connections.append(cfg)
+                        response.grippers.append(driver.gripper_type)
+                        driver.disconnect()
+            except ConnectionException:
+                self.get_logger().error("ConnectionException")
+                response.grippers = []
+                response.connections = []
+        else:
+            with self.ethernet_scanner:
+                self.get_logger().info("Starting Ethernet Scan")
+                entries = self.ethernet_scanner.scan()
+                self.get_logger().info("Ethernet Scan Finished")
+                for entry in entries:
+                    host = entry["host"]
+                    port = entry["port"]
+                    driver = GripperDriver()
+                    if driver.connect(host=host, port=port):
+                        cfg = GripperConfig()
+                        cfg.host = host
+                        cfg.port = port
+                        response.connections.append(cfg)
+                        response.grippers.append(driver.gripper_type)
+                        driver.disconnect()
+        self.get_logger().info("Returning response")
         return response
 
     def _list_grippers_cb(
