@@ -109,3 +109,12 @@ Contributions are welcome! Please see the full guidelines in our [CONTRIBUTING.m
 ## License
 
 This project is licensed under the **GPLv3 License**. See the [LICENSE](LICENSE) file for details.
+
+## Funding
+
+This project has received public funding from the **European Union** NextGenerationEU within the Important Project of Common European Interest – Cloud Infrastructures and Services (IPCEI-CIS) under grant agreement 13IPC034 (*[ROX](https://www.project-rox.ai/en/)* project).
+
+<p align="center">
+  <img alt="Bundesministerium für Wirtschaft und Energie (BMWE)-EU and secunet funding logo" src="resources/images/bmwe_logo.png" width="400"/>
+</p>
+
