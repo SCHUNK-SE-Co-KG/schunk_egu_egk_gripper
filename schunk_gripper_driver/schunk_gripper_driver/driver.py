@@ -250,10 +250,6 @@ class Driver(Node):
     def save_configuration(self, location: str = "/var/tmp/schunk_gripper") -> bool:
         LOG_NS = "Save configuration:"
 
-        if not self.show_configuration():
-            self.get_logger().debug(f"{LOG_NS} Configuration empty")
-            return False
-
         path = Path(location)
         try:
             path.mkdir(parents=True, exist_ok=True)
