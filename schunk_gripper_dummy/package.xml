@@ -4,7 +4,7 @@
   <name>schunk_gripper_dummy</name>
   <version>0.0.0</version>
   <description>A minimalist dummy for simulating the gripper's communication</description>
-  <maintainer email="stefan.scherzinger@de.schunk.com">Stefan Scherzinger</maintainer>
+  <maintainer email="jonas.beil@de.schunk.com">Jonas Beil</maintainer>
   <license>GPL-3.0-or-later</license>
 
   <export>
