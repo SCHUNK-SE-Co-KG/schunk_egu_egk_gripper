@@ -4,7 +4,7 @@
   <name>schunk_gripper_driver</name>
   <version>0.0.0</version>
   <description>ROS2 driver for SCHUNK`s EGU, EGK, and EZU mechatronic grippers</description>
-  <maintainer email="stefan.scherzinger@de.schunk.com">stefan</maintainer>
+  <maintainer email="jonas.beil@de.schunk.com">Jonas Beil</maintainer>
   <license>GPL-3.0-or-later</license>
 
   <depend>rclpy</depend>
