@@ -19,13 +19,12 @@ setup(
     ],
     install_requires=[
         "pymodbus==3.8.6",
-        "pyserial==3.5",
-        "httpx==0.28.1",
-        "pytest==6.2.5",
-        "netifaces2==0.0.22",
-        "empy==3.3.4",
-        "catkin_pkg==1.1.0",
-        "lark==1.1.1"
+        "pyserial>=3.5",
+        "httpx>=0.28.1",
+        "netifaces2>=0.0.22",
+        "empy>=3.3.4",
+        "catkin_pkg>=1.1.0",
+        "lark>=1.1.1"
     ],
     zip_safe=True,
     author="Stefan Scherzinger, Harry Arnst",
