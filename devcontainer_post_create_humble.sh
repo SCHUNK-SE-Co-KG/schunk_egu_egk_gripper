@@ -1,6 +1,7 @@
 #!/bin/bash
 
 # Command to be run within the "postCreateCommand" field of devcontainer.json
+# Note that this script is intended to run in a humble ROS container.
 
 set -e  # exit on first error
 
