@@ -1,0 +1,53 @@
+FROM ros:lyrical-ros-core
+
+ENV DEBIAN_FRONTEND=noninteractive
+
+# Install essentials
+RUN apt-get update -qq && apt-get install -y --no-install-recommends \
+    build-essential \
+    curl \
+    libcurl4-openssl-dev \
+    libexpat1-dev \
+    gettext \
+    libz-dev \
+    libssl-dev \
+    python3-pip \
+    python3-colcon-common-extensions \
+    python3-rosdep \
+    apt-transport-https \
+    ca-certificates \
+    gnupg \
+    lsb-release
+
+# Set workspace
+WORKDIR /schunk_mechatronic_gripper
+RUN mkdir -p src
+
+# Copy ROS packages
+COPY schunk_gripper_driver /schunk_mechatronic_gripper/src/schunk_gripper_driver
+COPY schunk_gripper_dummy /schunk_mechatronic_gripper/src/schunk_gripper_dummy
+COPY schunk_gripper_interfaces /schunk_mechatronic_gripper/src/schunk_gripper_interfaces
+COPY schunk_gripper_library /schunk_mechatronic_gripper/src/schunk_gripper_library
+
+# Install ROS dependencies
+RUN rosdep init || true && \
+    rosdep update && \
+    rosdep install --from-paths /schunk_mechatronic_gripper/src --ignore-src -y
+
+# Install Python packages (--break-system-packages needed for PEP 668 on Ubuntu 26.04+)
+RUN pip install --break-system-packages -e /schunk_mechatronic_gripper/src/schunk_gripper_library && \
+    pip install --break-system-packages -e /schunk_mechatronic_gripper/src/schunk_gripper_dummy
+
+# Build ROS workspace
+RUN /bin/bash -c "source /opt/ros/lyrical/setup.bash && colcon build"
+
+# Ensure workspace is sourced in every shell
+RUN echo 'source /opt/ros/lyrical/setup.bash' >> /etc/bash.bashrc && \
+    echo 'source /schunk_mechatronic_gripper/install/setup.bash' >> /etc/bash.bashrc
+
+# Clean up apt cache
+RUN rm -rf /var/lib/apt/lists/*
+
+# Default shell
+SHELL ["/bin/bash", "-c"]
+CMD ["bash"]
