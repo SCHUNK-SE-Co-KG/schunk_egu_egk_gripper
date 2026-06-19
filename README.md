@@ -12,12 +12,13 @@
   <a href="https://www.gnu.org/licenses/gpl-3.0.html">
     <img src="https://img.shields.io/badge/License-GPLv3-orange.svg" alt="License">
   </a>
-  <a href="https://github.com/SCHUNK-SE-Co-KG/schunk_egu_egk_gripper/actions">
-    <img src="https://github.com/SCHUNK-SE-Co-KG/schunk_egu_egk_gripper/actions/workflows/industrial_ci_humble_action.yml/badge.svg" alt="build badge humble">
+  <a href="https://github.com/SCHUNK-SE-Co-KG/schunk_mechatronic_gripper/actions">
+    <img src="https://github.com/SCHUNK-SE-Co-KG/schunk_mechatronic_gripper/actions/workflows/industrial_ci_humble_action.yml/badge.svg" alt="build badge humble">
   </a>
-  <a href="https://github.com/SCHUNK-SE-Co-KG/schunk_egu_egk_gripper/actions">
-    <img src="https://github.com/SCHUNK-SE-Co-KG/schunk_egu_egk_gripper/actions/workflows/industrial_ci_jazzy_action.yml/badge.svg" alt="build badge jazzy">
+  <a href="https://github.com/SCHUNK-SE-Co-KG/schunk_mechatronic_gripper/actions">
+    <img src="https://github.com/SCHUNK-SE-Co-KG/schunk_mechatronic_gripper/actions/workflows/industrial_ci_jazzy_action.yml/badge.svg" alt="build badge jazzy">
   </a>
+  <img src="https://img.shields.io/badge/ROS2-Lyrical-green" alt="ROS2 Lyrical">
 </p>
 
 
