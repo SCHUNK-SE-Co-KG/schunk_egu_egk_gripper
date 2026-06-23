@@ -791,7 +791,7 @@ class Driver(object):
                 return self._read_param_now(param, 0)
         return global_scheduler.execute(func=partial(do_read)).result()
 
-    def _read_param_now(self, param: str, length :int = 0) -> bytearray:
+    def _read_param_now(self, param: str, length: int = 0) -> bytearray:
         """Reads the specified parameter from the module immediately, bypassing the scheduler.
 
         Note: This is an internal method and should not be called client-side.
@@ -886,7 +886,6 @@ class Driver(object):
 
         return global_scheduler.execute(func=partial(do_write)).result()
     
-
     def _write_param_now(self, param: str, data: bytearray, length: int = 0) -> bool:
         """Writes the given module parameter to the module immediately, bypassing the scheduler.
 
