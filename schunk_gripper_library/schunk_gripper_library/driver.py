@@ -885,7 +885,7 @@ class Driver(object):
                 return self._write_param_now(param, data, 0)
 
         return global_scheduler.execute(func=partial(do_write)).result()
-    
+
     def _write_param_now(self, param: str, data: bytearray, length: int = 0) -> bool:
         """Writes the given module parameter to the module immediately, bypassing the scheduler.
 

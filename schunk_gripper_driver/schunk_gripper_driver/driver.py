@@ -1353,7 +1353,7 @@ class Driver(Node):
             response.message = str(e)
 
         return response
-    
+
     def _read_gripper_parameter_raw_cb(
         self,
         request: ReadGripperParameterRaw.Request,
@@ -1396,7 +1396,7 @@ class Driver(Node):
             response.success = False
             response.message = str(e)
         return response
-    
+
     def _write_gripper_parameter_raw_cb(
         self,
         request: WriteGripperParameterRaw.Request,
