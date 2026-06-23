@@ -12,9 +12,9 @@ To run the SCHUNK Mechatronic Gripper in a container (pre-built and ready to use
 git clone https://github.com/SCHUNK-SE-Co-KG/schunk_mechatronic_gripper.git
 docker build -f Dockerfile.<distro> -t schunk_gripper .
 ```
-> **Note:** Replace `<distro>` with your target ROS 2 distribution (e.g., `humble` or `lyrical`).
+> **Note:** Replace `<distro>` with `humble`, `jazzy` or `lyrical`.
 
-2. Run the container:
+1. Run the container:
 
 ```bash
 docker run -it \
