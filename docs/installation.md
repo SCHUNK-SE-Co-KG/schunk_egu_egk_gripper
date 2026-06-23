@@ -10,8 +10,9 @@ To run the SCHUNK Mechatronic Gripper in a container (pre-built and ready to use
 
 ```bash
 git clone https://github.com/SCHUNK-SE-Co-KG/schunk_mechatronic_gripper.git
-docker build -t schunk_gripper .
+docker build -f Dockerfile.<distro> -t schunk_gripper .
 ```
+> **Note:** Replace `<distro>` with `humble`, `jazzy` or `lyrical`.
 
 2. Run the container:
 
@@ -44,7 +45,7 @@ rosdep update
 rosdep install --from-paths src --ignore-src -y
 ```
 
-2. (Optional) Create and activate a Python virtual environment:
+2. Create and activate a Python virtual environment:
 ```bash
 python3 -m venv .venv
 source .venv/bin/activate
