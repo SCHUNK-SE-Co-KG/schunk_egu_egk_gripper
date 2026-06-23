@@ -14,7 +14,7 @@ docker build -f Dockerfile.<distro> -t schunk_gripper .
 ```
 > **Note:** Replace `<distro>` with `humble`, `jazzy` or `lyrical`.
 
-1. Run the container:
+2. Run the container:
 
 ```bash
 docker run -it \
