@@ -2,7 +2,4 @@ string parameter  # Module parameter in hex, e.g. "0x0380"
 uint8 length      # Lenght of the parameter to read
 ---
 bool success
-
-# Return types depend on the parameter.
-# Only one array will be filled.
 string payload    # Received data from the gripper. 

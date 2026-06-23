@@ -771,6 +771,8 @@ class Driver(object):
 
         Args:
             param (str): The parameter address in hex format, e.g. "0x0040".
+            read_raw (bool): If True, reads the raw parameter value without any decoding.
+            length (int): The number of registers to read.
 
         Returns:
             bytearray: The value of the specified parameter.
@@ -797,6 +799,7 @@ class Driver(object):
 
         Args:
             param (str): The parameter address in hex format, e.g. "0x0040".
+            length (int): The number of registers to read.
 
         Returns:
             bytearray: The value of the specified parameter.
@@ -865,6 +868,8 @@ class Driver(object):
         Args:
             param (str): The parameter address in hex format, e.g. "0x0040".
             data (bytearray): The data to write to the parameter.
+            write_raw (bool): If True, writes the raw parameter value without any encoding.
+            length (int): The number of registers to write.
 
         Returns:
             bool: True if the write was successful, False otherwise.
@@ -891,6 +896,7 @@ class Driver(object):
         Args:
             param (str): The parameter address in hex format, e.g. "0x0040".
             data (bytearray): The data to write to the parameter.
+            length (int): The number of registers to write.
         Returns:
             bool: True if the write was successful, False otherwise.
 
