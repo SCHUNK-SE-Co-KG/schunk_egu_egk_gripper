@@ -782,13 +782,9 @@ class Driver(object):
         Raises:
             RuntimeError: If the parameter is not readable.
         """
+        def do_read() -> bytearray:
+            return self._read_param_now(param, length if read_raw else 0)
 
-        if (read_raw):
-            def do_read() -> bytearray:
-                return self._read_param_now(param, length)
-        else:
-            def do_read() -> bytearray:
-                return self._read_param_now(param, 0)
         return global_scheduler.execute(func=partial(do_read)).result()
 
     def _read_param_now(self, param: str, length: int = 0) -> bytearray:
@@ -877,12 +873,8 @@ class Driver(object):
         Raises:
             RuntimeError: If not connected to the module or if the parameter is not writable.
         """
-        if (write_raw):
-            def do_write() -> bool:
-                return self._write_param_now(param, data, length)
-        else:
-            def do_write() -> bool:
-                return self._write_param_now(param, data, 0)
+        def do_write() -> bool:
+            return self._write_param_now(param, data, length if write_raw else 0)
 
         return global_scheduler.execute(func=partial(do_write)).result()
 
