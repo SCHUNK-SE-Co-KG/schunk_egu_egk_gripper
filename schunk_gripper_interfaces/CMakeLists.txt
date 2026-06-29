@@ -28,6 +28,7 @@ rosidl_generate_interfaces(
     srv/MoveToRelativePosition.srv
     srv/MoveToRelativePositionGPE.srv
     srv/ReadGripperParameter.srv
+    srv/ReadGripperParameterRaw.srv
     srv/Release.srv
     srv/ReleaseWithGPE.srv
     srv/ScanGrippers.srv
@@ -38,6 +39,7 @@ rosidl_generate_interfaces(
     srv/Stop.srv
     srv/StopWithGPE.srv
     srv/WriteGripperParameter.srv
+    srv/WriteGripperParameterRaw.srv
     msg/ConnectionState.msg
     msg/Gripper.msg
     msg/GripperState.msg
