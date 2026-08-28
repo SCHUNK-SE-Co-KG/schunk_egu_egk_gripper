@@ -4,7 +4,7 @@
   <name>schunk_gripper_library</name>
   <version>0.0.0</version>
   <description>Low-level communication library for Modbus RTU and Ethernet-based SCHUNK grippers</description>
-  <maintainer email="stefan.scherzinger@de.schunk.com">Stefan Scherzinger</maintainer>
+  <maintainer email="jonas.beil@de.schunk.com">Jonas Beil</maintainer>
   <license>GPL-3.0-or-later</license>
 
   <export>

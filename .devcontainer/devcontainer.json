@@ -1,7 +1,7 @@
 {
   "name": "SCHUNK Gripper Dev",
   "context": "..",
-  "dockerFile": "../Dockerfile",
+  "dockerFile": "../Dockerfile.humble",
   "workspaceFolder": "/workspace/src",
   "mounts": [
         {
@@ -27,5 +27,5 @@
       ]
     }
   },
-  "postCreateCommand": "bash /workspace/src/devcontainer_post_create.sh"
+  "postCreateCommand": "bash /workspace/src/devcontainer_post_create_humble.sh"
 }

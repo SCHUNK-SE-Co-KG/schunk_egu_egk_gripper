@@ -208,6 +208,10 @@ class Driver(object):
     def disconnect(self) -> bool:
         self.stop_module_updates()
 
+        if len(_global_modbus_client_map) > 0:
+            for port in _global_modbus_client_map:
+                _global_modbus_client_map[port].close()
+
         if self.web_client:
             with self.web_client_lock:
                 self.web_client = None
@@ -655,9 +659,6 @@ class Driver(object):
             return self._write_param_now(self.plc_output, self.plc_output_buffer)
 
     def gpe_available(self) -> bool:
-        if not self.connected:
-            return False
-
         if not self.module_type:
             return False
         keys = self.module_type.split("_")
@@ -762,7 +763,7 @@ class Driver(object):
         self.gripper_type = ""
         return True
 
-    def read_param(self, param: str) -> bytearray:
+    def read_param(self, param: str, read_raw: bool = False, length: int = 0) -> bytearray:
         """Reads the specified parameter from the module.
 
         Note: This is the client-side interface for reading module parameters.
@@ -770,6 +771,8 @@ class Driver(object):
 
         Args:
             param (str): The parameter address in hex format, e.g. "0x0040".
+            read_raw (bool): If True, reads the raw parameter value without any decoding.
+            length (int): The number of registers to read.
 
         Returns:
             bytearray: The value of the specified parameter.
@@ -780,11 +783,11 @@ class Driver(object):
             RuntimeError: If the parameter is not readable.
         """
         def do_read() -> bytearray:
-            return self._read_param_now(param)
+            return self._read_param_now(param, length if read_raw else 0)
 
         return global_scheduler.execute(func=partial(do_read)).result()
 
-    def _read_param_now(self, param: str) -> bytearray:
+    def _read_param_now(self, param: str, length: int = 0) -> bytearray:
         """Reads the specified parameter from the module immediately, bypassing the scheduler.
 
         Note: This is an internal method and should not be called client-side.
@@ -792,6 +795,7 @@ class Driver(object):
 
         Args:
             param (str): The parameter address in hex format, e.g. "0x0040".
+            length (int): The number of registers to read.
 
         Returns:
             bytearray: The value of the specified parameter.
@@ -802,7 +806,7 @@ class Driver(object):
             RuntimeError: If the parameter is not readable.
         """
         result = bytearray()
-        if param not in self.readable_parameters:
+        if param not in self.readable_parameters and length == 0:
             raise RuntimeError(f"Failed to read module parameter '{param}': Parameter is not readable.")
 
         if not self.web_client:
@@ -813,7 +817,7 @@ class Driver(object):
                         raise RuntimeError("Failed to read module parameter: Modbus device ID is not set")
                     pdu = self.mb_client.read_holding_registers(
                         address=int(param, 16) - 1,
-                        count=int(self.readable_parameters[param]["registers"]),
+                        count=int(self.readable_parameters[param]["registers"]) if length == 0 else length,
                         slave=self.mb_device_id,
                         no_response_expected=False,
                     )
@@ -845,13 +849,13 @@ class Driver(object):
 
         if result:
             current_size = len(result)
-            desired_size = int(self.readable_parameters[param]["registers"]) * 2
+            desired_size = int(self.readable_parameters[param]["registers"]) * 2 if length == 0 else length * 2
             if current_size < desired_size:
                 result.extend([0] * (desired_size - current_size))  # zero-pad
 
         return result
 
-    def write_param(self, param: str, data: bytearray) -> bool:
+    def write_param(self, param: str, data: bytearray, write_raw: bool = False, length: int = 0) -> bool:
         """Writes the given module parameter to the module.
 
         Note: This is the client-side interface for writing module parameters.
@@ -860,6 +864,8 @@ class Driver(object):
         Args:
             param (str): The parameter address in hex format, e.g. "0x0040".
             data (bytearray): The data to write to the parameter.
+            write_raw (bool): If True, writes the raw parameter value without any encoding.
+            length (int): The number of registers to write.
 
         Returns:
             bool: True if the write was successful, False otherwise.
@@ -868,11 +874,11 @@ class Driver(object):
             RuntimeError: If not connected to the module or if the parameter is not writable.
         """
         def do_write() -> bool:
-            return self._write_param_now(param, data)
+            return self._write_param_now(param, data, length if write_raw else 0)
 
         return global_scheduler.execute(func=partial(do_write)).result()
 
-    def _write_param_now(self, param: str, data: bytearray) -> bool:
+    def _write_param_now(self, param: str, data: bytearray, length: int = 0) -> bool:
         """Writes the given module parameter to the module immediately, bypassing the scheduler.
 
         Note: This is an internal method and should not be called client-side.
@@ -881,6 +887,7 @@ class Driver(object):
         Args:
             param (str): The parameter address in hex format, e.g. "0x0040".
             data (bytearray): The data to write to the parameter.
+            length (int): The number of registers to write.
         Returns:
             bool: True if the write was successful, False otherwise.
 
@@ -890,10 +897,10 @@ class Driver(object):
         if not self.connected:
             raise RuntimeError("Failed to write module parameter '{param}': Not connected.")
 
-        if param not in self.writable_parameters:
+        if param not in self.writable_parameters and length == 0:
             raise RuntimeError(f"Failed to write module parameter '{param}': Parameter is not writable.")
 
-        expected_size = self.writable_parameters[param]["registers"] * 2
+        expected_size = self.writable_parameters[param]["registers"] * 2 if length == 0 else length * 2
         if len(data) != expected_size:
             return False
 
@@ -901,7 +908,7 @@ class Driver(object):
             # Write to modbus.
             # Turn the bytearray into a list of 2-byte registers.
             # Pymodbus uses big endian internally for their encoding.
-            param_size = int(self.writable_parameters[param]["registers"]) * 2
+            param_size = int(self.writable_parameters[param]["registers"]) * 2 if length == 0 else length * 2
             values = [
                 int.from_bytes(data[i : i + 2], byteorder="big")
                 for i in range(0, param_size, 2)

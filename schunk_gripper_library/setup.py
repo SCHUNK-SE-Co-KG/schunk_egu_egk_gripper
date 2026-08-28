@@ -1,4 +1,4 @@
-from setuptools import find_packages, setup
+from setuptools import find_namespace_packages, setup
 import os
 from glob import glob
 
@@ -7,7 +7,7 @@ package_name = "schunk_gripper_library"
 setup(
     name=package_name,
     version="0.0.1",
-    packages=find_packages(exclude=["tests"]),
+    packages=find_namespace_packages(exclude=["tests"]),
     include_package_data=True,
     data_files=[
         ("share/ament_index/resource_index/packages", ["resource/" + package_name]),
@@ -19,13 +19,12 @@ setup(
     ],
     install_requires=[
         "pymodbus==3.8.6",
-        "pyserial==3.5",
-        "httpx==0.28.1",
-        "pytest==6.2.5",
-        "netifaces2==0.0.22",
-        "empy==3.3.4",
-        "catkin_pkg==1.1.0",
-        "lark==1.1.1"
+        "pyserial>=3.5",
+        "httpx>=0.28.1",
+        "netifaces2>=0.0.22",
+        "empy>=3.3.4",
+        "catkin_pkg>=1.1.0",
+        "lark>=1.1.1"
     ],
     zip_safe=True,
     author="Stefan Scherzinger, Harry Arnst",

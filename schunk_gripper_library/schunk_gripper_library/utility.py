@@ -27,6 +27,9 @@ import os
 import termios
 import socket
 import netifaces
+from pymodbus.client import ModbusSerialClient
+from pymodbus.payload import BinaryPayloadBuilder
+from pymodbus.constants import Endian
 
 
 def supports_parity(serial_port: str) -> bool:
@@ -344,6 +347,100 @@ class EthernetScanner(object):
             raise ValueError(f"Interface {iface} lacks an IPv4 address.")
 
         return addresses[AF_INET][0].get("broadcast", "255.255.255.255")
+
+
+class ModbusScanner(object):
+    def __init__(self, serial_port: str = "/dev/ttyUSB0") -> None:
+        self.client = ModbusSerialClient(
+            port=serial_port,
+            baudrate=115200,
+            parity="E" if supports_parity(serial_port) else "N",
+            stopbits=1,
+            timeout=0.1,
+            trace_connect=None,
+            trace_packet=None,
+            trace_pdu=None,
+        )
+        self.client.set_max_no_responses(99999)  # Set a high limit for no response
+
+    def __enter__(self) -> "ModbusScanner":
+        self.client.connect()
+        return self
+
+    def __exit__(self, exc_type, exc_value, traceback) -> None:
+        self.client.close()
+
+    def get_serial_number(self, dev_id: int) -> str | None:
+        try:
+            if not (0 <= dev_id <= 247):
+                return None
+
+            if not self.client.connected:
+                self.client.connect()
+
+            result = self.client.read_holding_registers(
+                address=0x1020 - 1, slave=dev_id, count=2
+            )  # Read serial number from parameter 0x1020 of the gripper
+
+            if not result.isError() and result.dev_id == dev_id:
+                serial_num = (result.registers[0] << 16) | result.registers[1]
+                serial_hex_str = f"{serial_num:08X}"
+                return serial_hex_str
+            return None
+        except Exception:
+            return None
+
+    def change_gripper_id(self, old_id: int, range_min: int, range_max: int):
+        builder = BinaryPayloadBuilder(byteorder=Endian.BIG, wordorder=Endian.BIG)
+        builder.add_8bit_uint(range_min)
+        builder.add_8bit_uint(00)
+        builder.add_8bit_uint(range_max)
+        payload = builder.to_registers()
+        register_address = 0x11A7  # Modbus Slave id (Parameter 0x11A8)
+
+        self.client.retries = 0
+        self.client.write_registers(
+            register_address, payload, slave=old_id, no_response_expected=True
+        )
+        return True
+
+    def scan(
+        self,
+        scheduler: Scheduler | None = None,
+    ) -> list[dict]:
+        """
+        Discover every gripper on the Modbus and assign them incremental IDs
+        starting from 10 to 14
+        """
+        range_min: int = 10
+        range_max: int = 14
+        max_grippers: int = 2
+
+        def do() -> list[dict]:
+
+            grippers_found: list[dict] = []
+            remaining = 10
+
+            while remaining > 0:
+                grippers_found = []
+                self.change_gripper_id(old_id=0, range_min=range_min, range_max=range_max)  # broadcast
+                time.sleep(0.2)
+                for k in range(range_min, range_max + 1):
+                    serial_number = self.get_serial_number(dev_id=k)
+                    if not serial_number or not isinstance(serial_number, str):
+                        continue
+                    grippers_found.append({"serial": serial_number, "new_id": k})
+                if (len(grippers_found) >= max_grippers):
+                    break
+                remaining -= 1
+
+            self.client.close()
+            return grippers_found
+
+        if scheduler:
+            return scheduler.execute(func=partial(do)).result()
+        else:
+            return do()
 
 
 def gripper_available() -> bool:
