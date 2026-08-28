@@ -1,0 +1,19 @@
+{
+  "SchemaVersion": 2,
+  "Trivy": {
+    "Version": "0.69.1"
+  },
+  "ReportID": "019c766b-44a6-7cd8-a2a1-aae60574bd2f",
+  "CreatedAt": "2026-02-19T15:01:07.366842825Z",
+  "ArtifactID": "sha256:3c538832ac21fd5948306ab13d9ee504866189b0dfcaafc50856c7518d4ddffe",
+  "ArtifactName": ".",
+  "ArtifactType": "repository",
+  "Metadata": {
+    "RepoURL": "https://github.com/SCHUNK-SE-Co-KG/schunk_mechatronic_gripper",
+    "Branch": "Development",
+    "Commit": "e7c4eb88f6a11f7465bba8a4c51904a138094e43",
+    "CommitMsg": "ci: translate all workflow comments and output to English\n\n- Converted trivy-docker-scan.yml to English (comments, step names,\n  report templates, issue bodies, labels, log messages)\n- Converted trivy-monthly-report.yml to English (same scope)\n- No functional changes, only language",
+    "Author": "Bheowulf \u003cnico.peper@gmx.net\u003e",
+    "Committer": "Bheowulf \u003cnico.peper@gmx.net\u003e"
+  }
+}

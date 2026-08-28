@@ -1,0 +1,472 @@
+# ──────────────────────────────────────────────────────────────
+# Trivy Security Scan – Docker Image + Repository Source Code
+# ──────────────────────────────────────────────────────────────
+# Due diligence requires scanning container images for known
+# vulnerabilities. Trivy unpacks the Docker image and scans:
+#   1. OS/APT package vulnerabilities (Debian/Ubuntu)
+#   2. Language package vulnerabilities (pip, npm, etc.)
+#   3. Dockerfile misconfigurations (best-practice violations)
+#   4. Repository source code (setup.py, package.xml, etc.)
+#      → captures dependencies NOT bundled in the Docker image
+#
+# Results are stored in security/trivy-reports/.
+#
+# Trigger: Daily 07:00 UTC | Manual | Push to Development
+# ──────────────────────────────────────────────────────────────
+
+name: Trivy Docker Image Scan
+
+on:
+  schedule:
+    - cron: "0 7 * * *"          # Daily at 07:00 UTC
+  workflow_dispatch:               # Manual trigger
+  push:
+    branches:
+      - Development
+
+permissions:
+  contents: write
+  issues: write
+
+jobs:
+  trivy-scan:
+    runs-on: ubuntu-latest
+
+    steps:
+      # ── 1. Checkout repository ────────────────────────────────
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # ── 2. Build Docker image ─────────────────────────────────
+      - name: Build Docker image
+        run: |
+          docker build -t schunk-gripper:scan .
+
+      # ── 3. Install Trivy ──────────────────────────────────────
+      - name: Install Trivy
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y wget apt-transport-https gnupg lsb-release
+          wget -qO - https://aquasecurity.github.io/trivy-repo/deb/public.key | sudo gpg --dearmor -o /usr/share/keyrings/trivy.gpg
+          echo "deb [signed-by=/usr/share/keyrings/trivy.gpg] https://aquasecurity.github.io/trivy-repo/deb $(lsb_release -sc) main" | sudo tee /etc/apt/sources.list.d/trivy.list
+          sudo apt-get update -qq
+          sudo apt-get install -y trivy
+
+      # ── 4. Image vulnerability scan ───────────────────────────
+      - name: "Trivy: Image vulnerability scan"
+        id: vuln_scan
+        run: |
+          mkdir -p security/trivy-reports
+
+          # JSON report (machine-readable)
+          trivy image \
+            --format json \
+            --output security/trivy-reports/trivy_image_report.json \
+            --severity LOW,MEDIUM,HIGH,CRITICAL \
+            schunk-gripper:scan || true
+
+          # Table report (human-readable)
+          trivy image \
+            --format table \
+            --output security/trivy-reports/trivy_image_report.txt \
+            --severity LOW,MEDIUM,HIGH,CRITICAL \
+            schunk-gripper:scan || true
+
+          echo "--- Trivy image scan summary ---"
+          cat security/trivy-reports/trivy_image_report.txt || true
+
+      # ── 5. HIGH/CRITICAL-only report ──────────────────────────
+      - name: "Trivy: HIGH/CRITICAL vulnerability report"
+        run: |
+          # Separate scan for HIGH + CRITICAL only (table)
+          trivy image \
+            --format table \
+            --output security/trivy-reports/trivy_high_critical.txt \
+            --severity HIGH,CRITICAL \
+            schunk-gripper:scan || true
+
+          # Separate scan for HIGH + CRITICAL only (JSON)
+          trivy image \
+            --format json \
+            --output security/trivy-reports/trivy_high_critical.json \
+            --severity HIGH,CRITICAL \
+            schunk-gripper:scan || true
+
+          # Generate Markdown report from JSON
+          python3 - <<'PYEOF'
+          import json, datetime
+
+          date = datetime.date.today().isoformat()
+          try:
+              with open("security/trivy-reports/trivy_high_critical.json") as f:
+                  data = json.load(f)
+          except Exception:
+              data = {}
+
+          vulns = []
+          for result in data.get("Results", []):
+              target = result.get("Target", "")
+              pkg_type = result.get("Type", "")
+              for v in result.get("Vulnerabilities", []):
+                  vulns.append({
+                      "target": target,
+                      "type": pkg_type,
+                      "id": v.get("VulnerabilityID", ""),
+                      "pkg": v.get("PkgName", ""),
+                      "installed": v.get("InstalledVersion", ""),
+                      "fixed": v.get("FixedVersion", ""),
+                      "severity": v.get("Severity", ""),
+                      "title": v.get("Title", ""),
+                      "url": v.get("PrimaryURL", ""),
+                  })
+
+          critical = [v for v in vulns if v["severity"] == "CRITICAL"]
+          high = [v for v in vulns if v["severity"] == "HIGH"]
+
+          lines = []
+          lines.append("# Trivy HIGH/CRITICAL Vulnerability Report")
+          lines.append("")
+          lines.append(f"**Date:** {date}")
+          lines.append("**Image:** schunk-gripper:scan (built from Dockerfile)")
+          lines.append("**Base image:** ros:humble-ros-core (Ubuntu 22.04 Jammy)")
+          lines.append("")
+          lines.append("| Severity | Count |")
+          lines.append("|----------|-------|")
+          lines.append(f"| CRITICAL | {len(critical)} |")
+          lines.append(f"| HIGH     | {len(high)} |")
+          lines.append(f"| **Total** | **{len(vulns)}** |")
+          lines.append("")
+
+          if not vulns:
+              lines.append("No HIGH or CRITICAL vulnerabilities found.")
+          else:
+              for sev_label, sev_list in [("CRITICAL", critical), ("HIGH", high)]:
+                  if not sev_list:
+                      continue
+                  lines.append(f"## {sev_label} ({len(sev_list)})")
+                  lines.append("")
+                  lines.append("| Package | CVE | Installed | Fix available | Description |")
+                  lines.append("|---------|-----|-----------|---------------|-------------|")
+                  for v in sev_list:
+                      fix = v['fixed'] if v['fixed'] else '—'
+                      title = v['title'][:80] if v['title'] else '—'
+                      lines.append(f"| {v['pkg']} | [{v['id']}]({v['url']}) | {v['installed']} | {fix} | {title} |")
+                  lines.append("")
+
+          lines.append("---")
+          lines.append("*Automatically generated by GitHub Actions (Trivy Docker Image Scan Workflow).*")
+
+          with open("security/trivy-reports/trivy_high_critical.md", "w") as f:
+              f.write("\n".join(lines) + "\n")
+
+          print(f"HIGH/CRITICAL report: {len(critical)} CRITICAL, {len(high)} HIGH, {len(vulns)} total")
+          PYEOF
+
+          echo "--- HIGH/CRITICAL report ---"
+          cat security/trivy-reports/trivy_high_critical.md || true
+
+      # ── 6. Dockerfile misconfiguration scan ───────────────────
+      - name: "Trivy: Dockerfile config scan"
+        run: |
+          trivy config \
+            --format json \
+            --output security/trivy-reports/trivy_config_report.json \
+            Dockerfile || true
+
+          trivy config \
+            --format table \
+            --output security/trivy-reports/trivy_config_report.txt \
+            Dockerfile || true
+
+          echo "--- Trivy config scan summary ---"
+          cat security/trivy-reports/trivy_config_report.txt || true
+
+      # ── 7. Repository filesystem scan (non-Docker dependencies) ─
+      - name: "Trivy: Repository source code scan"
+        run: |
+          # Scan setup.py, package.xml, etc. directly in the repo
+          trivy fs \
+            --format json \
+            --output security/trivy-reports/trivy_repo_scan.json \
+            --severity LOW,MEDIUM,HIGH,CRITICAL \
+            --scanners vuln \
+            . || true
+
+          trivy fs \
+            --format table \
+            --output security/trivy-reports/trivy_repo_scan.txt \
+            --severity LOW,MEDIUM,HIGH,CRITICAL \
+            --scanners vuln \
+            . || true
+
+          echo "--- Trivy repo scan summary ---"
+          cat security/trivy-reports/trivy_repo_scan.txt || true
+
+          # Markdown report: Repo findings NOT in Docker image
+          python3 - <<'PYEOF'
+          import json, datetime
+
+          date = datetime.date.today().isoformat()
+
+          # Load repo scan (filesystem)
+          try:
+              with open("security/trivy-reports/trivy_repo_scan.json") as f:
+                  repo_data = json.load(f)
+          except Exception:
+              repo_data = {}
+
+          # Load image scan
+          try:
+              with open("security/trivy-reports/trivy_image_report.json") as f:
+                  image_data = json.load(f)
+          except Exception:
+              image_data = {}
+
+          # Collect all CVE IDs from the image scan
+          image_cves = set()
+          for r in image_data.get("Results", []):
+              for v in r.get("Vulnerabilities", []):
+                  image_cves.add(v.get("VulnerabilityID", ""))
+
+          # Collect repo findings
+          repo_vulns = []
+          for result in repo_data.get("Results", []):
+              target = result.get("Target", "")
+              pkg_type = result.get("Type", "")
+              for v in result.get("Vulnerabilities", []):
+                  repo_vulns.append({
+                      "target": target,
+                      "type": pkg_type,
+                      "id": v.get("VulnerabilityID", ""),
+                      "pkg": v.get("PkgName", ""),
+                      "installed": v.get("InstalledVersion", ""),
+                      "fixed": v.get("FixedVersion", ""),
+                      "severity": v.get("Severity", ""),
+                      "title": v.get("Title", ""),
+                      "url": v.get("PrimaryURL", ""),
+                      "in_image": v.get("VulnerabilityID", "") in image_cves,
+                  })
+
+          # Findings NOT in the Docker image
+          repo_only = [v for v in repo_vulns if not v["in_image"]]
+          all_repo = repo_vulns
+
+          lines = []
+          lines.append("# Trivy Repository Source Code Scan")
+          lines.append("")
+          lines.append(f"**Date:** {date}")
+          lines.append("**Scan type:** Filesystem scan (setup.py, package.xml, etc.)")
+          lines.append("**Scope:** All declared dependencies in the repository")
+          lines.append("")
+          lines.append("## Overview")
+          lines.append("")
+
+          sev_order = ["CRITICAL", "HIGH", "MEDIUM", "LOW"]
+          lines.append("| Severity | Repo total | Repo only (not in Docker) |")
+          lines.append("|----------|------------|---------------------------|")
+          for sev in sev_order:
+              total = len([v for v in all_repo if v["severity"] == sev])
+              only = len([v for v in repo_only if v["severity"] == sev])
+              lines.append(f"| {sev} | {total} | {only} |")
+          lines.append(f"| **Total** | **{len(all_repo)}** | **{len(repo_only)}** |")
+          lines.append("")
+
+          if repo_only:
+              lines.append("## Vulnerabilities ONLY in repository (not in Docker image)")
+              lines.append("")
+              lines.append("These CVEs affect dependencies declared in the repository")
+              lines.append("but **not** installed in the Docker image (e.g. test dependencies).")
+              lines.append("")
+              lines.append("| Severity | Source | Package | CVE | Version | Fix | Description |")
+              lines.append("|----------|--------|---------|-----|---------|-----|-------------|")
+              for v in sorted(repo_only, key=lambda x: sev_order.index(x["severity"]) if x["severity"] in sev_order else 99):
+                  fix = v["fixed"] if v["fixed"] else "—"
+                  title = v["title"][:60] if v["title"] else "—"
+                  lines.append(f"| {v['severity']} | {v['target']} | {v['pkg']} | [{v['id']}]({v['url']}) | {v['installed']} | {fix} | {title} |")
+              lines.append("")
+          else:
+              lines.append("No additional vulnerabilities found outside the Docker image.")
+              lines.append("")
+
+          if all_repo:
+              lines.append("## All repository findings (complete)")
+              lines.append("")
+              lines.append("| Severity | Source | Package | CVE | Version | In Docker? | Description |")
+              lines.append("|----------|--------|---------|-----|---------|------------|-------------|")
+              for v in sorted(all_repo, key=lambda x: sev_order.index(x["severity"]) if x["severity"] in sev_order else 99):
+                  in_docker = "✅" if v["in_image"] else "❌"
+                  title = v["title"][:60] if v["title"] else "—"
+                  lines.append(f"| {v['severity']} | {v['target']} | {v['pkg']} | [{v['id']}]({v['url']}) | {v['installed']} | {in_docker} | {title} |")
+              lines.append("")
+
+          lines.append("---")
+          lines.append("*Automatically generated by GitHub Actions (Trivy Docker Image Scan Workflow).*")
+
+          with open("security/trivy-reports/trivy_repo_scan.md", "w") as f:
+              f.write("\n".join(lines) + "\n")
+
+          print(f"Repo scan: {len(all_repo)} total, {len(repo_only)} repo-only (not in Docker)")
+          PYEOF
+
+          echo "--- Repo scan report ---"
+          cat security/trivy-reports/trivy_repo_scan.md || true
+
+      # ── 8. Generate summary ───────────────────────────────────
+      - name: Generate scan summary
+        id: summary
+        run: |
+          set -e
+          DATE=$(date -u +%Y-%m-%d)
+          REPORT="security/trivy-reports/trivy_summary.md"
+
+          # Count vulnerabilities from JSON report
+          CRITICAL=$(jq '[.Results[]?.Vulnerabilities[]? | select(.Severity=="CRITICAL")] | length' security/trivy-reports/trivy_image_report.json 2>/dev/null || echo "0")
+          HIGH=$(jq '[.Results[]?.Vulnerabilities[]? | select(.Severity=="HIGH")] | length' security/trivy-reports/trivy_image_report.json 2>/dev/null || echo "0")
+          MEDIUM=$(jq '[.Results[]?.Vulnerabilities[]? | select(.Severity=="MEDIUM")] | length' security/trivy-reports/trivy_image_report.json 2>/dev/null || echo "0")
+          LOW=$(jq '[.Results[]?.Vulnerabilities[]? | select(.Severity=="LOW")] | length' security/trivy-reports/trivy_image_report.json 2>/dev/null || echo "0")
+          TOTAL=$((CRITICAL + HIGH + MEDIUM + LOW))
+
+          # Count Dockerfile misconfigurations
+          MISCONFIGS=$(jq '[.Results[]?.Misconfigurations[]?] | length' security/trivy-reports/trivy_config_report.json 2>/dev/null || echo "0")
+
+          # Count repo scan findings
+          REPO_TOTAL=$(jq '[.Results[]?.Vulnerabilities[]?] | length' security/trivy-reports/trivy_repo_scan.json 2>/dev/null || echo "0")
+          REPO_HIGH=$(jq '[.Results[]?.Vulnerabilities[]? | select(.Severity=="HIGH" or .Severity=="CRITICAL")] | length' security/trivy-reports/trivy_repo_scan.json 2>/dev/null || echo "0")
+
+          cat > "$REPORT" << EOF
+          # Trivy Docker Image Scan – Summary
+
+          **Date:** ${DATE}
+          **Image:** schunk-gripper:scan (built from Dockerfile)
+          **Base image:** ros:humble-ros-core (Ubuntu 22.04 Jammy)
+          **Scanner:** Trivy (GitHub Actions)
+
+          ## Vulnerabilities (Image Scan)
+
+          | Severity | Count |
+          |----------|-------|
+          | CRITICAL | ${CRITICAL} |
+          | HIGH     | ${HIGH} |
+          | MEDIUM   | ${MEDIUM} |
+          | LOW      | ${LOW} |
+          | **Total** | **${TOTAL}** |
+
+          ## Dockerfile Misconfigurations
+
+          Misconfigurations found: **${MISCONFIGS}**
+
+          ## Repository Source Code Scan (Non-Docker Dependencies)
+
+          Vulnerabilities found in repo: **${REPO_TOTAL}** (of which HIGH/CRITICAL: **${REPO_HIGH}**)
+
+          See **[trivy_repo_scan.md](trivy_repo_scan.md)** for details incl. Docker image comparison.
+
+          ## Reports
+
+          - **[trivy_high_critical.md](trivy_high_critical.md) – HIGH/CRITICAL vulnerabilities (Markdown)**
+          - **[trivy_repo_scan.md](trivy_repo_scan.md) – Repository source code scan (non-Docker)**
+          - [trivy_high_critical.json](trivy_high_critical.json) – HIGH/CRITICAL vulnerabilities (JSON)
+          - [trivy_high_critical.txt](trivy_high_critical.txt) – HIGH/CRITICAL vulnerabilities (table)
+          - [trivy_image_report.json](trivy_image_report.json) – Full image scan (JSON)
+          - [trivy_image_report.txt](trivy_image_report.txt) – Image scan (table)
+          - [trivy_repo_scan.json](trivy_repo_scan.json) – Repository scan (JSON)
+          - [trivy_repo_scan.txt](trivy_repo_scan.txt) – Repository scan (table)
+          - [trivy_config_report.json](trivy_config_report.json) – Dockerfile config scan (JSON)
+          - [trivy_config_report.txt](trivy_config_report.txt) – Dockerfile config scan (table)
+
+          ---
+          *Automatically generated by GitHub Actions (Trivy Docker Image Scan Workflow).*
+          EOF
+
+          # Remove heredoc indentation
+          sed -i 's/^          //' "$REPORT"
+
+          echo "critical_count=${CRITICAL}" >> "$GITHUB_OUTPUT"
+          echo "high_count=${HIGH}" >> "$GITHUB_OUTPUT"
+          echo "total_count=${TOTAL}" >> "$GITHUB_OUTPUT"
+
+          # Flag for issue alert
+          if [ "$CRITICAL" -gt 0 ] || [ "$HIGH" -gt 0 ]; then
+            echo "high_severity=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "high_severity=false" >> "$GITHUB_OUTPUT"
+          fi
+
+          echo "--- Summary ---"
+          echo "CRITICAL: ${CRITICAL} | HIGH: ${HIGH} | MEDIUM: ${MEDIUM} | LOW: ${LOW} | TOTAL: ${TOTAL}"
+          echo "Dockerfile misconfigs: ${MISCONFIGS}"
+
+      # ── 9. Commit reports ─────────────────────────────────────
+      - name: Commit reports
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add -f security/trivy-reports/ || echo "Nothing to add."
+          git diff --cached --quiet && echo "No changes." && exit 0
+          git commit -m "security: Trivy Docker Image Scan report $(date -u +%Y-%m-%d)"
+          git push
+
+      # ── 10. Issue alert for critical vulnerabilities ──────────
+      - name: Issue alert for critical vulnerabilities
+        if: steps.summary.outputs.high_severity == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO_FULL: ${{ github.repository }}
+          CRITICAL_COUNT: ${{ steps.summary.outputs.critical_count }}
+          HIGH_COUNT: ${{ steps.summary.outputs.high_count }}
+          TOTAL_COUNT: ${{ steps.summary.outputs.total_count }}
+        run: |
+          set -e
+          DATE=$(date -u +%Y-%m-%d)
+          TITLE="🐳 Trivy Alert: ${CRITICAL_COUNT} CRITICAL + ${HIGH_COUNT} HIGH vulnerabilities in Docker image (${DATE})"
+
+          gh label create "trivy-alert" \
+            --description "Trivy Docker scan: Critical vulnerability (HIGH/CRITICAL)" \
+            --color "b60205" 2>/dev/null || true
+
+          # Check if an issue already exists for today
+          EXISTING=$(gh issue list \
+            --label "trivy-alert" \
+            --search "${DATE}" \
+            --state open \
+            --json number --jq 'length' 2>/dev/null || echo "0")
+          if [ "$EXISTING" -gt "0" ]; then
+            echo "Issue for today already exists – skipped."
+            exit 0
+          fi
+
+          {
+            echo "## 🐳 Trivy Docker Image Scan – ${DATE}"
+            echo ""
+            echo "The automated Trivy scan of the Docker image found **critical vulnerabilities**:"
+            echo ""
+            echo "| Severity | Count |"
+            echo "|----------|-------|"
+            echo "| CRITICAL | ${CRITICAL_COUNT} |"
+            echo "| HIGH     | ${HIGH_COUNT} |"
+            echo "| Total    | ${TOTAL_COUNT} |"
+            echo ""
+            echo "### Next steps"
+            echo "1. Review report: [trivy_summary.md](https://github.com/${REPO_FULL}/blob/Development/security/trivy-reports/trivy_summary.md)"
+            echo "2. Identify and update affected packages"
+            echo "3. Rebuild Docker image and re-scan"
+            echo ""
+            echo "---"
+            echo "*Automatically generated by GitHub Actions (Trivy Docker Image Scan Workflow).*"
+          } > /tmp/trivy_issue_body.md
+
+          ISSUE_URL=$(
+            gh issue create \
+              --title "${TITLE}" \
+              --body-file /tmp/trivy_issue_body.md \
+              --label "trivy-alert" \
+              --assignee "Bheowulf" 2>/dev/null \
+            || gh issue create \
+              --title "${TITLE}" \
+              --body-file /tmp/trivy_issue_body.md \
+              --label "trivy-alert" 2>/dev/null \
+            || gh issue create \
+              --title "${TITLE}" \
+              --body-file /tmp/trivy_issue_body.md
+          )
+          echo "✅ Issue created: ${ISSUE_URL}"
