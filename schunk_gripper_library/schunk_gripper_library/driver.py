@@ -38,13 +38,13 @@ global_modbus_client_lock = Lock()
 _global_modbus_client_map : dict[str, ModbusSerialClient] = {}
 
 
-def get_global_modbus_client(serial_port: str = "/dev/ttyUSB0"):
+def get_global_modbus_client(serial_port: str = "/dev/ttyUSB0", baudrate: int = 115200):
     with global_modbus_client_lock:
         global _global_modbus_client_map
         if _global_modbus_client_map.get(serial_port) is None:
             _global_modbus_client_map[serial_port] = ModbusSerialClient(
                 port=serial_port,
-                baudrate=115200,
+                baudrate=baudrate,
                 parity="E" if supports_parity(serial_port) else "N",
                 stopbits=1,
                 timeout=0.1,
@@ -150,9 +150,10 @@ class Driver(object):
         serial_port: str = "/dev/ttyUSB0",
         device_id: int | None = None,
         update_cycle: float | None = 0.05,
+        baudrate: int = 115200,
     ) -> bool:
-        if (isinstance(update_cycle, float) or isinstance(update_cycle, int)) and update_cycle < 0.05:
-            raise ValueError("update_cycle must be at least 0.05 seconds")
+        if (isinstance(update_cycle, float) or isinstance(update_cycle, int)) and update_cycle < 0.001:
+            raise ValueError("update_cycle must be at least 0.001 seconds")
         if self.connected:
             return False
         self.update_count = 0
@@ -191,7 +192,7 @@ class Driver(object):
             if isinstance(device_id, int) and device_id < 0:
                 return False
             self.mb_device_id = device_id
-            self.mb_client = get_global_modbus_client(serial_port=serial_port)
+            self.mb_client = get_global_modbus_client(serial_port=serial_port, baudrate=baudrate)
             with global_modbus_client_lock:
                 self.connected = self.mb_client.connect()
 

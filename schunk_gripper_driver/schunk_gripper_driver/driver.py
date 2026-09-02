@@ -67,7 +67,12 @@ from schunk_gripper_library.utility import EthernetScanner
 from schunk_gripper_library.utility import ModbusScanner
 from typing import TypedDict
 from rclpy.callback_groups import MutuallyExclusiveCallbackGroup, ReentrantCallbackGroup
-from rcl_interfaces.msg import SetParametersResult
+from rcl_interfaces.msg import (
+    SetParametersResult,
+    ParameterDescriptor,
+    FloatingPointRange,
+    IntegerRange,
+)
 from pathlib import Path
 import tempfile
 import json
@@ -136,6 +141,22 @@ class Driver(Node):
 
         # Node parameters
         self.declare_parameter("log_level", "INFO")
+        self.declare_parameter(
+            "update_frequency",
+            20.0,
+            ParameterDescriptor(
+                floating_point_range=[
+                    FloatingPointRange(from_value=1.0, to_value=1000.0)
+                ]
+            ),
+        )
+        self.declare_parameter(
+            "baudrate",
+            115200,
+            ParameterDescriptor(
+                integer_range=[IntegerRange(from_value=9600, to_value=1000000)]
+            ),
+        )
 
         self.gripper_services: list[Service] = []
         self.joint_state_publishers: dict[str, Publisher] = {}
@@ -357,6 +378,7 @@ class Driver(Node):
                 serial_port=serial_port,
                 device_id=device_id,
                 update_cycle=None,
+                baudrate=self.get_parameter("baudrate").value,
             ):
                 return False
             gripper_id = self.get_unique_id(driver.gripper_type)
@@ -394,6 +416,8 @@ class Driver(Node):
             self.get_logger().error("Failed to configure: no grippers added yet.")
             return TransitionCallbackReturn.FAILURE
 
+        update_cycle = 1.0 / self.get_parameter("update_frequency").value
+
         # Try to connect each gripper
         for idx, gripper in enumerate(self.grippers):
             driver = GripperDriver()
@@ -402,7 +426,8 @@ class Driver(Node):
                 port=gripper["port"],
                 serial_port=gripper["serial_port"],
                 device_id=gripper["device_id"],
-                update_cycle=None,
+                update_cycle=update_cycle,
+                baudrate=self.get_parameter("baudrate").value,
             )
             self.grippers[idx]["driver"] = driver
 
@@ -412,11 +437,6 @@ class Driver(Node):
                 self.grippers[idx]["gripper_id"] = self.get_unique_id(
                     gripper=gripper["driver"].gripper_type
                 )
-
-        # Start cyclic updates with reconnect mechanism for each gripper
-        for idx, _ in enumerate(self.grippers):
-            gripper = self.grippers[idx]
-            gripper["driver"].start_module_updates()
 
         # Start info services
         self.list_grippers_srv = self.create_service(
@@ -694,6 +714,7 @@ class Driver(Node):
                 callback_group=self.publishers_cb_group,
             )
 
+        self.joint_states_period = 1.0 / self.get_parameter("update_frequency").value
         self.joint_states_stop.clear()
         self.joint_states_thread = Thread(target=self._publish_joint_states)
         self.joint_states_thread.start()
