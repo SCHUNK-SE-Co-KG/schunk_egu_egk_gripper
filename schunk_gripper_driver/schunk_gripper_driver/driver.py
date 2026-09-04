@@ -50,6 +50,7 @@ from schunk_gripper_interfaces.srv import (  # type: ignore [attr-defined]
     WriteGripperParameterRaw,
     Stop,
     StopWithGPE,
+    SetStreamingMode,
 )
 from schunk_gripper_interfaces.msg import (  # type: ignore [attr-defined]
     Gripper as GripperConfig,
@@ -57,10 +58,12 @@ from schunk_gripper_interfaces.msg import (  # type: ignore [attr-defined]
     ConnectionState,
 )
 from sensor_msgs.msg import JointState
+from std_msgs.msg import Float32
 from std_srvs.srv import Trigger
 from threading import Lock, Thread, Event, Timer as Countdown
 from rclpy.service import Service
 from rclpy.publisher import Publisher
+from rclpy.subscription import Subscription
 from rclpy.executors import MultiThreadedExecutor, ExternalShutdownException
 from functools import partial
 from schunk_gripper_library.utility import EthernetScanner
@@ -89,6 +92,7 @@ class Gripper(TypedDict):
     device_id: int
     driver: GripperDriver
     gripper_id: str
+    streaming_enabled: bool
 
 
 class Driver(Node):
@@ -117,6 +121,7 @@ class Driver(Node):
                 "device_id": 0,
                 "driver": GripperDriver(),
                 "gripper_id": "",
+                "streaming_enabled": False,
             }
             self.grippers.append(gripper)
         elif self.get_parameter("serial_port").value:
@@ -127,6 +132,7 @@ class Driver(Node):
                 "device_id": self.get_parameter("device_id").value,
                 "driver": GripperDriver(),
                 "gripper_id": "",
+                "streaming_enabled": False,
             }
             self.grippers.append(gripper)
 
@@ -161,6 +167,7 @@ class Driver(Node):
         self.gripper_services: list[Service] = []
         self.joint_state_publishers: dict[str, Publisher] = {}
         self.gripper_state_publishers: dict[str, Publisher] = {}
+        self.target_position_subscribers: dict[str, Subscription] = {}
         self.joint_state_lock: Lock = Lock()
         self.gripper_state_lock: Lock = Lock()
 
@@ -392,6 +399,7 @@ class Driver(Node):
                 "device_id": device_id,
                 "driver": driver,
                 "gripper_id": gripper_id,
+                "streaming_enabled": False,
             }
         )
         return True
@@ -613,6 +621,14 @@ class Driver(Node):
                     callback_group=self.gripper_services_cb_group,
                 )
             )
+            self.gripper_services.append(
+                self.create_service(
+                    srv_type=SetStreamingMode,
+                    srv_name=f"~/{gripper_id}/set_streaming_mode",
+                    callback=partial(self._set_streaming_mode_cb, gripper=gripper),
+                    callback_group=self.gripper_services_cb_group,
+                )
+            )
 
             self.gripper_services.append(
                 self.create_service(
@@ -714,6 +730,10 @@ class Driver(Node):
                 callback_group=self.publishers_cb_group,
             )
 
+            # Target position stream
+            if gripper["streaming_enabled"]:
+                self._create_target_position_subscriber(gripper)
+
         self.joint_states_period = 1.0 / self.get_parameter("update_frequency").value
         self.joint_states_stop.clear()
         self.joint_states_thread = Thread(target=self._publish_joint_states)
@@ -744,6 +764,7 @@ class Driver(Node):
                 self.destroy_publisher(self.joint_state_publishers.pop(gripper))
             with self.gripper_state_lock:
                 self.destroy_publisher(self.gripper_state_publishers.pop(gripper))
+            self._destroy_target_position_subscriber(gripper)
 
         return super().on_deactivate(state)
 
@@ -1337,6 +1358,41 @@ class Driver(Node):
             response.message = str(e)
 
         return response
+
+    def _set_streaming_mode_cb(
+        self,
+        request: SetStreamingMode.Request,
+        response: SetStreamingMode.Response,
+        gripper: Gripper,
+    ):
+        self.get_logger().debug("---> Set streaming mode")
+        gripper["streaming_enabled"] = request.enable
+        if request.enable:
+            self._create_target_position_subscriber(gripper)
+        else:
+            self._destroy_target_position_subscriber(gripper["gripper_id"])
+        response.success = True
+        response.message = f"Streaming mode {'enabled' if request.enable else 'disabled'}"
+        return response
+
+    def _create_target_position_subscriber(self, gripper: Gripper) -> None:
+        gripper_id = gripper["gripper_id"]
+        if gripper_id in self.target_position_subscribers:
+            return
+        self.target_position_subscribers[gripper_id] = self.create_subscription(
+            msg_type=Float32,
+            topic=f"~/{gripper_id}/stream/target_position",
+            callback=partial(self._target_position_stream_cb, gripper=gripper),
+            qos_profile=1,
+            callback_group=self.gripper_services_cb_group,
+        )
+
+    def _destroy_target_position_subscriber(self, gripper_id: str) -> None:
+        if gripper_id in self.target_position_subscribers:
+            self.destroy_subscription(self.target_position_subscribers.pop(gripper_id))
+
+    def _target_position_stream_cb(self, msg: Float32, gripper: Gripper) -> None:
+        pass
 
     def _brake_test_cb(
         self,

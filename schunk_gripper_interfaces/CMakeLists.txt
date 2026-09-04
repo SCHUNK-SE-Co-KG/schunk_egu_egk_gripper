@@ -32,6 +32,7 @@ rosidl_generate_interfaces(
     srv/Release.srv
     srv/ReleaseWithGPE.srv
     srv/ScanGrippers.srv
+    srv/SetStreamingMode.srv
     srv/ShowConfiguration.srv
     srv/ShowGripperSpecification.srv
     srv/StartJogging.srv

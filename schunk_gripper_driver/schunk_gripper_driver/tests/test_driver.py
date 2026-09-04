@@ -183,6 +183,7 @@ def test_driver_checks_if_grippers_need_synchronization(ros2: None):
             "device_id": 12,
             "driver": GripperDriver(),
             "gripper_id": "",
+            "streaming_enabled": False,
         }
     )
     driver.grippers.append(default_gripper)
@@ -196,6 +197,7 @@ def test_driver_checks_if_grippers_need_synchronization(ros2: None):
             "device_id": 12,
             "driver": GripperDriver(),
             "gripper_id": "",
+            "streaming_enabled": False,
         }
     )
     driver.grippers.append(gripper)
@@ -218,6 +220,7 @@ def test_driver_checks_if_grippers_need_synchronization(ros2: None):
                 "device_id": 12,
                 "driver": GripperDriver(),
                 "gripper_id": "",
+                "streaming_enabled": False,
             }
         )
         driver.grippers.append(gripper)
@@ -237,6 +240,7 @@ def test_driver_doesnt_synchronize_empty_serial_ports(ros2):
             "device_id": 0,
             "driver": GripperDriver(),
             "gripper_id": "other",
+            "streaming_enabled": False,
         }
     )
     driver.grippers.append(other)
@@ -255,6 +259,7 @@ def test_driver_synchronizes_ethernet_grippers_with_nonempty_serial_ports(ros2):
             "device_id": 0,
             "driver": GripperDriver(),
             "gripper_id": "",
+            "streaming_enabled": False,
         }
     )
     driver.grippers.append(one)
@@ -266,6 +271,7 @@ def test_driver_synchronizes_ethernet_grippers_with_nonempty_serial_ports(ros2):
             "device_id": 0,
             "driver": GripperDriver(),
             "gripper_id": "",
+            "streaming_enabled": False,
         }
     )
     driver.grippers.append(two)
@@ -504,6 +510,7 @@ def test_driver_offers_getting_unique_gripper_ids(ros2: None):
                     "device_id": 0,
                     "driver": GripperDriver(),
                     "gripper_id": gripper_id,
+                    "streaming_enabled": False,
                 }
             )
             driver.grippers.append(gripper)
@@ -578,6 +585,7 @@ def test_driver_offers_resetting_grippers(ros2: None):
             "device_id": 12,
             "driver": GripperDriver(),
             "gripper_id": "",
+            "streaming_enabled": False,
         }
     )
     driver.grippers.append(gripper)
@@ -633,6 +641,7 @@ def test_driver_shows_configuration(ros2: None):
             "device_id": 12,
             "driver": GripperDriver(),
             "gripper_id": "",
+            "streaming_enabled": False,
         }
     )
     driver.grippers.append(gripper)
