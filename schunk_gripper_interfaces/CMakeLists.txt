@@ -18,6 +18,7 @@ rosidl_generate_interfaces(
     srv/GripAtPositionWithGPE.srv
     srv/GripAtPositionWithVelocity.srv
     srv/GripAtPositionWithVelocityAndGPE.srv
+    srv/GetStreamingMode.srv
     srv/GripWithGPE.srv
     srv/GripWithVelocity.srv
     srv/GripWithVelocityAndGPE.srv

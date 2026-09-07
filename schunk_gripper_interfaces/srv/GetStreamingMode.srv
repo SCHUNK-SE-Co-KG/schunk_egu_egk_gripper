@@ -1,0 +1,2 @@
+---
+bool enabled  # Whether streaming mode is currently enabled for this gripper.
