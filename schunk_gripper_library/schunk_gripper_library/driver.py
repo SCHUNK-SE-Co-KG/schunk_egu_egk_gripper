@@ -95,7 +95,7 @@ class Driver(object):
         )
         # fmt:on
         self.reserved_status_bits: list[int] = [10, 15] + list(range(18, 31))
-        self.reserved_control_bits: list[int] = [10, 15] + list(range(17, 30))
+        self.reserved_control_bits: list[int] = [10] + list(range(17, 30))
 
         if __package__ is None:
             raise Exception("This module must be imported as part of a package, not run as a script.")
@@ -142,6 +142,8 @@ class Driver(object):
         self.stop_request: Event = Event()
         self.reconnect_interval: float = 1.0  # sec
         self.addr_str: str = ""
+        self.stream_target_position_toggle: bool = False
+        self._normal_update_cycle: float = 0.05  # sec, restored by disable_stream()
 
     def connect(
         self,
@@ -338,6 +340,88 @@ class Driver(object):
 
         # a move has failed if either an error occured or the wait timed out
         return matched_pattern not in [{}, {"7": 1}]
+
+    def enable_stream(self) -> bool:
+        """Initiates the target position stream (streaming mode).
+
+        Note: Call this method before using `move_to_position_streamed` to ensure the stream is properly initialized.
+        Returns:
+            bool: True if the stream was initiated successfully, False otherwise.
+        """
+        if not self.connected:
+            raise RuntimeError("Failed to initiate target position stream: Not connected.")
+
+        # while streaming, we don't need frequent status reads; slow the polling
+        # thread down to a 2 Hz heartbeat to leave bus bandwidth for the stream.
+        self._normal_update_cycle = self.update_cycle
+        self.update_cycle = 0.5  # sec (2 Hz)
+
+        # when initializing the stream, we need to init pos, vel and force
+        pos = self.get_actual_position()  # current position [um]
+
+        # use max velocity
+        vel_addr = "0x0630"
+        max_vel_mms, _ = self.decode_module_parameter(self._read_param_now(vel_addr), vel_addr)
+        vel = int(max_vel_mms[0] * 1000)  # [mm/s] -> [um/s]
+
+        # max_allow_force (0x06A8) is not available for all variants (e. g. EGK),
+        # so we use 100% of max_grp_force as a safe default that works for all grippers.
+        force = 100  # [%]
+
+        def do_send() -> dict:
+            control_bits = {"15": True}
+            return {"3": 0, "5": self._send_cmd(control_bits, pos=pos, vel=vel, force=force)}
+
+        # send the command to initiate the target position stream
+        expected_status = global_scheduler.execute(func=partial(do_send)).result()
+
+        # wait for the received status and check if the stream was successfully initiated
+        success = self.wait_for_status(bits=expected_status)
+        self.stream_target_position_toggle = success
+
+        return success
+
+    def disable_stream(self) -> None:
+        """Ends the target position stream and restores the normal update rate."""
+        self.update_cycle = self._normal_update_cycle
+
+    def set_stream_target(self, pos: int) -> bool:
+        """Sets and sends a new target position without waiting for completion.
+
+        Intended for streaming mode, where target positions arrive continuously
+        and each one should be applied as soon as possible.
+
+        Note: Call `enable_stream` before using this method to ensure the stream is properly initialized.
+
+        Args:
+            pos (int): Target position in micrometers.
+
+        Returns:
+            bool: True if the position was sent successfully, False otherwise.
+        """
+        if not self.connected:
+            raise RuntimeError("Failed to stream target position: Not connected.")
+
+        self.stream_target_position_toggle = not self.stream_target_position_toggle
+
+        def do_send() -> bool:
+            # The assumption is that the positon stream has already been initialized,
+            # thus we just send to command to the gripper without sending zero-frames first
+            # and also without waiting for any acknowledgment from the gripper.
+            control_bits = {}
+            control_bits["15"] = True  # move-interpolate mode
+            control_bits["6"] = self.stream_target_position_toggle  # repeat-command toggle bit
+
+            self.clear_plc_output()
+            for bit_str, value in control_bits.items():
+                self.set_control_bit(bit=int(bit_str), value=value)
+
+            self.set_target_position(pos)
+            self.send_plc_output()
+            return True
+
+        # to save bandwidth, we do not read back the gripper's status
+        return global_scheduler.execute(func=partial(do_send)).result()
 
     def grip(
         self,
@@ -1342,6 +1426,8 @@ class Driver(object):
         Returns:
             The expected command toggle bit after sending the command
         """
+        # the gripper does not clear bits between messages,
+        # so we need to explicitly clear them ourselves before sending a new command
         self.clear_plc_output()
         self.send_plc_output()
         self.receive_plc_input()
