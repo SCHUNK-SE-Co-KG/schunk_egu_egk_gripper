@@ -1426,7 +1426,7 @@ class Driver(Node):
             response.success = False
             response.message = str(e)
             return response
-        
+
         response.success = True
         response.message = f"Streaming mode {'enabled' if request.data else 'disabled'}" \
             " (" + gripper["driver"].get_status_diagnostics() + ")"
