@@ -129,6 +129,9 @@ class Driver(object):
         self.plc_output_buffer: bytearray = bytearray(bytes.fromhex("00" * 16))
         self.input_buffer_lock: RLock = RLock()
         self.output_buffer_lock: Lock = Lock()
+        self.command_lock: Lock = Lock()
+        self.motion_lock: Lock = Lock()
+        self.motion_cancelled: Event = Event()
 
         self.mb_device_id: int | None = None
         self.web_client: Client | None = None
@@ -138,11 +141,13 @@ class Driver(object):
         self.connected: bool = False
         self.polling_thread: Thread = Thread()
         self.update_cycle: float = 0.05  # sec
+        self.update_cycle_while_streaming: float = 1.0
         self.update_count: int = 0  # since last connect() call
         self.stop_request: Event = Event()
         self.reconnect_interval: float = 1.0  # sec
         self.addr_str: str = ""
         self.stream_target_position_toggle: bool = False
+        self.streaming_active: bool = False
         self._normal_update_cycle: float = 0.05  # sec, restored by disable_stream()
 
     def connect(
@@ -209,6 +214,8 @@ class Driver(object):
         return self.connected
 
     def disconnect(self) -> bool:
+        self.motion_cancelled.set()
+        self.disable_stream()
         self.stop_module_updates()
 
         if len(_global_modbus_client_map) > 0:
@@ -243,8 +250,9 @@ class Driver(object):
         def do_send() -> dict:
             return {"0": 1, "5": self._send_cmd({"2": True})}
 
-        expected_status = global_scheduler.execute(func=partial(do_send)).result()
-        return self.wait_for_status(bits=expected_status)
+        with self.command_lock:
+            expected_status = global_scheduler.execute(func=partial(do_send)).result()
+            return self.wait_for_status(bits=expected_status)
 
     def fast_stop(self) -> bool:
         if not self.connected:
@@ -253,8 +261,13 @@ class Driver(object):
         def do_send() -> dict:
             return {"7": 1, "5": self._send_cmd({"0": False})}  # fast stop triggers on low signal
 
-        expected_status = global_scheduler.execute(func=partial(do_send)).result()
-        return self.wait_for_status(bits=expected_status)
+        with self.command_lock:
+            expected_status = global_scheduler.execute(func=partial(do_send)).result()
+            stopped = self.wait_for_status(bits=expected_status)
+
+        if stopped:
+            self._cancel_active_motion()
+        return stopped
 
     def stop(self, use_gpe: bool = False) -> bool:
         if not self.connected:
@@ -263,24 +276,40 @@ class Driver(object):
         def do_send() -> dict:
             return {"4": 1, "5": self._send_cmd({"1": True, "31": use_gpe and self.gpe_available()})}
 
-        expected_status = global_scheduler.execute(func=partial(do_send)).result()
-        return self.wait_for_status(bits=expected_status)
+        with self.command_lock:
+            expected_status = global_scheduler.execute(func=partial(do_send)).result()
+            stopped = self.wait_for_status(bits=expected_status)
+
+        if stopped:
+            self._cancel_active_motion()
+        return stopped
 
     def prepare_for_shutdown(self) -> bool:
         if not self.connected:
             raise RuntimeError("Failed to prepare for shutdown: Not connected.")
+        if not self.motion_lock.acquire(blocking=False):
+            raise RuntimeError(
+                "Failed to prepare for shutdown: motion in progress."
+            )
 
-        def do_send() -> dict:
-            self.clear_plc_output()
-            self.send_plc_output()
-            self.receive_plc_input()
-            cmd_toggle_before = self.get_status_bit(bit=5)
-            self.set_control_bit(bit=3, value=True)
-            self.send_plc_output()
-            return {"5": cmd_toggle_before ^ 1, "2": 1}
+        try:
+            def do_send() -> dict:
+                self.clear_plc_output()
+                if not self.send_plc_output():
+                    raise RuntimeError("Failed to clear previous command")
+                if not self.receive_plc_input():
+                    raise RuntimeError("Failed to read command-toggle status")
+                cmd_toggle_before = self.get_status_bit(bit=5)
+                self.set_control_bit(bit=3, value=True)
+                if not self.send_plc_output():
+                    raise RuntimeError("Failed to send command")
+                return {"5": cmd_toggle_before ^ 1, "2": 1}
 
-        expected_status = global_scheduler.execute(func=partial(do_send)).result()
-        return self.wait_for_status(bits=expected_status)
+            with self.command_lock:
+                expected_status = global_scheduler.execute(func=partial(do_send)).result()
+                return self.wait_for_status(bits=expected_status)
+        finally:
+            self.motion_lock.release()
 
     def move_to_position(
         self,
@@ -289,6 +318,7 @@ class Driver(object):
         is_absolute: bool = True,
         use_gpe: bool = False,
         no_scheduler: bool = False,
+        _motion_lock_held: bool = False,
     ) -> bool:
         """Sends a move to position command to the gripper.
 
@@ -312,34 +342,51 @@ class Driver(object):
         """
         if not self.connected:
             raise RuntimeError("Failed to move to position: Not connected.")
+        motion_lock_acquired = False
+        if not _motion_lock_held and not self.motion_lock.acquire(blocking=False):
+            raise RuntimeError(
+                "Failed to move to position: Another motion command is already in progress."
+            )
+        if not _motion_lock_held:
+            motion_lock_acquired = True
+            self.motion_cancelled.clear()
 
-        def do_send() -> dict:
-            control_bits = {}
-            control_bits["13" if is_absolute else "14"] = True
-            control_bits["31"] = use_gpe if self.gpe_available() else False
-            return {"3": 0, "5": self._send_cmd(control_bits, vel=velocity, pos=position)}
+        try:
+            def do_send() -> dict:
+                control_bits = {}
+                control_bits["13" if is_absolute else "14"] = True
+                control_bits["31"] = use_gpe if self.gpe_available() else False
+                return {"3": 0, "5": self._send_cmd(control_bits, vel=velocity, pos=position)}
 
-        expected_status = do_send() if no_scheduler else global_scheduler.execute(func=partial(do_send)).result()
+            with self.command_lock:
+                expected_status = do_send() if no_scheduler else global_scheduler.execute(func=partial(do_send)).result()
 
-        # wait for the command to be acknowledged
-        if not self.wait_for_status(bits=expected_status):
-            return False
+                # wait for the command to be acknowledged
+                if not self.wait_for_status(bits=expected_status):
+                    return False
 
-        # estimate how long the move will take
-        epsilon_sec = 2  # additional time to account for delays (e. g. releasing brakes)
-        estimated_duration_sec = self.estimate_duration(
-            position_abs=position, is_absolute=is_absolute, velocity=velocity
-        )
-        duration_sec = estimated_duration_sec + epsilon_sec
+            # estimate how long the move will take
+            epsilon_sec = 2  # additional time to account for delays (e. g. releasing brakes)
+            estimated_duration_sec = self.estimate_duration(
+                position_abs=position, is_absolute=is_absolute, velocity=velocity
+            )
+            duration_sec = estimated_duration_sec + epsilon_sec
 
-        # wait for the command to complete or an error to occur
-        bits: list[dict[str, int]] = []
-        bits.append({"4": 1, "13": 1})  # command processed and position reached
-        bits.append({"7": 1})  # error state
-        matched_pattern = self.wait_for_any_status(bits=bits, timeout_sec=duration_sec)
+            # wait for the command to complete or an error to occur
+            bits: list[dict[str, int]] = []
+            bits.append({"4": 1, "13": 1})  # command processed and position reached
+            bits.append({"7": 1})  # error state
+            matched_pattern = self.wait_for_any_status(
+                bits=bits,
+                timeout_sec=duration_sec,
+                cancel_event=self.motion_cancelled,
+            )
 
-        # a move has failed if either an error occured or the wait timed out
-        return matched_pattern not in [{}, {"7": 1}]
+            # a move has failed if either an error occured or the wait timed out
+            return matched_pattern not in [{}, {"7": 1}]
+        finally:
+            if motion_lock_acquired:
+                self.motion_lock.release()
 
     def enable_stream(self) -> bool:
         """Initiates the target position stream (streaming mode).
@@ -350,40 +397,59 @@ class Driver(object):
         """
         if not self.connected:
             raise RuntimeError("Failed to initiate target position stream: Not connected.")
+        if self.streaming_active:
+            return True
+        if not self.motion_lock.acquire(blocking=False):
+            raise RuntimeError(
+                "Failed to initiate target position stream: Another motion command is already in progress."
+            )
 
-        # while streaming, we don't need frequent status reads; slow the polling
-        # thread down to a 2 Hz heartbeat to leave bus bandwidth for the stream.
-        self._normal_update_cycle = self.update_cycle
-        self.update_cycle = 0.5  # sec (2 Hz)
+        stream_enabled = False
+        try:
+            # when initializing the stream, we need to init pos, vel and force
+            pos = self.get_actual_position()  # current position [um]
+            # use max velocity
+            vel_addr = "0x0630"
+            max_vel_mms, _ = self.decode_module_parameter(self._read_param_now(vel_addr), vel_addr)
+            vel = int(max_vel_mms[0] * 1000)  # [mm/s] -> [um/s]
 
-        # when initializing the stream, we need to init pos, vel and force
-        pos = self.get_actual_position()  # current position [um]
+            # max_allow_force (0x06A8) is not available for all variants (e. g. EGK),
+            # so we use 90% of max_grp_force as a safe default that works for all grippers.
+            force = 90  # [%]
 
-        # use max velocity
-        vel_addr = "0x0630"
-        max_vel_mms, _ = self.decode_module_parameter(self._read_param_now(vel_addr), vel_addr)
-        vel = int(max_vel_mms[0] * 1000)  # [mm/s] -> [um/s]
+            def do_send() -> dict:
+                control_bits = {"15": True}
+                return {"3": 0, "5": self._send_cmd(control_bits, pos=pos, vel=vel, force=force)}
 
-        # max_allow_force (0x06A8) is not available for all variants (e. g. EGK),
-        # so we use 100% of max_grp_force as a safe default that works for all grippers.
-        force = 100  # [%]
+            # send the command to initiate the target position stream
+            expected_status = global_scheduler.execute(func=partial(do_send)).result()
 
-        def do_send() -> dict:
-            control_bits = {"15": True}
-            return {"3": 0, "5": self._send_cmd(control_bits, pos=pos, vel=vel, force=force)}
+            # wait for the received status and check if the stream was successfully initiated
+            if not self.wait_for_status(bits=expected_status):
+                return False
 
-        # send the command to initiate the target position stream
-        expected_status = global_scheduler.execute(func=partial(do_send)).result()
-
-        # wait for the received status and check if the stream was successfully initiated
-        success = self.wait_for_status(bits=expected_status)
-        self.stream_target_position_toggle = success
-
-        return success
+            self._normal_update_cycle = self.update_cycle
+            self.update_cycle = self.update_cycle_while_streaming  # sec (2 Hz)
+            self.stream_target_position_toggle = True
+            self.streaming_active = True
+            stream_enabled = True
+            return True
+        finally:
+            if not stream_enabled:
+                self.update_cycle = self._normal_update_cycle
+                self.stream_target_position_toggle = False
+                self.streaming_active = False
+                self.motion_lock.release()
 
     def disable_stream(self) -> None:
         """Ends the target position stream and restores the normal update rate."""
-        self.update_cycle = self._normal_update_cycle
+        if not self.streaming_active:
+            return
+        with self.command_lock:
+            self.streaming_active = False
+            self.stream_target_position_toggle = False
+            self.update_cycle = self._normal_update_cycle
+            self.motion_lock.release()
 
     def set_stream_target(self, pos: int) -> bool:
         """Sets and sends a new target position without waiting for completion.
@@ -401,27 +467,37 @@ class Driver(object):
         """
         if not self.connected:
             raise RuntimeError("Failed to stream target position: Not connected.")
+        with self.command_lock:
+            if not self.streaming_active:
+                raise RuntimeError("Failed to stream target position: Streaming mode is not enabled.")
 
-        self.stream_target_position_toggle = not self.stream_target_position_toggle
+            self.stream_target_position_toggle = not self.stream_target_position_toggle
 
-        def do_send() -> bool:
-            # The assumption is that the positon stream has already been initialized,
-            # thus we just send to command to the gripper without sending zero-frames first
-            # and also without waiting for any acknowledgment from the gripper.
-            control_bits = {}
-            control_bits["15"] = True  # move-interpolate mode
-            control_bits["6"] = self.stream_target_position_toggle  # repeat-command toggle bit
+            def do_send() -> bool:
+                # The assumption is that the position stream has already been initialized,
+                # thus we just send the command without zero frames or acknowledgement.
+                control_bits = {
+                    "15": True,  # move-interpolate mode
+                    "6": self.stream_target_position_toggle,  # repeat-command toggle bit
+                }
 
-            self.clear_plc_output()
-            for bit_str, value in control_bits.items():
-                self.set_control_bit(bit=int(bit_str), value=value)
+                self.clear_plc_output()
+                for bit_str, value in control_bits.items():
+                    self.set_control_bit(bit=int(bit_str), value=value)
 
-            self.set_target_position(pos)
-            self.send_plc_output()
-            return True
+                self.set_target_position(pos)
+                self.send_plc_output()
+                return True
 
-        # to save bandwidth, we do not read back the gripper's status
-        return global_scheduler.execute(func=partial(do_send)).result()
+            try:
+                # to save bandwidth, we do not read back the gripper's status
+                return global_scheduler.execute(func=partial(do_send)).result()
+            except Exception:
+                self.streaming_active = False
+                self.stream_target_position_toggle = False
+                self.update_cycle = self._normal_update_cycle
+                self.motion_lock.release()
+                raise
 
     def grip(
         self,
@@ -456,102 +532,134 @@ class Driver(object):
         """
         if not self.connected:
             raise RuntimeError("Failed to grip: Not connected.")
+        if not self.motion_lock.acquire(blocking=False):
+            raise RuntimeError("Failed to grip: Another motion command is already in progress.")
+        self.motion_cancelled.clear()
 
-        def do_send() -> dict:
-            control_bits = {}
-            control_bits["16" if position is not None else "12"] = True
-            control_bits["7"] = outward
-            control_bits["31"] = use_gpe if self.gpe_available() else False
-            return {"3": 0, "5": self._send_cmd(control_bits, vel=velocity, pos=position, force=force)}
+        try:
+            def do_send() -> dict:
+                control_bits = {}
+                control_bits["16" if position is not None else "12"] = True
+                control_bits["7"] = outward
+                control_bits["31"] = use_gpe if self.gpe_available() else False
+                return {"3": 0, "5": self._send_cmd(control_bits, vel=velocity, pos=position, force=force)}
 
-        # send the grip command
-        expected_status = global_scheduler.execute(func=partial(do_send)).result()
+            with self.command_lock:
+                expected_status = global_scheduler.execute(func=partial(do_send)).result()
 
-        # wait for the command to be acknowledged
-        if not self.wait_for_status(bits=expected_status):
-            return Driver.GripResult.ERROR
+                # wait for the command to be acknowledged
+                if not self.wait_for_status(bits=expected_status):
+                    return Driver.GripResult.ERROR
 
-        # estimate how long the grip will take
-        epsilon_sec = 2  # additional time to account for delays (e. g. releasing brakes)
-        estimated_duration_sec = self.estimate_duration(
-            position_abs=position, velocity=velocity, force=force, outward=outward
-        )
-        # retrieve the prehold time in case the gripper is configured for pre-gripping
-        prehold_time_sec = 0.0
-        prehold_time_data = self._read_param_now("0x0380")
-        values, value_type = self.decode_module_parameter(prehold_time_data, "0x0380")
-        if value_type == "uint16" and len(values) == 1:
-            prehold_time_sec = values[0] / 1000.0  # ms -> s
+            # estimate how long the grip will take
+            epsilon_sec = 2  # additional time to account for delays (e. g. releasing brakes)
+            estimated_duration_sec = self.estimate_duration(
+                position_abs=position, velocity=velocity, force=force, outward=outward
+            )
+            # retrieve the prehold time in case the gripper is configured for pre-gripping
+            prehold_time_sec = 0.0
+            prehold_time_data = self._read_param_now("0x0380")
+            values, value_type = self.decode_module_parameter(prehold_time_data, "0x0380")
+            if value_type == "uint16" and len(values) == 1:
+                prehold_time_sec = values[0] / 1000.0  # ms -> s
 
-        duration_sec = estimated_duration_sec + prehold_time_sec + epsilon_sec
+            duration_sec = estimated_duration_sec + prehold_time_sec + epsilon_sec
 
-        # define the possible status bit patterns to wait for
-        patterns = {}
-        patterns[Driver.GripResult.WORKPIECE_GRIPPED] = {"4": 1, "12": 1, "31": use_gpe}
-        patterns[Driver.GripResult.NO_WORKPIECE_DETECTED] = {"4": 0, "11": 1, "31": use_gpe}
-        patterns[Driver.GripResult.WRONG_WORKPIECE_GRIPPED] = {"4": 0, "17": 1, "31": use_gpe}
-        patterns[Driver.GripResult.WORKPIECE_LOST] = {"4": 0, "16": 1, "31": use_gpe}  # relevant for pre-gripping
-        patterns[Driver.GripResult.ERROR] = {"7": 1}
+            # define the possible status bit patterns to wait for
+            patterns = {}
+            patterns[Driver.GripResult.WORKPIECE_GRIPPED] = {"4": 1, "12": 1, "31": use_gpe}
+            patterns[Driver.GripResult.NO_WORKPIECE_DETECTED] = {"4": 0, "11": 1, "31": use_gpe}
+            patterns[Driver.GripResult.WRONG_WORKPIECE_GRIPPED] = {"4": 0, "17": 1, "31": use_gpe}
+            patterns[Driver.GripResult.WORKPIECE_LOST] = {"4": 0, "16": 1, "31": use_gpe}  # relevant for pre-gripping
+            patterns[Driver.GripResult.ERROR] = {"7": 1}
 
-        # wait for the command to complete or an error to occur
-        bits: list[dict[str, int]] = []
-        for pattern in patterns.values():
-            bits.append(pattern)
-        matched_pattern = self.wait_for_any_status(bits=bits, timeout_sec=duration_sec)
+            # wait for the command to complete or an error to occur
+            bits: list[dict[str, int]] = []
+            for pattern in patterns.values():
+                bits.append(pattern)
+            matched_pattern = self.wait_for_any_status(
+                bits=bits,
+                timeout_sec=duration_sec,
+                cancel_event=self.motion_cancelled,
+            )
 
-        return next(
-            (k for k, v in patterns.items() if v == matched_pattern),
-            Driver.GripResult.ERROR,
-        )
+            return next(
+                (k for k, v in patterns.items() if v == matched_pattern),
+                Driver.GripResult.ERROR,
+            )
+        finally:
+            self.motion_lock.release()
 
     def release(
         self, use_gpe: bool = False
     ) -> bool:
         if not self.connected:
             raise RuntimeError("Failed to release: Not connected.")
+        if not self.motion_lock.acquire(blocking=False):
+            raise RuntimeError("Failed to release: Another motion command is already in progress.")
+        self.motion_cancelled.clear()
 
-        def do_send() -> dict:
-            control_bits = {}
-            control_bits["11"] = True
-            control_bits["31"] = use_gpe if self.gpe_available() else False
-            return {"3": 0, "5": self._send_cmd(control_bits)}
+        try:
+            def do_send() -> dict:
+                control_bits = {}
+                control_bits["11"] = True
+                control_bits["31"] = use_gpe if self.gpe_available() else False
+                return {"3": 0, "5": self._send_cmd(control_bits)}
 
-        # send the release command
-        expected_status = global_scheduler.execute(func=partial(do_send)).result()
+            with self.command_lock:
+                expected_status = global_scheduler.execute(func=partial(do_send)).result()
 
-        # wait for the command to be acknowledged
-        if not self.wait_for_status(bits=expected_status):
-            return False
+                # wait for the command to be acknowledged
+                if not self.wait_for_status(bits=expected_status):
+                    return False
 
-        # estimate how long the release will take
-        epsilon_sec = 2  # additional time to account for delays (e. g. releasing brakes)
-        estimated_duration_sec = self.estimate_duration(release=True)
-        duration_sec = estimated_duration_sec + epsilon_sec
+            # estimate how long the release will take
+            epsilon_sec = 2  # additional time to account for delays (e. g. releasing brakes)
+            estimated_duration_sec = self.estimate_duration(release=True)
+            duration_sec = estimated_duration_sec + epsilon_sec
 
-        # wait for the command to complete or an error to occur
-        bits: list[dict[str, int]] = []
-        bits.append({"4": 1, "13": 1})  # command processed and position reached
-        bits.append({"7": 1})  # error state
-        matched_pattern = self.wait_for_any_status(bits=bits, timeout_sec=duration_sec)
+            # wait for the command to complete or an error to occur
+            bits: list[dict[str, int]] = []
+            bits.append({"4": 1, "13": 1})  # command processed and position reached
+            bits.append({"7": 1})  # error state
+            matched_pattern = self.wait_for_any_status(
+                bits=bits,
+                timeout_sec=duration_sec,
+                cancel_event=self.motion_cancelled,
+            )
 
-        # a release has failed if either an error occured or the wait timed out
-        return matched_pattern not in [{}, {"7": 1}]
+            # a release has failed if either an error occured or the wait timed out
+            return matched_pattern not in [{}, {"7": 1}]
+        finally:
+            self.motion_lock.release()
 
     def release_for_manual_movement(self) -> bool:
         if not self.connected:
             raise RuntimeError("Failed to release for manual movement: Not connected.")
+        if not self.motion_lock.acquire(blocking=False):
+            raise RuntimeError(
+                "Failed to release for manual movement: Another motion command is already in progress."
+            )
+        self.motion_cancelled.clear()
 
-        def do_send() -> dict:
-            self.clear_plc_output()
-            self.send_plc_output()
-            self.receive_plc_input()
-            cmd_toggle_before = self.get_status_bit(bit=5)
-            self.set_control_bit(bit=5, value=True)
-            self.send_plc_output()
-            return {"5": cmd_toggle_before ^ 1, "8": 1}
+        try:
+            def do_send() -> dict:
+                self.clear_plc_output()
+                if not self.send_plc_output():
+                    raise RuntimeError("Failed to clear previous command")
+                if not self.receive_plc_input():
+                    raise RuntimeError("Failed to read command-toggle status")
+                cmd_toggle_before = self.get_status_bit(bit=5)
+                self.set_control_bit(bit=5, value=True)
+                if not self.send_plc_output():
+                    raise RuntimeError("Failed to send command")
+                return {"5": cmd_toggle_before ^ 1, "8": 1}
 
-        expected_status = global_scheduler.execute(func=partial(do_send)).result()
-        return self.wait_for_status(bits=expected_status)
+            with self.command_lock:
+                expected_status = global_scheduler.execute(func=partial(do_send)).result()
+                return self.wait_for_status(bits=expected_status)
+        finally:
+            self.motion_lock.release()
 
     def show_specification(self) -> dict[str, float | str]:
         if not self.connected:
@@ -581,15 +689,31 @@ class Driver(object):
     def brake_test(self) -> bool:
         if not self.connected:
             raise RuntimeError("Failed to perform brake test: Not connected.")
+        if not self.motion_lock.acquire(blocking=False):
+            raise RuntimeError(
+                "Failed to perform brake test: Another motion command is already in progress."
+            )
+        self.motion_cancelled.clear()
 
-        def do_send() -> dict:
-            control_bits = {}
-            control_bits["30"] = True
-            return {"4": 1, "5": self._send_cmd(control_bits)}
+        try:
+            def do_send() -> dict:
+                control_bits = {}
+                control_bits["30"] = True
+                return {"4": 1, "5": self._send_cmd(control_bits)}
 
-        expected_status = global_scheduler.execute(func=partial(do_send)).result()
-        # the timeout value is empirically determined with real hardware
-        return self.wait_for_status(bits=expected_status, timeout_sec=6.0)
+            with self.command_lock:
+                expected_status = global_scheduler.execute(func=partial(do_send)).result()
+                if not self.wait_for_status(bits={"5": expected_status["5"]}):
+                    return False
+
+            # the timeout value is empirically determined with real hardware
+            return self.wait_for_status(
+                bits=expected_status,
+                timeout_sec=6.0,
+                cancel_event=self.motion_cancelled,
+            )
+        finally:
+            self.motion_lock.release()
 
     def estimate_duration(
         self,
@@ -639,6 +763,8 @@ class Driver(object):
     ) -> bool:
         """Sends the start jogging command to the gripper.
 
+        Note: this method does not release the motion lock; it must be released by calling stop_jogging.
+
         Args:
             velocity -- The speed at which to jog in micrometers per second.
                         Positive values jog outwards, negative values jog inwards.
@@ -660,47 +786,52 @@ class Driver(object):
 
             return {"5": self._send_cmd(cmd, vel=abs(velocity)), "6": 0, "7": 0}
 
-        expected_status = global_scheduler.execute(func=partial(do_send)).result()
-        return self.wait_for_status(bits=expected_status)
+        with self.command_lock:
+            expected_status = global_scheduler.execute(func=partial(do_send)).result()
+            started = self.wait_for_status(bits=expected_status)
+
+        return started
 
     def stop_jogging(self) -> bool:
         if not self.connected:
             raise RuntimeError("Failed to stop jogging: Not connected.")
 
         def do_send() -> dict:
-            # The firmware behaves differently when stopping jogging:
-            # - Status bit toggles if jogging was active before.
-            # - GPE bit from when jogging was started must be preserved.
-            # We do not send a zero-frame as that would trigger the status bit
-            # and clear the GPE bit. Stop jogging is intended to be preceded by
-            # start jogging, otherwise this method will always return False
-            # because the status bit won’t change.
-
+            # Preserve the GPE bit and clear only the active jogging bits.
             cmd_toggle_before = self.get_status_bit(bit=5)
-            self.set_control_bit(bit=8, value=False)  # stop negative jogging
-            self.set_control_bit(bit=9, value=False)  # stop positive jogging
-            self.send_plc_output()
+            self.set_control_bit(bit=8, value=False)
+            self.set_control_bit(bit=9, value=False)
+            if not self.send_plc_output():
+                raise RuntimeError("Failed to send command")
             return {"5": cmd_toggle_before ^ 1, "6": 0, "7": 0}
 
-        expected_status = global_scheduler.execute(func=partial(do_send)).result()
-        return self.wait_for_status(bits=expected_status)
+        with self.command_lock:
+            expected_status = global_scheduler.execute(func=partial(do_send)).result()
+            stopped = self.wait_for_status(bits=expected_status)
+
+        return stopped
 
     def twitch_jaws(self) -> bool:
         if not self.connected:
             raise RuntimeError("Failed to twitch jaws: Not connected.")
+        if not self.motion_lock.acquire(blocking=False):
+            raise RuntimeError(
+                "Failed to twitch jaws: Another motion command is already in progress."
+            )
+        self.motion_cancelled.clear()
 
         def move(step: int) -> bool:
             return self.move_to_position(
                 position=step,
                 velocity=self.module_parameters["max_vel"],
                 is_absolute=True,
-                no_scheduler=True,
+                _motion_lock_held=True,
             )
 
-        def do_send() -> bool:
-            step = 2000  # um
-            if not self.receive_plc_input():
+        try:
+            if not global_scheduler.execute(func=partial(self.receive_plc_input)).result():
                 return False
+            step = 2000  # um
             min_pos = self.module_parameters["min_pos"]
             max_pos = self.module_parameters["max_pos"]
             actual_pos = self.get_actual_position()
@@ -709,27 +840,40 @@ class Driver(object):
             if start_inwards:
                 step *= -1
             for _ in range(2):
-                move(max(min_pos, min(actual_pos + step, max_pos)))
-                move(actual_pos)
+                if not move(max(min_pos, min(actual_pos + step, max_pos))):
+                    return False
+                if not move(actual_pos):
+                    return False
             return True
-
-        return global_scheduler.execute(func=partial(do_send)).result()
+        finally:
+            self.motion_lock.release()
 
     def soft_reset(self) -> bool:
         if not self.connected:
             raise RuntimeError("Failed to soft reset: Not connected.")
+        if not self.motion_lock.acquire(blocking=False):
+            raise RuntimeError(
+                "Failed to soft reset: motion in progress."
+            )
 
-        def do_send() -> dict:
-            self.clear_plc_output()
-            self.send_plc_output()
-            self.receive_plc_input()
-            cmd_toggle_before = self.get_status_bit(bit=5)
-            self.set_control_bit(bit=4, value=True)
-            self.send_plc_output()
-            return {"5": cmd_toggle_before ^ 1}
+        try:
+            def do_send() -> dict:
+                self.clear_plc_output()
+                if not self.send_plc_output():
+                    raise RuntimeError("Failed to clear previous command")
+                if not self.receive_plc_input():
+                    raise RuntimeError("Failed to read command-toggle status")
+                cmd_toggle_before = self.get_status_bit(bit=5)
+                self.set_control_bit(bit=4, value=True)
+                if not self.send_plc_output():
+                    raise RuntimeError("Failed to send command")
+                return {"5": cmd_toggle_before ^ 1}
 
-        expected_status = global_scheduler.execute(func=partial(do_send)).result()
-        return self.wait_for_status(bits=expected_status)
+            with self.command_lock:
+                expected_status = global_scheduler.execute(func=partial(do_send)).result()
+                return self.wait_for_status(bits=expected_status)
+        finally:
+            self.motion_lock.release()
 
     def receive_plc_input(self) -> bool:
         with self.input_buffer_lock:
@@ -741,7 +885,8 @@ class Driver(object):
 
     def send_plc_output(self) -> bool:
         with self.output_buffer_lock:
-            return self._write_param_now(self.plc_output, self.plc_output_buffer)
+            buffer_cpy = bytearray(self.plc_output_buffer)
+        return self._write_param_now(self.plc_output, buffer_cpy)
 
     def gpe_available(self) -> bool:
         if not self.module_type:
@@ -961,7 +1106,16 @@ class Driver(object):
         def do_write() -> bool:
             return self._write_param_now(param, data, length if write_raw else 0)
 
-        return global_scheduler.execute(func=partial(do_write)).result()
+        if not self.motion_lock.acquire(blocking=False):
+            raise RuntimeError(
+                f"Failed to write module parameter '{param}': motion in progress."
+            )
+
+        try:
+            with self.command_lock:
+                return global_scheduler.execute(func=partial(do_write)).result()
+        finally:
+            self.motion_lock.release()
 
     def _write_param_now(self, param: str, data: bytearray, length: int = 0) -> bool:
         """Writes the given module parameter to the module immediately, bypassing the scheduler.
@@ -1120,11 +1274,25 @@ class Driver(object):
 
         return (values, value_type)
 
-    def wait_for_status(self, bits: dict[str, int], timeout_sec: float = 1.0) -> bool:
-        return bool(self.wait_for_any_status(bits=[bits], timeout_sec=timeout_sec))
+    def wait_for_status(
+        self,
+        bits: dict[str, int],
+        timeout_sec: float = 1.0,
+        cancel_event: Event | None = None,
+    ) -> bool:
+        return bool(
+            self.wait_for_any_status(
+                bits=[bits],
+                timeout_sec=timeout_sec,
+                cancel_event=cancel_event,
+            )
+        )
 
     def wait_for_any_status(
-        self, bits: list[dict[str, int]], timeout_sec: float
+        self,
+        bits: list[dict[str, int]],
+        timeout_sec: float,
+        cancel_event: Event | None = None,
     ) -> dict[str, int]:
         """Wait for any of the specified status bits to reach the desired value.
 
@@ -1142,11 +1310,16 @@ class Driver(object):
 
         deadline_time = time.time() + timeout_sec
         while time.time() < deadline_time:
+            if cancel_event and cancel_event.is_set():
+                return {}
             with self.input_buffer_lock:
                 for bit_pattern in bits:
                     if all([self.get_status_bit(int(bit)) == value for bit, value in bit_pattern.items()]):
                         return bit_pattern
-            time.sleep(self.update_cycle)
+            if cancel_event:
+                cancel_event.wait(0.05)
+            else:
+                time.sleep(0.05)
         return {}
 
     def error_in(self, duration_sec: float) -> bool:
@@ -1392,6 +1565,11 @@ class Driver(object):
                 self.plc_input_buffer[byte_index] &= ~(1 << bit_index)
             return True
 
+    def _cancel_active_motion(self) -> None:
+        if not self.motion_lock.locked():
+            return
+        self.motion_cancelled.set()
+
     def _module_update(self) -> None:
         self.stop_request.clear()
         fails = 0
@@ -1429,8 +1607,11 @@ class Driver(object):
         # the gripper does not clear bits between messages,
         # so we need to explicitly clear them ourselves before sending a new command
         self.clear_plc_output()
-        self.send_plc_output()
-        self.receive_plc_input()
+        if not self.send_plc_output():
+            raise RuntimeError("Failed to clear previous command")
+
+        if not self.receive_plc_input():
+            raise RuntimeError("Failed to read command-toggle status")
 
         cmd_toggle_before = self.get_status_bit(bit=5)
 
@@ -1444,7 +1625,8 @@ class Driver(object):
         if force is not None:
             self.set_gripping_force(force)
 
-        self.send_plc_output()
+        if not self.send_plc_output():
+            raise RuntimeError("Failed to send command")
         return cmd_toggle_before ^ 1
 
     def _trace_packet(self, sending: bool, data: bytes) -> bytes:

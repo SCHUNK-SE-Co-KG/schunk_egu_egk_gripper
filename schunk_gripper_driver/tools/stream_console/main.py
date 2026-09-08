@@ -24,10 +24,12 @@ from rclpy.node import Node
 from sensor_msgs.msg import JointState
 from std_msgs.msg import Float32
 from schunk_gripper_interfaces.msg import ConnectionState
-from schunk_gripper_interfaces.srv import SetStreamingMode
-from std_srvs.srv import Trigger
+from schunk_gripper_interfaces.srv import Stop, StopWithGPE
+from std_srvs.srv import SetBool, Trigger
 
-STEP_M = 0.001  # 1 mm per arrow press
+PUBLISH_RATE_HZ = 60.0
+MAX_TARGET_SPEED_MPS = 0.005
+TARGET_SPEED_RAMP_SEC = 0.25
 
 
 class StreamConsole(Node):
@@ -37,6 +39,7 @@ class StreamConsole(Node):
         self.target_position = 0.0
         self.actual_position = 0.0
         self._target_position_seeded = False
+        self.target_publishing = True
         self.last_key = ""
         self.streaming_enabled = False
 
@@ -49,12 +52,16 @@ class StreamConsole(Node):
             self._joint_state_cb,
             1,
         )
+        self.publisher_timer = self.create_timer(
+            1.0 / PUBLISH_RATE_HZ, self.publish_target_position
+        )
         self.streaming_client = self.create_client(
-            SetStreamingMode, f"/schunk/driver/{gripper_id}/set_streaming_mode"
+            SetBool, f"/schunk/driver/{gripper_id}/set_stream"
         )
         self.acknowledge_client = self.create_client(
             Trigger, f"/schunk/driver/{gripper_id}/acknowledge"
         )
+        self.stop_client = None
 
     def _joint_state_cb(self, msg: JointState) -> None:
         if not msg.position:
@@ -67,18 +74,29 @@ class StreamConsole(Node):
             self._target_position_seeded = True
 
     def enable_streaming(self) -> bool:
+        return self.set_streaming(True)
+
+    def disable_streaming(self) -> bool:
+        return self.set_streaming(False)
+
+    def set_streaming(self, enabled: bool) -> bool:
         if not self.streaming_client.wait_for_service(timeout_sec=5.0):
             return False
-        request = SetStreamingMode.Request()
-        request.enable = True
+        request = SetBool.Request()
+        request.data = enabled
         future = self.streaming_client.call_async(request)
         rclpy.spin_until_future_complete(self, future, timeout_sec=5.0)
         if future.result() is None:
             return False
         self.streaming_enabled = future.result().success
-        return self.streaming_enabled
+        if not self.streaming_enabled:
+            return False
+        self.streaming_enabled = enabled
+        return True
 
     def publish_target_position(self) -> None:
+        if not self._target_position_seeded or not self.target_publishing:
+            return
         msg = Float32()
         msg.data = self.target_position
         self.publisher.publish(msg)
@@ -90,54 +108,90 @@ class StreamConsole(Node):
         rclpy.spin_until_future_complete(self, future, timeout_sec=5.0)
         return future.result() is not None and future.result().success
 
+    def stop(self) -> bool:
+        service_name = f"/schunk/driver/{self.gripper_id}/stop"
+        service_types = dict(self.get_service_names_and_types()).get(service_name, [])
+        if "schunk_gripper_interfaces/srv/Stop" in service_types:
+            self.stop_client = self.create_client(Stop, service_name)
+            request = Stop.Request()
+        elif "schunk_gripper_interfaces/srv/StopWithGPE" in service_types:
+            self.stop_client = self.create_client(StopWithGPE, service_name)
+            request = StopWithGPE.Request()
+        else:
+            return False
+
+        if not self.stop_client.wait_for_service(timeout_sec=1.0):
+            return False
+        future = self.stop_client.call_async(request)
+        rclpy.spin_until_future_complete(self, future, timeout_sec=5.0)
+        return future.result() is not None and future.result().success
+
 
 def run_console(stdscr, node: StreamConsole) -> None:
     curses.curs_set(0)
     stdscr.nodelay(True)
     stdscr.timeout(50)
-
-    last_press_time: float | None = None
-    publish_rate_hz: float | None = None
+    target_velocity_mps = 0.0
+    last_update_time = time.monotonic()
 
     while rclpy.ok():
         key = stdscr.getch()
+        now = time.monotonic()
+        elapsed_sec = now - last_update_time
+        last_update_time = now
+        requested_velocity_mps = 0.0
+
         if key == curses.KEY_LEFT:
-            node.target_position -= STEP_M
+            node.target_publishing = True
+            requested_velocity_mps = -MAX_TARGET_SPEED_MPS
             node.last_key = "LEFT"
-            node.publish_target_position()
         elif key == curses.KEY_RIGHT:
-            node.target_position += STEP_M
+            node.target_publishing = True
+            requested_velocity_mps = MAX_TARGET_SPEED_MPS
             node.last_key = "RIGHT"
-            node.publish_target_position()
         elif key in (ord("q"), ord("Q")):
             break
         elif key in (ord("a"), ord("A")):
+            node.target_publishing = False
+            target_velocity_mps = 0.0
             node.last_key = "A (acknowledge)"
             node.acknowledge()
+        elif key in (ord("s"), ord("S")):
+            node.target_publishing = False
+            target_velocity_mps = 0.0
+            node.last_key = "S (stop)"
+            node.stop()
+        elif key in (ord("e"), ord("E")):
+            node.target_publishing = False
+            target_velocity_mps = 0.0
+            node.last_key = "E (enable stream)"
+            node.enable_streaming()
+        elif key in (ord("d"), ord("D")):
+            node.target_publishing = False
+            target_velocity_mps = 0.0
+            node.last_key = "D (disable stream)"
+            node.disable_streaming()
+        elif key != -1:
+            node.target_publishing = False
+            target_velocity_mps = 0.0
 
-        if key in (curses.KEY_LEFT, curses.KEY_RIGHT):
-            now = time.monotonic()
-            if last_press_time is not None:
-                publish_rate_hz = 1.0 / (now - last_press_time)
-            last_press_time = now
-        elif last_press_time is not None and time.monotonic() - last_press_time > 0.3:
-            # No new key for a while: no longer being held down.
-            last_press_time = None
-            publish_rate_hz = None
-
-        last_key_text = node.last_key
-        if publish_rate_hz is not None:
-            last_key_text += f" (publishing at {publish_rate_hz:.1f} Hz)"
+        max_velocity_change = MAX_TARGET_SPEED_MPS * elapsed_sec / TARGET_SPEED_RAMP_SEC
+        velocity_difference = requested_velocity_mps - target_velocity_mps
+        velocity_change = max(-max_velocity_change, min(max_velocity_change, velocity_difference))
+        target_velocity_mps += velocity_change
+        node.target_position += target_velocity_mps * elapsed_sec
 
         stdscr.erase()
         stdscr.addstr(0, 0, f"Gripper: {node.gripper_id}")
         stdscr.addstr(1, 0, f"Streaming enabled: {node.streaming_enabled}")
-        stdscr.addstr(3, 0, f"Target position: {node.target_position * 1000:.1f} mm")
-        stdscr.addstr(4, 0, f"Actual position: {node.actual_position * 1000:.1f} mm")
-        stdscr.addstr(6, 0, f"Last key: {last_key_text}")
+        stdscr.addstr(3, 0, f"Target position: {node.target_position * 1000:.1f} mm ({PUBLISH_RATE_HZ:.1f} Hz)")
+        stdscr.addstr(4, 0, f"Actual position: {node.actual_position * 1000:.1f} mm (2.0 Hz)")
+        stdscr.addstr(6, 0, f"Last key: {node.last_key}")
         stdscr.addstr(8, 0, "Left/Right arrow: move")
         stdscr.addstr(9, 0, "Press 'a' key to acknowledge")
-        stdscr.addstr(10, 0, "Press 'q' key to quit")
+        stdscr.addstr(10, 0, "Press 's' key to stop")
+        stdscr.addstr(11, 0, "Press 'e'/'d' key to enable/disable stream")
+        stdscr.addstr(12, 0, "Press 'q' key to quit")
         stdscr.refresh()
 
 

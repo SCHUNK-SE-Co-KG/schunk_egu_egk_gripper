@@ -18,7 +18,6 @@ rosidl_generate_interfaces(
     srv/GripAtPositionWithGPE.srv
     srv/GripAtPositionWithVelocity.srv
     srv/GripAtPositionWithVelocityAndGPE.srv
-    srv/GetStreamingMode.srv
     srv/GripWithGPE.srv
     srv/GripWithVelocity.srv
     srv/GripWithVelocityAndGPE.srv
@@ -33,7 +32,6 @@ rosidl_generate_interfaces(
     srv/Release.srv
     srv/ReleaseWithGPE.srv
     srv/ScanGrippers.srv
-    srv/SetStreamingMode.srv
     srv/ShowConfiguration.srv
     srv/ShowGripperSpecification.srv
     srv/StartJogging.srv
