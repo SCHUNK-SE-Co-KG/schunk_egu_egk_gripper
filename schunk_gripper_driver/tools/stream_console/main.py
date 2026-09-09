@@ -15,6 +15,8 @@ Controls:
 Requires a sourced ROS 2 environment (rclpy). No extra pip packages needed.
 """
 import curses
+import csv
+from pathlib import Path
 import sys
 import threading
 import time
@@ -27,9 +29,11 @@ from schunk_gripper_interfaces.msg import ConnectionState
 from schunk_gripper_interfaces.srv import Stop, StopWithGPE
 from std_srvs.srv import SetBool, Trigger
 
-PUBLISH_RATE_HZ = 60.0
+PUBLISH_RATE_HZ = 60
 MAX_TARGET_SPEED_MPS = 0.005
 TARGET_SPEED_RAMP_SEC = 0.25
+LIMIT_TARGET_STEP = True
+MAX_TARGET_STEP_MM = 1.0  # used only if LIMIT_TARGET_STEP is True
 
 
 class StreamConsole(Node):
@@ -39,9 +43,17 @@ class StreamConsole(Node):
         self.target_position = 0.0
         self.actual_position = 0.0
         self._target_position_seeded = False
+        self._last_published_target_position = None
         self.target_publishing = True
         self.last_key = ""
         self.streaming_enabled = False
+        self.target_log_file = (Path(__file__).resolve().parent / "target_positions.csv").open(
+            "w", newline=""
+        )
+        self.target_log = csv.writer(self.target_log_file)
+        self.target_log.writerow(("time_ms", "target_position_mm"))
+        self.target_log_file.flush()
+        self.target_log_start = None
 
         self.publisher = self.create_publisher(
             Float32, f"/schunk/driver/{gripper_id}/stream/target_position", 1
@@ -97,9 +109,27 @@ class StreamConsole(Node):
     def publish_target_position(self) -> None:
         if not self._target_position_seeded or not self.target_publishing:
             return
+        if LIMIT_TARGET_STEP and self._last_published_target_position is not None:
+            max_step_m = MAX_TARGET_STEP_MM / 1000.0
+            lower_bound = self._last_published_target_position - max_step_m
+            upper_bound = self._last_published_target_position + max_step_m
+            self.target_position = max(lower_bound, min(upper_bound, self.target_position))
+
         msg = Float32()
         msg.data = self.target_position
         self.publisher.publish(msg)
+        self._last_published_target_position = self.target_position
+        now = time.monotonic()
+        if self.target_log_start is None:
+            self.target_log_start = now
+        self.target_log.writerow(
+            ((now - self.target_log_start) * 1000.0, self.target_position * 1000.0)
+        )
+        self.target_log_file.flush()
+
+    def close_target_log(self) -> None:
+        if not self.target_log_file.closed:
+            self.target_log_file.close()
 
     def acknowledge(self) -> bool:
         if not self.acknowledge_client.wait_for_service(timeout_sec=1.0):
@@ -185,7 +215,7 @@ def run_console(stdscr, node: StreamConsole) -> None:
         stdscr.addstr(0, 0, f"Gripper: {node.gripper_id}")
         stdscr.addstr(1, 0, f"Streaming enabled: {node.streaming_enabled}")
         stdscr.addstr(3, 0, f"Target position: {node.target_position * 1000:.1f} mm ({PUBLISH_RATE_HZ:.1f} Hz)")
-        stdscr.addstr(4, 0, f"Actual position: {node.actual_position * 1000:.1f} mm (2.0 Hz)")
+        stdscr.addstr(4, 0, f"Actual position: {node.actual_position * 1000:.1f} mm (1 Hz)")
         stdscr.addstr(6, 0, f"Last key: {node.last_key}")
         stdscr.addstr(8, 0, "Left/Right arrow: move")
         stdscr.addstr(9, 0, "Press 'a' key to acknowledge")
@@ -246,6 +276,7 @@ def main() -> None:
     finally:
         rclpy.shutdown()
         spin_thread.join(timeout=1.0)
+        node.close_target_log()
 
 
 if __name__ == "__main__":

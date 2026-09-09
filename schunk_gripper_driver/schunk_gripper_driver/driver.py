@@ -100,6 +100,7 @@ class Driver(Node):
         super().__init__(node_name, **kwargs)
         self.grippers: list[Gripper] = []
         self.ethernet_scanner: EthernetScanner = EthernetScanner()
+        self.declare_parameter("enable_stream_plot", False)
 
         # Initialization parameters
         self.init_parameters = {
@@ -151,7 +152,7 @@ class Driver(Node):
             20.0,
             ParameterDescriptor(
                 floating_point_range=[
-                    FloatingPointRange(from_value=1.0, to_value=30.0)
+                    FloatingPointRange(from_value=1.0, to_value=20.0)
                 ]
             ),
         )
@@ -162,20 +163,10 @@ class Driver(Node):
                 integer_range=[IntegerRange(from_value=9600, to_value=1000000)]
             ),
         )
-        self.declare_parameter(
-            "max_stream_frequency",
-            30.0,
-            ParameterDescriptor(
-                floating_point_range=[
-                    FloatingPointRange(from_value=1.0, to_value=30.0)
-                ]
-            ),
-        )
 
         self.get_logger().info(
             f"Update frequency: {self.get_parameter('update_frequency').value} Hz, "
             f"Baudrate: {self.get_parameter('baudrate').value}, "
-            f"Max stream frequency: {self.get_parameter('max_stream_frequency').value} Hz, "
             f"Headless: {self.headless}"
         )
         if self.headless:
@@ -193,7 +184,6 @@ class Driver(Node):
         self.joint_state_publishers: dict[str, Publisher] = {}
         self.gripper_state_publishers: dict[str, Publisher] = {}
         self.stream_subscribers: dict[str, Subscription] = {}
-        self._last_target_position_time: dict[str, float] = {}
         self.joint_state_lock: Lock = Lock()
         self.gripper_state_lock: Lock = Lock()
 
@@ -235,6 +225,11 @@ class Driver(Node):
         # For running gripper services in parallel
         self.gripper_services_cb_group: ReentrantCallbackGroup = (
             ReentrantCallbackGroup()
+        )
+
+        # Process only one stream target callback at a time.
+        self.stream_cb_group: MutuallyExclusiveCallbackGroup = (
+            MutuallyExclusiveCallbackGroup()
         )
 
         # Joint states
@@ -412,6 +407,7 @@ class Driver(Node):
                 device_id=device_id,
                 update_cycle=None,
                 baudrate=self.get_parameter("baudrate").value,
+                enable_stream_plot=self.get_parameter("enable_stream_plot").value,
             ):
                 return False
             gripper_id = self.get_unique_id(driver.gripper_type)
@@ -462,6 +458,7 @@ class Driver(Node):
                 device_id=gripper["device_id"],
                 update_cycle=update_cycle,
                 baudrate=self.get_parameter("baudrate").value,
+                enable_stream_plot=self.get_parameter("enable_stream_plot").value,
             )
             self.grippers[idx]["driver"] = driver
 
@@ -1143,7 +1140,9 @@ class Driver(Node):
             port=request.gripper.port,
             serial_port=request.gripper.serial_port,
             device_id=request.gripper.device_id,
-            update_cycle=0.05
+            update_cycle=0.05,
+            baudrate=self.get_parameter("baudrate").value,
+            enable_stream_plot=self.get_parameter("enable_stream_plot").value
         )
         try:
             driver.acknowledge()
@@ -1417,8 +1416,8 @@ class Driver(Node):
                     response.message = "Stream already disabled"
                     return response
 
-                gripper["driver"].disable_stream()
                 gripper["is_streaming"] = False
+                gripper["driver"].disable_stream()
                 self._destroy_stream_subscriber(gripper["gripper_id"])
 
         except Exception as e:
@@ -1441,7 +1440,7 @@ class Driver(Node):
             topic=f"~/{gripper_id}/stream/target_position",
             callback=partial(self._target_position_stream_cb, gripper=gripper),
             qos_profile=1,
-            callback_group=self.gripper_services_cb_group,
+            callback_group=self.stream_cb_group,
         )
 
     def _destroy_stream_subscriber(self, gripper_id: str) -> None:
@@ -1449,20 +1448,19 @@ class Driver(Node):
             self.destroy_subscription(self.stream_subscribers.pop(gripper_id))
 
     def _target_position_stream_cb(self, msg: Float32, gripper: Gripper) -> None:
-        if not gripper["driver"].connected or not gripper["is_streaming"]:
+        if (
+            not gripper["driver"].connected
+            or not gripper["is_streaming"]
+            or not gripper["driver"].streaming_active
+        ):
             return
-
-        # Drop messages arriving faster than max_stream_frequency to protect the bus.
-        gripper_id = gripper["gripper_id"]
-        min_interval = 1.0 / self.get_parameter("max_stream_frequency").value
-        now = time.perf_counter()
-        if now - self._last_target_position_time.get(gripper_id, 0.0) < min_interval:
-            return
-        self._last_target_position_time[gripper_id] = now
 
         try:
-            gripper["driver"].set_stream_target(int(msg.data * 1e6))  # m -> um
+            gripper["driver"].move_to_streamed_target(int(msg.data * 1e6))  # m -> um
         except Exception as e:
+            if not gripper["driver"].streaming_active:
+                gripper["is_streaming"] = False
+                self._destroy_stream_subscriber(gripper["gripper_id"])
             self.get_logger().error(f"Failed to stream target position for '{gripper['gripper_id']}': {e}")
 
     def _brake_test_cb(

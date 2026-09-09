@@ -60,8 +60,22 @@ baudrate = DeclareLaunchArgument(
     default_value="115200",
     description="The Modbus baudrate",
 )
+enable_stream_plot = DeclareLaunchArgument(
+    "enable_stream_plot",
+    default_value="false",
+    description="Enable the live terminal plot of sent stream targets",
+)
 
-args = [host, port, serial_port, device_id, headless, update_frequency, baudrate]
+args = [
+    host,
+    port,
+    serial_port,
+    device_id,
+    headless,
+    update_frequency,
+    baudrate,
+    enable_stream_plot,
+]
 
 
 def generate_launch_description():
@@ -81,6 +95,7 @@ def generate_launch_description():
                     {"headless": LaunchConfiguration("headless")},
                     {"update_frequency": LaunchConfiguration("update_frequency")},
                     {"baudrate": LaunchConfiguration("baudrate")},
+                    {"enable_stream_plot": LaunchConfiguration("enable_stream_plot")},
                 ],
                 respawn=True,
                 output="both",

@@ -29,6 +29,7 @@ from .utility import supports_parity, global_scheduler
 from functools import partial
 from typing import Any, Type, cast
 from enum import Enum, auto
+from .stream_plotter import StreamPlotter
 
 # Letting each driver instance have its own non-exclusive modbus client instance does not work,
 # because in rare occations the modbus clients seem to interfere with each other when reading parameters.
@@ -47,7 +48,7 @@ def get_global_modbus_client(serial_port: str = "/dev/ttyUSB0", baudrate: int = 
                 baudrate=baudrate,
                 parity="E" if supports_parity(serial_port) else "N",
                 stopbits=1,
-                timeout=0.1,
+                timeout=1.0,
                 trace_connect=None,
                 trace_packet=None,
                 trace_pdu=None,
@@ -149,6 +150,7 @@ class Driver(object):
         self.stream_target_position_toggle: bool = False
         self.streaming_active: bool = False
         self._normal_update_cycle: float = 0.05  # sec, restored by disable_stream()
+        self.stream_plotter = None
 
     def connect(
         self,
@@ -158,6 +160,7 @@ class Driver(object):
         device_id: int | None = None,
         update_cycle: float | None = 0.05,
         baudrate: int = 115200,
+        enable_stream_plot: bool = False
     ) -> bool:
         if (isinstance(update_cycle, float) or isinstance(update_cycle, int)) and update_cycle < 0.001:
             raise ValueError("update_cycle must be at least 0.001 seconds")
@@ -210,6 +213,9 @@ class Driver(object):
             if update_cycle:
                 self.update_cycle = update_cycle
                 self.start_module_updates()
+
+        if enable_stream_plot:
+            self.stream_plotter = StreamPlotter(self.addr_str)
 
         return self.connected
 
@@ -432,10 +438,14 @@ class Driver(object):
             self.update_cycle = self.update_cycle_while_streaming  # sec (2 Hz)
             self.stream_target_position_toggle = True
             self.streaming_active = True
+            if self.stream_plotter:
+                self.stream_plotter.start()
             stream_enabled = True
             return True
         finally:
             if not stream_enabled:
+                if self.stream_plotter:
+                    self.stream_plotter.stop()
                 self.update_cycle = self._normal_update_cycle
                 self.stream_target_position_toggle = False
                 self.streaming_active = False
@@ -448,10 +458,12 @@ class Driver(object):
         with self.command_lock:
             self.streaming_active = False
             self.stream_target_position_toggle = False
+            if self.stream_plotter:
+                self.stream_plotter.stop()
             self.update_cycle = self._normal_update_cycle
             self.motion_lock.release()
 
-    def set_stream_target(self, pos: int) -> bool:
+    def move_to_streamed_target(self, pos: int) -> bool:
         """Sets and sends a new target position without waiting for completion.
 
         Intended for streaming mode, where target positions arrive continuously
@@ -466,10 +478,10 @@ class Driver(object):
             bool: True if the position was sent successfully, False otherwise.
         """
         if not self.connected:
-            raise RuntimeError("Failed to stream target position: Not connected.")
+            raise RuntimeError("Not connected.")
         with self.command_lock:
             if not self.streaming_active:
-                raise RuntimeError("Failed to stream target position: Streaming mode is not enabled.")
+                raise RuntimeError("Streaming mode is not enabled.")
 
             self.stream_target_position_toggle = not self.stream_target_position_toggle
 
@@ -486,7 +498,10 @@ class Driver(object):
                     self.set_control_bit(bit=int(bit_str), value=value)
 
                 self.set_target_position(pos)
-                self.send_plc_output()
+                if not self.send_plc_output(operation="stream target"):
+                    raise RuntimeError("Failed to send streamed target position")
+                if self.stream_plotter:
+                    self.stream_plotter.add_sample(pos)
                 return True
 
             try:
@@ -495,6 +510,8 @@ class Driver(object):
             except Exception:
                 self.streaming_active = False
                 self.stream_target_position_toggle = False
+                if self.stream_plotter:
+                    self.stream_plotter.stop()
                 self.update_cycle = self._normal_update_cycle
                 self.motion_lock.release()
                 raise
@@ -883,10 +900,14 @@ class Driver(object):
                 return True
             return False
 
-    def send_plc_output(self) -> bool:
+    def send_plc_output(self, operation: str = "heartbeat status") -> bool:
         with self.output_buffer_lock:
             buffer_cpy = bytearray(self.plc_output_buffer)
-        return self._write_param_now(self.plc_output, buffer_cpy)
+        try:
+            return self._write_param_now(self.plc_output, buffer_cpy)
+        except Exception as error:
+            print(f"Modbus write failed during {operation}: {error}")
+            raise
 
     def gpe_available(self) -> bool:
         if not self.module_type:
